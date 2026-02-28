@@ -7,6 +7,9 @@ import (
 )
 
 func GetPhase1Presets() []ConfigPreset {
+	combo := comboFrag()
+	udp := defaultUDP()
+
 	return []ConfigPreset{
 
 		// 0. Raw baseline - no bypass at all (to detect if DPI even blocks)
@@ -19,39 +22,100 @@ func GetPhase1Presets() []ConfigPreset {
 			Config:      baselineConfig(),
 		},
 
-		// 1a. TCP MD5 option - bypasses TSPU 16KB block
+		// 1. Core combo + pastseq faking (most common working config for TSPU)
 		{
-			Name:        "tcpmd5-combo",
-			Description: "TCP MD5 option to bypass TSPU 16KB throttling block",
-			Family:      FamilyTCPMD5,
+			Name:        "combo-pastseq",
+			Description: "Combo fragmentation with pastseq faking and randomized delay",
+			Family:      FamilyCombo,
 			Phase:       PhaseBaseline,
 			Priority:    1,
 			Config: config.SetConfig{
 				TCP: config.TCPConfig{
 					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   70,
 				},
-				UDP: config.UDPConfig{
-					Mode:           "fake",
-					FakeSeqLength:  6,
-					FakeLen:        64,
-					FakingStrategy: "none",
-					FilterQUIC:     "disabled",
-					FilterSTUN:     true,
-					ConnBytesLimit: 8,
+				UDP:           udp,
+				Fragmentation: combo,
+				Faking: config.FakingConfig{
+					SNI:          true,
+					TTL:          8,
+					Strategy:     "pastseq",
+					SeqOffset:    10000,
+					SNISeqLength: 1,
+					SNIType:      config.FakePayloadDefault1,
 				},
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "full",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
+			},
+		},
+
+		// 2. Core combo + TCP timestamp faking strategy
+		{
+			Name:        "combo-timestamp",
+			Description: "Combo fragmentation with TCP timestamp faking",
+			Family:      FamilyCombo,
+			Phase:       PhaseBaseline,
+			Priority:    2,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   60,
 				},
+				UDP:           udp,
+				Fragmentation: combo,
+				Faking: config.FakingConfig{
+					SNI:               true,
+					TTL:               8,
+					Strategy:          "timestamp",
+					SeqOffset:         10000,
+					SNISeqLength:      1,
+					SNIType:           config.FakePayloadDefault1,
+					TimestampDecrease: 600000,
+				},
+			},
+		},
+
+		// 3. Core combo + random sequence faking
+		{
+			Name:        "combo-random",
+			Description: "Combo fragmentation with random sequence faking",
+			Family:      FamilyCombo,
+			Phase:       PhaseBaseline,
+			Priority:    3,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   50,
+				},
+				UDP:           udp,
+				Fragmentation: combo,
+				Faking: config.FakingConfig{
+					SNI:          true,
+					TTL:          8,
+					Strategy:     "randseq",
+					SeqOffset:    10000,
+					SNISeqLength: 1,
+					SNIType:      config.FakePayloadDefault1,
+				},
+			},
+		},
+
+		// 4. TCP MD5 signature + combo + pastseq
+		{
+			Name:        "md5-combo-pastseq",
+			Description: "TCP MD5 option with combo fragmentation and pastseq faking",
+			Family:      FamilyTCPMD5,
+			Phase:       PhaseBaseline,
+			Priority:    4,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      30,
+					Seg2DelayMax:   70,
+				},
+				UDP:           udp,
+				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
 					TTL:          8,
@@ -64,16 +128,144 @@ func GetPhase1Presets() []ConfigPreset {
 			},
 		},
 
-		// 1d. Incoming fake bypass - TSPU behavioral throttling bypass
+		// 5. TCP MD5 signature + combo + timestamp faking
 		{
-			Name:        "incoming-fake",
-			Description: "Incoming fake packets to bypass TSPU behavioral throttling",
-			Family:      FamilyNone,
+			Name:        "md5-combo-timestamp",
+			Description: "TCP MD5 option with combo fragmentation and timestamp faking",
+			Family:      FamilyTCPMD5,
 			Phase:       PhaseBaseline,
-			Priority:    1,
+			Priority:    5,
 			Config: config.SetConfig{
 				TCP: config.TCPConfig{
 					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   60,
+				},
+				UDP:           udp,
+				Fragmentation: combo,
+				Faking: config.FakingConfig{
+					SNI:               true,
+					TTL:               8,
+					Strategy:          "timestamp",
+					SeqOffset:         10000,
+					SNISeqLength:      1,
+					SNIType:           config.FakePayloadDefault1,
+					TCPMD5:            true,
+					TimestampDecrease: 600000,
+				},
+			},
+		},
+
+		// 6. Post-ClientHello RST + combo + pastseq
+		{
+			Name:        "postrst-combo-pastseq",
+			Description: "Post-ClientHello RST injection with combo and pastseq faking",
+			Family:      FamilyDesync,
+			Phase:       PhaseBaseline,
+			Priority:    6,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      30,
+					Seg2DelayMax:   70,
+					Desync: config.DesyncConfig{
+						Mode:       "rst",
+						TTL:        7,
+						Count:      3,
+						PostDesync: true,
+					},
+				},
+				UDP:           udp,
+				Fragmentation: combo,
+				Faking: config.FakingConfig{
+					SNI:          true,
+					TTL:          8,
+					Strategy:     "pastseq",
+					SeqOffset:    10000,
+					SNISeqLength: 1,
+					SNIType:      config.FakePayloadDefault1,
+				},
+			},
+		},
+
+		// 7. Post-ClientHello RST + combo + timestamp faking
+		{
+			Name:        "postrst-combo-timestamp",
+			Description: "Post-ClientHello RST injection with combo and timestamp faking",
+			Family:      FamilyDesync,
+			Phase:       PhaseBaseline,
+			Priority:    7,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   60,
+					Desync: config.DesyncConfig{
+						Mode:       "rst",
+						TTL:        7,
+						Count:      3,
+						PostDesync: true,
+					},
+				},
+				UDP:           udp,
+				Fragmentation: combo,
+				Faking: config.FakingConfig{
+					SNI:               true,
+					TTL:               8,
+					Strategy:          "timestamp",
+					SeqOffset:         10000,
+					SNISeqLength:      1,
+					SNIType:           config.FakePayloadDefault1,
+					TimestampDecrease: 600000,
+				},
+			},
+		},
+
+		// 8. TCP MD5 + Post-ClientHello RST + combo (full TSPU combo)
+		{
+			Name:        "md5-postrst-combo",
+			Description: "TCP MD5 + Post-ClientHello RST + combo fragmentation",
+			Family:      FamilyNone,
+			Phase:       PhaseBaseline,
+			Priority:    8,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      30,
+					Seg2DelayMax:   90,
+					Desync: config.DesyncConfig{
+						Mode:       "rst",
+						TTL:        7,
+						Count:      3,
+						PostDesync: true,
+					},
+				},
+				UDP:           udp,
+				Fragmentation: combo,
+				Faking: config.FakingConfig{
+					SNI:          true,
+					TTL:          8,
+					Strategy:     "pastseq",
+					SeqOffset:    10000,
+					SNISeqLength: 1,
+					SNIType:      config.FakePayloadDefault1,
+					TCPMD5:       true,
+				},
+			},
+		},
+
+		// 9. Incoming fake + combo (bypasses TSPU 16KB throttling)
+		{
+			Name:        "incoming-fake-combo",
+			Description: "Incoming fake packets to bypass TSPU 16KB throttling with combo",
+			Family:      FamilyIncoming,
+			Phase:       PhaseBaseline,
+			Priority:    9,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   50,
 					Incoming: config.IncomingConfig{
 						Mode:      "fake",
 						Min:       14,
@@ -83,28 +275,8 @@ func GetPhase1Presets() []ConfigPreset {
 						Strategy:  "badsum",
 					},
 				},
-				UDP: config.UDPConfig{
-					Mode:           "fake",
-					FakeSeqLength:  6,
-					FakeLen:        64,
-					FakingStrategy: "none",
-					FilterQUIC:     "disabled",
-					FilterSTUN:     true,
-					ConnBytesLimit: 8,
-				},
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "full",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
-				},
+				UDP:           udp,
+				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
 					TTL:          8,
@@ -116,60 +288,18 @@ func GetPhase1Presets() []ConfigPreset {
 			},
 		},
 
-		// 1e. Incoming fake with random corruption strategy
+		// 10. Incoming reset + combo (RST injection at 16KB threshold)
 		{
-			Name:        "incoming-fake-rand",
-			Description: "Incoming fake with random corruption for harder DPI fingerprinting",
-			Family:      FamilyNone,
+			Name:        "incoming-reset-combo",
+			Description: "Incoming RST injection at threshold to reset DPI byte counter",
+			Family:      FamilyIncoming,
 			Phase:       PhaseBaseline,
-			Priority:    1,
+			Priority:    10,
 			Config: config.SetConfig{
 				TCP: config.TCPConfig{
 					ConnBytesLimit: 19,
-					Incoming: config.IncomingConfig{
-						Mode:      "fake",
-						Min:       14,
-						Max:       14,
-						FakeTTL:   7,
-						FakeCount: 3,
-						Strategy:  "rand",
-					},
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "full",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          8,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 1f. Incoming reset mode - threshold-based RST injection
-		{
-			Name:        "incoming-reset",
-			Description: "Inject fake RST at threshold to reset DPI byte counter",
-			Family:      FamilyNone,
-			Phase:       PhaseBaseline,
-			Priority:    1,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   50,
 					Incoming: config.IncomingConfig{
 						Mode:      "reset",
 						Min:       10,
@@ -179,20 +309,8 @@ func GetPhase1Presets() []ConfigPreset {
 						Strategy:  "badsum",
 					},
 				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "full",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
-				},
+				UDP:           udp,
+				Fragmentation: combo,
 				Faking: config.FakingConfig{
 					SNI:          true,
 					TTL:          8,
@@ -204,111 +322,53 @@ func GetPhase1Presets() []ConfigPreset {
 			},
 		},
 
-		// 1. Proven working config - this is the baseline that works for most Russian DPI
+		// 11. Combo + packet duplication (survives ISP packet drops)
 		{
-			Name:        "proven-combo",
-			Description: "Proven combination: TCP frag + reverse + middle SNI + fake pastseq",
-			Family:      FamilyNone,
+			Name:        "combo-duplicate",
+			Description: "Combo fragmentation with packet duplication",
+			Family:      FamilyCombo,
 			Phase:       PhaseBaseline,
-			Priority:    1,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-				},
-				UDP: config.UDPConfig{
-					Mode:           "fake",
-					FakeSeqLength:  6,
-					FakeLen:        64,
-					FakingStrategy: "none",
-					FilterQUIC:     "disabled",
-					FilterSTUN:     true,
-					ConnBytesLimit: 8,
-				},
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "full",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          8,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 1b. Proven config with alternate payload
-		{
-			Name:        "proven-combo-alt",
-			Description: "Proven combination with alternate fake payload",
-			Family:      FamilyNone,
-			Phase:       PhaseBaseline,
-			Priority:    1,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-				},
-				UDP: config.UDPConfig{
-					Mode:           "fake",
-					FakeSeqLength:  6,
-					FakeLen:        64,
-					FakingStrategy: "none",
-					FilterQUIC:     "disabled",
-					FilterSTUN:     true,
-					ConnBytesLimit: 8,
-				},
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "full",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          8,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault2,
-				},
-			},
-		},
-
-		// 1c. Proven disorder config for aggressive DPI (Meta/Instagram style)
-		{
-			Name:        "proven-disorder",
-			Description: "Proven disorder combination with aggressive desync for Meta-style DPI",
-			Family:      FamilyNone,
-			Phase:       PhaseBaseline,
-			Priority:    1,
+			Priority:    11,
 			Config: config.SetConfig{
 				TCP: config.TCPConfig{
 					ConnBytesLimit: 19,
 					Seg2Delay:      20,
+					Seg2DelayMax:   50,
+					Duplicate: config.DuplicateConfig{
+						Enabled: true,
+						Count:   2,
+					},
+				},
+				UDP:           udp,
+				Fragmentation: combo,
+				Faking: config.FakingConfig{
+					SNI:          true,
+					TTL:          8,
+					Strategy:     "pastseq",
+					SeqOffset:    10000,
+					SNISeqLength: 1,
+					SNIType:      config.FakePayloadDefault1,
+				},
+			},
+		},
+
+		// 12. Disorder + desync ACK (for aggressive DPI like Meta/Instagram)
+		{
+			Name:        "disorder-aggressive",
+			Description: "Disorder with desync ACK attack for aggressive DPI",
+			Family:      FamilyDisorder,
+			Phase:       PhaseBaseline,
+			Priority:    12,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   50,
 					DropSACK:       true,
 					Desync: config.DesyncConfig{
-						Mode:       "ack",
-						TTL:        7,
-						Count:      15,
-						PostDesync: false,
+						Mode:  "ack",
+						TTL:   7,
+						Count: 15,
 					},
 				},
 				UDP: config.UDPConfig{
@@ -344,670 +404,44 @@ func GetPhase1Presets() []ConfigPreset {
 			},
 		},
 
-		// 2. TCP Frag + Fake (common combo)
+		// 13. Full bypass - kitchen sink (all techniques combined)
 		{
-			Name:        "tcp-frag-fake",
-			Description: "TCP fragmentation with fake SNI",
-			Family:      FamilyTCPFrag,
-			Phase:       PhaseStrategy,
-			Priority:    2,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:    "tcp",
-					SNIPosition: 1,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 3. TCP Frag + Reverse + Fake
-		{
-			Name:        "tcp-frag-rev-fake",
-			Description: "TCP frag reverse order with fake SNI",
-			Family:      FamilyTCPFrag,
-			Phase:       PhaseStrategy,
-			Priority:    3,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "tcp",
-					SNIPosition:  1,
-					ReverseOrder: true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 4. TLS Record + Fake
-		{
-			Name:        "tls-rec-fake",
-			Description: "TLS record splitting with fake SNI",
-			Family:      FamilyTLSRec,
-			Phase:       PhaseStrategy,
-			Priority:    4,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:          "tls",
-					TLSRecordPosition: 1,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 5. OOB + Fake
-		{
-			Name:        "oob-fake",
-			Description: "Out-of-band with fake SNI",
-			Family:      FamilyOOB,
-			Phase:       PhaseStrategy,
-			Priority:    5,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:    "oob",
-					OOBPosition: 1,
-					OOBChar:     'x',
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 6. Fake only (low TTL)
-		{
-			Name:        "fake-ttl-low",
-			Description: "Fake SNI with low TTL (no fragmentation)",
-			Family:      FamilyFakeSNI,
-			Phase:       PhaseStrategy,
-			Priority:    6,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy: "none",
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          3,
-					Strategy:     "ttl",
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 7. SACK Drop + TCP Frag + Fake
-		{
-			Name:        "sack-frag-fake",
-			Description: "SACK drop with TCP frag and fake",
-			Family:      FamilySACK,
-			Phase:       PhaseStrategy,
-			Priority:    7,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					DropSACK:       true,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "tcp",
-					SNIPosition:  1,
-					ReverseOrder: true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 8. Desync RST + Frag
-		{
-			Name:        "desync-rst-frag",
-			Description: "TCP desync RST attack with fragmentation",
-			Family:      FamilyDesync,
-			Phase:       PhaseStrategy,
-			Priority:    8,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Desync: config.DesyncConfig{
-						Mode:       "rst",
-						TTL:        3,
-						Count:      3,
-						PostDesync: false,
-					},
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "tcp",
-					SNIPosition:  1,
-					ReverseOrder: true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 9. Desync Combo (RST+FIN+ACK flood)
-		{
-			Name:        "desync-combo",
-			Description: "TCP desync combo attack",
-			Family:      FamilyDesync,
-			Phase:       PhaseStrategy,
-			Priority:    9,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Desync: config.DesyncConfig{
-						Mode:       "combo",
-						TTL:        7,
-						Count:      5,
-						PostDesync: false,
-					},
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "tcp",
-					SNIPosition:  1,
-					ReverseOrder: true,
-					MiddleSNI:    true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 2,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 9.1  Combo + Decoy SNI
-		{
-			Name:        "combo-decoy",
-			Description: "Combo with decoy packet (fake SNI before real)",
-			Family:      FamilyCombo,
-			Phase:       PhaseStrategy,
-			Priority:    22,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      50,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "middle",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-						DecoyEnabled:   true,
-						DecoySNIs:      []string{"ya.ru", "vk.com", "mail.ru"},
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 10. SYN Fake with TCP frag
-		{
-			Name:        "synfake-frag",
-			Description: "SYN fake packets with fragmentation",
-			Family:      FamilySynFake,
-			Phase:       PhaseStrategy,
-			Priority:    10,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					SynFake:        true,
-					SynFakeLen:     0,
-					SynTTL:         7,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "tcp",
-					SNIPosition:  1,
-					ReverseOrder: true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 11. Seg2Delay with fragmentation (timing-based)
-		{
-			Name:        "delay-frag",
-			Description: "Delayed segments with fragmentation",
-			Family:      FamilyDelay,
-			Phase:       PhaseStrategy,
-			Priority:    11,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      10,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "tcp",
-					SNIPosition:  1,
-					ReverseOrder: true,
-					MiddleSNI:    true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 12. Very low TTL fake (TTL=1-2)
-		{
-			Name:        "fake-ttl-ultra-low",
-			Description: "Fake SNI with ultra-low TTL",
-			Family:      FamilyFakeSNI,
-			Phase:       PhaseStrategy,
-			Priority:    12,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "tcp",
-					SNIPosition:  1,
-					ReverseOrder: true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          2,
-					Strategy:     "ttl",
-					SNISeqLength: 3,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 13. Full desync attack
-		{
-			Name:        "desync-full",
-			Description: "Full desync attack sequence",
-			Family:      FamilyDesync,
-			Phase:       PhaseStrategy,
+			Name:        "full-bypass",
+			Description: "All TSPU bypass techniques combined: MD5 + PostRST + incoming + timestamp",
+			Family:      FamilyNone,
+			Phase:       PhaseBaseline,
 			Priority:    13,
 			Config: config.SetConfig{
 				TCP: config.TCPConfig{
 					ConnBytesLimit: 19,
+					Seg2Delay:      30,
+					Seg2DelayMax:   90,
 					Desync: config.DesyncConfig{
-						Mode:  "full",
-						TTL:   7,
-						Count: 5,
+						Mode:       "rst",
+						TTL:        7,
+						Count:      3,
+						PostDesync: true,
+					},
+					Incoming: config.IncomingConfig{
+						Mode:      "fake",
+						Min:       14,
+						Max:       14,
+						FakeTTL:   7,
+						FakeCount: 5,
+						Strategy:  "badsum",
 					},
 				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "tcp",
-					SNIPosition:  1,
-					ReverseOrder: true,
-					MiddleSNI:    true,
-				},
+				UDP:           udp,
+				Fragmentation: combo,
 				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    50000,
-					SNISeqLength: 3,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-		// 14. Disorder - out-of-order segments
-		{
-			Name:        "disorder-basic",
-			Description: "Out-of-order TCP segments with timing jitter",
-			Family:      FamilyDisorder,
-			Phase:       PhaseStrategy,
-			Priority:    14,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      5,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy: "disorder",
-					Disorder: config.DisorderFragConfig{
-						ShuffleMode: "full",
-						MinJitterUs: 1000,
-						MaxJitterUs: 3000,
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 16. ExtSplit - split before SNI extension
-		{
-			Name:        "extsplit-basic",
-			Description: "Split TLS ClientHello before SNI extension",
-			Family:      FamilyExtSplit,
-			Phase:       PhaseStrategy,
-			Priority:    16,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      5,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "extsplit",
-					ReverseOrder: true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 17. FirstByte - single byte desync
-		{
-			Name:        "firstbyte-basic",
-			Description: "First byte desync exploiting DPI timeouts",
-			Family:      FamilyFirstByte,
-			Phase:       PhaseStrategy,
-			Priority:    17,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      100,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy: "firstbyte",
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 18. Combo - multi-technique (recommended)
-		{
-			Name:        "combo-multi",
-			Description: "Multi-technique: firstbyte + extsplit + SNI split + disorder",
-			Family:      FamilyCombo,
-			Phase:       PhaseStrategy,
-			Priority:    18,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      100,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "full",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 5,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 18.1 Combo + Desync
-		{
-			Name:        "combo-desync",
-			Description: "Combo fragmentation with desync attack",
-			Family:      FamilyCombo,
-			Phase:       PhaseStrategy,
-			Priority:    19,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      10,
-
-					Desync: config.DesyncConfig{
-						Mode:  "ack",
-						TTL:   7,
-						Count: 3,
-					},
-				},
-				UDP: config.UDPConfig{
-					Mode:           "fake",
-					FakeSeqLength:  6,
-					FakeLen:        64,
-					FakingStrategy: "none",
-					FilterQUIC:     "parse",
-					FilterSTUN:     true,
-					ConnBytesLimit: 8,
-				},
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "combo",
-					ReverseOrder: true,
-					MiddleSNI:    true,
-					SNIPosition:  1,
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "middle",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 5,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 19. Hybrid Adaptive - auto-select best techniques
-		{
-			Name:        "hybrid-adaptive",
-			Description: "Adaptive evasion: auto-selects combo/disorder/extsplit/firstbyte",
-			Family:      FamilyHybrid,
-			Phase:       PhaseStrategy,
-			Priority:    19,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      50,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:     "hybrid",
-					MiddleSNI:    true,
-					ReverseOrder: true,
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 20. Combo + SeqOverlap
-		{
-			Name:        "combo-seqovl",
-			Description: "Combo with sequence overlap bytes",
-			Family:      FamilyCombo,
-			Phase:       PhaseStrategy,
-			Priority:    20,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      50,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:          "combo",
-					ReverseOrder:      true,
-					MiddleSNI:         true,
-					SNIPosition:       1,
-					SeqOverlapPattern: []string{"0x00", "0x00", "0x00", "0x00"},
-					Combo: config.ComboFragConfig{
-						FirstByteSplit: true,
-						ExtensionSplit: true,
-						ShuffleMode:    "full",
-						FirstDelayMs:   30,
-						JitterMaxUs:    1000,
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
-				},
-			},
-		},
-
-		// 21. Disorder + SeqOverlap
-		{
-			Name:        "disorder-seqovl",
-			Description: "Disorder with sequence overlap",
-			Family:      FamilyDisorder,
-			Phase:       PhaseStrategy,
-			Priority:    21,
-			Config: config.SetConfig{
-				TCP: config.TCPConfig{
-					ConnBytesLimit: 19,
-					Seg2Delay:      10,
-				},
-				UDP: defaultUDP(),
-				Fragmentation: config.FragmentationConfig{
-					Strategy:          "disorder",
-					SeqOverlapPattern: []string{"0x00", "0x00", "0x00", "0x00"},
-					Disorder: config.DisorderFragConfig{
-						ShuffleMode: "full",
-						MinJitterUs: 1000,
-						MaxJitterUs: 3000,
-					},
-				},
-				Faking: config.FakingConfig{
-					SNI:          true,
-					TTL:          7,
-					Strategy:     "pastseq",
-					SeqOffset:    10000,
-					SNISeqLength: 1,
-					SNIType:      config.FakePayloadDefault1,
+					SNI:               true,
+					TTL:               8,
+					Strategy:          "timestamp",
+					SeqOffset:         10000,
+					SNISeqLength:      1,
+					SNIType:           config.FakePayloadDefault1,
+					TCPMD5:            true,
+					TimestampDecrease: 600000,
 				},
 			},
 		},
@@ -1718,6 +1152,22 @@ func GetCombinationPresets(workingFamilies []StrategyFamily, bestParams map[Stra
 }
 
 // Helper functions
+
+func comboFrag() config.FragmentationConfig {
+	return config.FragmentationConfig{
+		Strategy:     "combo",
+		ReverseOrder: true,
+		MiddleSNI:    true,
+		SNIPosition:  1,
+		Combo: config.ComboFragConfig{
+			FirstByteSplit: true,
+			ExtensionSplit: true,
+			ShuffleMode:    "full",
+			FirstDelayMs:   30,
+			JitterMaxUs:    1000,
+		},
+	}
+}
 
 func baseConfig() config.SetConfig {
 	return config.NewSetConfig()

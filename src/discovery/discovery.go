@@ -276,7 +276,7 @@ func (ds *DiscoverySuite) runPhase1(presets []ConfigPreset) ([]StrategyFamily, f
 func (ds *DiscoverySuite) filterTestedPresets(presets []ConfigPreset) []ConfigPreset {
 	filtered := []ConfigPreset{}
 	for _, p := range presets {
-		if p.Name == "no-bypass" || p.Name == "proven-combo" || p.Name == "proven-combo-alt" {
+		if p.Name == "no-bypass" || p.Name == "combo-pastseq" {
 			continue
 		}
 		filtered = append(filtered, p)
