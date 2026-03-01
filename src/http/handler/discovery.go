@@ -86,10 +86,17 @@ func (api *API) handleStartDiscovery(w http.ResponseWriter, r *http.Request) {
 	// Normalize input: support both single and multi URL
 	var urls []string
 	if len(req.CheckURLs) > 0 {
-		urls = req.CheckURLs
+		for _, u := range req.CheckURLs {
+			u = strings.TrimSpace(u)
+			if u != "" {
+				urls = append(urls, u)
+			}
+		}
 	} else if req.CheckURL != "" {
 		urls = []string{req.CheckURL}
-	} else {
+	}
+
+	if len(urls) == 0 {
 		http.Error(w, "check_url or check_urls is required", http.StatusBadRequest)
 		return
 	}

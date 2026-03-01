@@ -51,8 +51,8 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
 
       if (result.success) {
         showSuccess(isNew ? "Set created" : "Set updated");
+        onRefresh();
         if (isNew && result.data) {
-          onRefresh();
           await navigate(`/sets/${result.data.id}`, { replace: true });
         }
       } else {

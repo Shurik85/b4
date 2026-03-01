@@ -76,6 +76,8 @@ export function useDiscovery() {
           );
         if (normalized.length === 0) {
           setDiscoveryRunning(false);
+          setSuiteId(null);
+          localStorage.removeItem("discovery_suiteId");
           return { success: false, error: "No URLs provided" };
         }
         const res = await discoveryApi.start(

@@ -14,6 +14,16 @@ var (
 )
 
 func NewCheckSuite(domainInputs []DomainInput) *CheckSuite {
+	if len(domainInputs) == 0 {
+		return &CheckSuite{
+			Id:        uuid.New().String(),
+			Status:    CheckStatusFailed,
+			StartTime: time.Now(),
+			cancel:    make(chan struct{}),
+			Domains:   domainInputs,
+		}
+	}
+
 	primary := domainInputs[0]
 
 	return &CheckSuite{

@@ -31,6 +31,10 @@ const (
 
 func NewDiscoverySuite(inputs []string, pool *nfq.Pool, skipDNS bool, skipCache bool, payloadFiles []string, validationTries int, tlsVersion string) *DiscoverySuite {
 	domainInputs := parseDiscoveryInputs(inputs)
+	if len(domainInputs) == 0 {
+		suite := NewCheckSuite(domainInputs)
+		return &DiscoverySuite{CheckSuite: suite}
+	}
 	suite := NewCheckSuite(domainInputs)
 
 	// Ensure validationTries is at least 1
@@ -80,7 +84,7 @@ func parseDiscoveryInput(input string) (domain string, testURL string) {
 	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
 		u, err := url.Parse(input)
 		if err == nil && u.Host != "" {
-			return u.Host, input
+			return u.Hostname(), input
 		}
 	}
 
@@ -186,6 +190,12 @@ func (ds *DiscoverySuite) RunDiscovery() {
 	} else {
 		cachedPresets = ds.discoveryCache.GetCachedPresets()
 	}
+	phase1Presets := GetPhase1Presets()
+
+	ds.CheckSuite.mu.Lock()
+	ds.TotalChecks = (len(phase1Presets) + len(cachedPresets)) * len(ds.Domains)
+	ds.CheckSuite.mu.Unlock()
+
 	if len(cachedPresets) > 0 {
 		ds.setPhase(PhaseCached)
 		log.DiscoveryLogf("Phase 0: Testing %d cached configurations across %d domains", len(cachedPresets), len(ds.Domains))
@@ -200,17 +210,13 @@ func (ds *DiscoverySuite) RunDiscovery() {
 			default:
 			}
 
-			preset.Config.Faking.SNIType = ds.bestPayload
+			if preset.Config.Faking.SNIType == config.FakePayloadRandom {
+				preset.Config.Faking.SNIType = ds.bestPayload
+			}
 			results := ds.testPresetAllDomains(preset)
 			ds.storeResultsMulti(preset, results)
 		}
 	}
-
-	phase1Presets := GetPhase1Presets()
-
-	ds.CheckSuite.mu.Lock()
-	ds.TotalChecks = (len(phase1Presets) + len(cachedPresets)) * len(ds.Domains)
-	ds.CheckSuite.mu.Unlock()
 
 	// Phase 1: Strategy detection across all domains
 	ds.setPhase(PhaseStrategy)
@@ -872,6 +878,9 @@ func (ds *DiscoverySuite) testPresetAllDomains(preset ConfigPreset) map[string]C
 				Error:  err.Error(),
 			}
 		}
+		ds.CheckSuite.mu.Lock()
+		ds.CompletedChecks += len(ds.Domains)
+		ds.CheckSuite.mu.Unlock()
 		return results
 	}
 

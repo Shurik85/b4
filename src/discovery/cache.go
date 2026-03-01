@@ -75,7 +75,7 @@ func (dc *DiscoveryCache) Save(configPath string) error {
 		return log.Errorf("failed to marshal discovery cache: %v", err)
 	}
 
-	if err := os.WriteFile(path, data, 0666); err != nil {
+	if err := os.WriteFile(path, data, 0644); err != nil {
 		return log.Errorf("failed to write discovery cache: %v", err)
 	}
 
