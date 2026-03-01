@@ -104,179 +104,91 @@ func (s *Server) handleUDPPacket(pkt []byte, from *net.UDPAddr) {
 
 	data := pkt[dataOff:]
 
-	// Find the association for this client
-	assoc := s.findAssoc(from)
-	if assoc == nil {
+	// Check if client has active TCP association
+	if !s.hasAssociation(from.IP) {
 		return
 	}
 
-	// Update client's actual UDP source port (may differ from TCP port)
-	s.udpAssocsMu.Lock()
-	assoc.clientAddr.Port = from.Port
-	assoc.lastActive = time.Now()
-	s.udpAssocsMu.Unlock()
+	// Update last active time
+	s.updateAssociation(from.IP)
 
-	s.forwardUDP(data, dest, from)
+	// Forward packet and handle response
+	s.forwardUDPPacket(data, dest, from)
 }
 
-// findAssoc returns the UDP association for the given client address.
-// It matches by IP since UDP source port differs from the TCP control port.
-func (s *Server) findAssoc(addr *net.UDPAddr) *udpAssoc {
-	s.udpAssocsMu.Lock()
-	defer s.udpAssocsMu.Unlock()
-
-	for _, a := range s.udpAssocs {
-		if a.clientAddr.IP.Equal(addr.IP) {
-			return a
-		}
-	}
-	return nil
-}
-
-// findAssocByIP returns the UDP association for the given client IP.
-func (s *Server) findAssocByIP(ip net.IP) *udpAssoc {
+// hasAssociation checks if client IP has an active UDP association
+func (s *Server) hasAssociation(ip net.IP) bool {
 	s.udpAssocsMu.Lock()
 	defer s.udpAssocsMu.Unlock()
 
 	for _, a := range s.udpAssocs {
 		if a.clientAddr.IP.Equal(ip) {
-			return a
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
-// forwardUDP sends the payload to the destination.
-// Uses a shared connection per destination to properly handle responses.
-func (s *Server) forwardUDP(data []byte, dest string, clientAddr *net.UDPAddr) {
+// updateAssociation updates the last active time for client IP
+func (s *Server) updateAssociation(ip net.IP) {
+	s.udpAssocsMu.Lock()
+	defer s.udpAssocsMu.Unlock()
+
+	for _, a := range s.udpAssocs {
+		if a.clientAddr.IP.Equal(ip) {
+			a.lastActive = time.Now()
+			return
+		}
+	}
+}
+
+// forwardUDPPacket forwards a single UDP packet and waits for response
+func (s *Server) forwardUDPPacket(data []byte, dest string, clientAddr *net.UDPAddr) {
 	destUDP, err := net.ResolveUDPAddr("udp", dest)
 	if err != nil {
 		return
 	}
 
-	// Get or create a relay connection for this destination
-	relay := s.getOrCreateRelay(dest, destUDP, clientAddr)
-	if relay == nil {
+	// Create connection for this packet
+	conn, err := net.DialUDP("udp", nil, destUDP)
+	if err != nil {
 		return
 	}
+	defer conn.Close()
 
 	// Send data to destination
-	sent, err := relay.conn.Write(data)
+	sent, err := conn.Write(data)
 	if err != nil {
 		return
 	}
 
-	relay.mu.Lock()
-	relay.bytesSent += sent
-	relay.lastActive = time.Now()
-	relay.mu.Unlock()
-}
-
-// getOrCreateRelay gets or creates a UDP relay connection for a destination
-func (s *Server) getOrCreateRelay(dest string, destAddr *net.UDPAddr, clientAddr *net.UDPAddr) *udpRelay {
-	s.udpRelaysMu.Lock()
-	defer s.udpRelaysMu.Unlock()
-
-	// Use client IP + destination as key to support multiple clients
-	relayKey := clientAddr.IP.String() + "->" + dest
-
-	if relay, exists := s.udpRelays[relayKey]; exists {
-		return relay
+	// Set read timeout
+	readTimeout := time.Duration(s.cfg.UDPReadTimeout) * time.Second
+	if readTimeout <= 0 {
+		readTimeout = 5 * time.Second
 	}
+	conn.SetReadDeadline(time.Now().Add(readTimeout))
 
-	// Create new relay connection
-	conn, err := net.DialUDP("udp", nil, destAddr)
+	// Try to read response
+	respBuf := make([]byte, 65535)
+	n, _, err := conn.ReadFromUDP(respBuf)
 	if err != nil {
-		return nil
+		// Timeout is normal for UDP - not all packets expect responses
+		return
 	}
 
-	relay := &udpRelay{
-		conn:       conn,
-		destAddr:   destAddr,
-		clientAddr: clientAddr,
-		dest:       dest,
-		lastActive: time.Now(),
+	// Build SOCKS5 UDP response header + payload
+	reply := buildUDPReply(respBuf[:n], destUDP)
+
+	// Send response back to client
+	_, err = s.udpConn.WriteToUDP(reply, clientAddr)
+	if err != nil {
+		log.Errorf("SOCKS5 UDP failed to reply to client %s: %v", clientAddr, err)
+		return
 	}
 
-	s.udpRelays[relayKey] = relay
-
-	// Start response handler for this relay
-	go s.handleUDPRelay(relay, relayKey)
-
-	return relay
-}
-
-// handleUDPRelay continuously reads responses from destination and forwards to client
-func (s *Server) handleUDPRelay(relay *udpRelay, relayKey string) {
-	defer func() {
-		relay.conn.Close()
-		s.udpRelaysMu.Lock()
-		delete(s.udpRelays, relayKey)
-		s.udpRelaysMu.Unlock()
-	}()
-
-	buf := make([]byte, 65535)
-	for {
-		// Set read deadline
-		readTimeout := time.Duration(s.cfg.UDPReadTimeout) * time.Second
-		if readTimeout <= 0 {
-			readTimeout = 5 * time.Second
-		}
-		relay.conn.SetReadDeadline(time.Now().Add(readTimeout))
-
-		n, _, err := relay.conn.ReadFromUDP(buf)
-		if err != nil {
-			// Check if server is shutting down
-			select {
-			case <-s.ctx.Done():
-				return
-			default:
-			}
-
-			// Timeout - check if relay is still active
-			relay.mu.Lock()
-			inactive := time.Since(relay.lastActive)
-			relay.mu.Unlock()
-
-			if inactive > 30*time.Second {
-				return
-			}
-			continue
-		}
-
-		// Get current client address from association (may have changed port)
-		assoc := s.findAssocByIP(relay.clientAddr.IP)
-		if assoc == nil {
-			// Association closed, stop relay
-			return
-		}
-
-		s.udpAssocsMu.Lock()
-		currentClientAddr := &net.UDPAddr{
-			IP:   assoc.clientAddr.IP,
-			Port: assoc.clientAddr.Port,
-			Zone: assoc.clientAddr.Zone,
-		}
-		s.udpAssocsMu.Unlock()
-
-		// Build SOCKS5 UDP response header + payload
-		reply := buildUDPReply(buf[:n], relay.destAddr)
-
-		// Send response back to client using current address
-		_, err = s.udpConn.WriteToUDP(reply, currentClientAddr)
-		if err != nil {
-			log.Errorf("SOCKS5 UDP failed to reply to client %s: %v", currentClientAddr, err)
-			continue
-		}
-
-		relay.mu.Lock()
-		relay.bytesRecv += n
-		relay.lastActive = time.Now()
-		relay.mu.Unlock()
-
-		// Log metrics with current client address
-		s.logUDPMetrics(currentClientAddr, relay.dest, relay.bytesSent, n)
-	}
+	// Log metrics
+	s.logUDPMetrics(clientAddr, dest, sent, n)
 }
 
 // logUDPMetrics logs UDP connection metrics
@@ -386,7 +298,7 @@ func buildUDPReply(data []byte, from *net.UDPAddr) []byte {
 	return append(hdr, data...)
 }
 
-// cleanupLoop removes stale UDP associations and relays periodically.
+// cleanupLoop removes stale UDP associations periodically.
 func (s *Server) cleanupLoop() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -414,19 +326,5 @@ func (s *Server) cleanupLoop() {
 			}
 		}
 		s.udpAssocsMu.Unlock()
-
-		// Clean up stale relays
-		s.udpRelaysMu.Lock()
-		for key, r := range s.udpRelays {
-			r.mu.Lock()
-			inactive := now.Sub(r.lastActive)
-			r.mu.Unlock()
-
-			if inactive > timeout {
-				r.conn.Close()
-				delete(s.udpRelays, key)
-			}
-		}
-		s.udpRelaysMu.Unlock()
 	}
 }
