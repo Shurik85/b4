@@ -65,4 +65,5 @@ export {
   DeviceUnknown as DeviceUnknowIcon,
   UploadFile as UploadIcon,
   FilterAlt as FilterIcon,
+  OpenInFull as FullscreenIcon,
 } from "@mui/icons-material";

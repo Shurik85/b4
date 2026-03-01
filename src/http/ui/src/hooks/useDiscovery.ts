@@ -55,7 +55,7 @@ export function useDiscovery() {
 
   const startDiscovery = useCallback(
     async (
-      url: string,
+      urls: string[],
       skipDNS: boolean = false,
       skipCache: boolean = false,
       payloadFiles: string[] = [],
@@ -66,11 +66,19 @@ export function useDiscovery() {
       setSuite(null);
       setDiscoveryRunning(true);
       try {
-        url = url.trim();
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-          url = `https://${url}`;
+        const normalized = urls
+          .map((u) => u.trim())
+          .filter((u) => u.length > 0)
+          .map((u) =>
+            u.startsWith("http://") || u.startsWith("https://")
+              ? u
+              : `https://${u}`
+          );
+        if (normalized.length === 0) {
+          setDiscoveryRunning(false);
+          return { success: false, error: "No URLs provided" };
         }
-        const res = await discoveryApi.start(url, skipDNS, skipCache, payloadFiles, validationTries, tlsVersion);
+        const res = await discoveryApi.start(normalized, skipDNS, skipCache, payloadFiles, validationTries, tlsVersion);
         setSuiteId(res.id);
         return { success: true };
       } catch (e) {

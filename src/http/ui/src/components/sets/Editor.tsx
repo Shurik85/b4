@@ -7,7 +7,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 import {
@@ -99,9 +99,13 @@ export const SetEditorPage = ({
 
   const mainSet = config.sets.find((s) => s.id === MAIN_SET_ID) ?? initialSet;
 
+  const prevSetId = useRef(initialSet.id);
   useEffect(() => {
     setEditedSet(initialSet);
-    setActiveTab(0);
+    if (prevSetId.current !== initialSet.id) {
+      setActiveTab(0);
+      prevSetId.current = initialSet.id;
+    }
   }, [initialSet]);
 
   const handleChange = (

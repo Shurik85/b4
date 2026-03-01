@@ -89,7 +89,7 @@ func (ds *DiscoverySuite) detectWorkingPayloads(presets []ConfigPreset) {
 		return
 	}
 
-	if _, exists := ds.domainResult.Results["combo-pastseq"]; !exists {
+	if _, exists := ds.domainResults[ds.Domain].Results["combo-pastseq"]; !exists {
 		result1 := ds.testPreset(*basePreset)
 		ds.storeResult(*basePreset, result1)
 
@@ -111,7 +111,7 @@ func (ds *DiscoverySuite) detectWorkingPayloads(presets []ConfigPreset) {
 	payload2Preset.Name = "combo-pastseq-alt"
 	payload2Preset.Config.Faking.SNIType = config.FakePayloadDefault2
 
-	if _, exists := ds.domainResult.Results["combo-pastseq-alt"]; !exists {
+	if _, exists := ds.domainResults[ds.Domain].Results["combo-pastseq-alt"]; !exists {
 		result2 := ds.testPreset(payload2Preset)
 		ds.storeResult(payload2Preset, result2)
 

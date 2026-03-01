@@ -3,9 +3,9 @@ import { B4SetConfig } from "@b4.sets";
 import { DiscoveryResponse, DiscoverySuite } from "@b4.discovery";
 
 export const discoveryApi = {
-  start: (check_url: string, skip_dns: boolean, skip_cache: boolean, payload_files?: string[], validation_tries?: number, tls_version?: string) =>
+  start: (check_urls: string[], skip_dns: boolean, skip_cache: boolean, payload_files?: string[], validation_tries?: number, tls_version?: string) =>
     apiPost<DiscoveryResponse>("/api/discovery/start", {
-      check_url,
+      check_urls,
       skip_dns,
       skip_cache,
       payload_files: payload_files ?? [],

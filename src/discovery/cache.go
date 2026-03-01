@@ -187,24 +187,25 @@ func (ds *DiscoverySuite) saveResultsToCache() {
 	}
 
 	ds.CheckSuite.mu.RLock()
-	results := ds.domainResult.Results
-	domain := ds.Domain
+	allResults := ds.domainResults
 	ds.CheckSuite.mu.RUnlock()
 
 	savedCount := 0
-	for _, result := range results {
-		if result.Status != CheckStatusComplete {
-			continue
-		}
-		if result.PresetName == "no-bypass" {
-			continue
-		}
-		if result.Set == nil {
-			continue
-		}
+	for domain, domainResult := range allResults {
+		for _, result := range domainResult.Results {
+			if result.Status != CheckStatusComplete {
+				continue
+			}
+			if result.PresetName == "no-bypass" {
+				continue
+			}
+			if result.Set == nil {
+				continue
+			}
 
-		ds.discoveryCache.AddEntry(*result.Set, result.Family, result.Speed, domain)
-		savedCount++
+			ds.discoveryCache.AddEntry(*result.Set, result.Family, result.Speed, domain)
+			savedCount++
+		}
 	}
 
 	if savedCount > 0 {

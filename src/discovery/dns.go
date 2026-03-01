@@ -77,11 +77,11 @@ func GetCDNCategories(domain string) (geoip, geosite []string) {
 	return nil, nil
 }
 
-func (ds *DiscoverySuite) runDNSDiscovery() *DNSDiscoveryResult {
-	log.DiscoveryLogf("Phase DNS: Checking DNS poisoning for %s", ds.Domain)
+func (ds *DiscoverySuite) runDNSDiscoveryForDomain(domain string) *DNSDiscoveryResult {
+	log.DiscoveryLogf("  DNS: Checking DNS poisoning for %s", domain)
 
 	prober := NewDNSProber(
-		ds.Domain,
+		domain,
 		time.Duration(ds.cfg.System.Checker.DiscoveryTimeoutSec)*time.Second,
 		ds.pool,
 		ds.cfg,
@@ -93,21 +93,32 @@ func (ds *DiscoverySuite) runDNSDiscovery() *DNSDiscoveryResult {
 	return prober.Probe(ctx)
 }
 
-func (ds *DiscoverySuite) applyDNSConfig(dnsResult *DNSDiscoveryResult) {
-	if dnsResult == nil || !dnsResult.hasWorkingConfig() {
-		return
+// applyBestDNSConfig applies the best DNS bypass config found across all domains.
+func (ds *DiscoverySuite) applyBestDNSConfig() {
+	var bestServer string
+	needsFragment := false
+
+	for _, dnsResult := range ds.dnsResults {
+		if dnsResult == nil || !dnsResult.IsPoisoned {
+			continue
+		}
+		if dnsResult.BestServer != "" {
+			bestServer = dnsResult.BestServer
+			needsFragment = dnsResult.NeedsFragment
+			break
+		}
+		if dnsResult.NeedsFragment {
+			needsFragment = true
+		}
 	}
 
-	ds.cfg.MainSet.DNS = config.DNSConfig{
-		Enabled:       true,
-		TargetDNS:     dnsResult.BestServer,
-		FragmentQuery: dnsResult.NeedsFragment,
-	}
-
-	if dnsResult.BestServer != "" {
-		log.DiscoveryLogf("  Applied DNS bypass: server=%s, fragment=%v", dnsResult.BestServer, dnsResult.NeedsFragment)
-	} else if dnsResult.NeedsFragment {
-		log.DiscoveryLogf("  Applied DNS bypass: fragment=true")
+	if bestServer != "" || needsFragment {
+		ds.cfg.MainSet.DNS = config.DNSConfig{
+			Enabled:       true,
+			TargetDNS:     bestServer,
+			FragmentQuery: needsFragment,
+		}
+		log.DiscoveryLogf("  Applied DNS bypass: server=%s, fragment=%v", bestServer, needsFragment)
 	}
 }
 

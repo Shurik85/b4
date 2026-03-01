@@ -83,8 +83,14 @@ func (api *API) handleStartDiscovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.CheckURL == "" {
-		http.Error(w, "Check URL is required", http.StatusBadRequest)
+	// Normalize input: support both single and multi URL
+	var urls []string
+	if len(req.CheckURLs) > 0 {
+		urls = req.CheckURLs
+	} else if req.CheckURL != "" {
+		urls = []string{req.CheckURL}
+	} else {
+		http.Error(w, "check_url or check_urls is required", http.StatusBadRequest)
 		return
 	}
 
@@ -94,21 +100,27 @@ func (api *API) handleStartDiscovery(w http.ResponseWriter, r *http.Request) {
 		validationTries = 1
 	}
 
-	suite := discovery.NewDiscoverySuite(req.CheckURL, globalPool, req.SkipDNS, req.SkipCache, req.PayloadFiles, validationTries, req.TLSVersion)
+	suite := discovery.NewDiscoverySuite(urls, globalPool, req.SkipDNS, req.SkipCache, req.PayloadFiles, validationTries, req.TLSVersion)
 
 	phase1Count := len(discovery.GetPhase1Presets())
 
 	go func() {
 		suite.RunDiscovery()
-		log.Infof("Discovery complete for %s", suite.Domain)
+		log.Infof("Discovery complete for %d domains", len(suite.Domains))
 	}()
+
+	var domainNames []string
+	for _, di := range suite.Domains {
+		domainNames = append(domainNames, di.Domain)
+	}
 
 	response := DiscoveryResponse{
 		Id:             suite.Id,
 		Domain:         suite.Domain,
+		Domains:        domainNames,
 		CheckURL:       suite.CheckURL,
-		EstimatedTests: phase1Count + 15,
-		Message:        fmt.Sprintf("Discovery started for %s", suite.Domain),
+		EstimatedTests: (phase1Count + 15) * len(suite.Domains),
+		Message:        fmt.Sprintf("Discovery started for %d domains", len(urls)),
 	}
 
 	setJsonHeader(w)

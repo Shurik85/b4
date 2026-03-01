@@ -11,7 +11,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router";
 import { SetEditorPage } from "./Editor";
 import { SetStats, SetWithStats, SetsManager } from "./Manager";
@@ -51,8 +51,10 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
 
       if (result.success) {
         showSuccess(isNew ? "Set created" : "Set updated");
-        onRefresh();
-        await navigate("/sets");
+        if (isNew && result.data) {
+          onRefresh();
+          await navigate(`/sets/${result.data.id}`, { replace: true });
+        }
       } else {
         showError(result.error || "Failed to save");
       }
@@ -82,10 +84,11 @@ export function SetsPage() {
     (B4Config & { sets?: SetWithStats[] }) | null
   >(null);
   const [loading, setLoading] = useState(true);
+  const initialLoadDone = useRef(false);
 
   const loadConfig = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!initialLoadDone.current) setLoading(true);
       const response = await fetch("/api/config");
       if (!response.ok) throw new Error("Failed to load");
       const data = (await response.json()) as B4Config & {
@@ -95,9 +98,12 @@ export function SetsPage() {
     } catch {
       showError("Failed to load configuration");
     } finally {
-      setLoading(false);
+      if (!initialLoadDone.current) {
+        setLoading(false);
+        initialLoadDone.current = true;
+      }
     }
-  }, [showError, setLoading]);
+  }, [showError]);
 
   useEffect(() => {
     loadConfig().catch(() => {});

@@ -118,7 +118,7 @@ export const DiscoveryRunner = () => {
     localStorage.setItem("b4_discovery_tls_version", options.tlsVersion);
   }, [options.tlsVersion]);
 
-  const [checkUrl, setCheckUrl] = useState("");
+  const [checkUrls, setCheckUrls] = useState("");
 
   const [addingPreset, setAddingPreset] = useState(false);
   const [addDialog, setAddDialog] = useState<{
@@ -162,14 +162,24 @@ export const DiscoveryRunner = () => {
     });
   };
 
+  const parseUrls = useCallback(
+    (text: string) =>
+      text
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0),
+    []
+  );
+
   const handleDomainKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key !== "Enter") return;
-      if (!checkUrl.trim()) return;
+      if (e.key !== "Enter" || e.shiftKey) return;
+      const urls = parseUrls(checkUrls);
+      if (urls.length === 0) return;
       e.preventDefault();
-      void startDiscovery(checkUrl, options.skipDNS, options.skipCache, options.payloadFiles, options.validationTries, options.tlsVersion);
+      void startDiscovery(urls, options.skipDNS, options.skipCache, options.payloadFiles, options.validationTries, options.tlsVersion);
     },
-    [checkUrl, options, startDiscovery]
+    [checkUrls, options, startDiscovery, parseUrls]
   );
 
   const handleAddNew = async (name: string, domain: string) => {
@@ -253,14 +263,17 @@ export const DiscoveryRunner = () => {
         {/* Header with actions */}
         <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
           <B4TextField
-            label="Domain or URL to test"
-            value={checkUrl}
-            onChange={(e) => setCheckUrl(e.target.value)}
+            label="Domains or URLs to test"
+            value={checkUrls}
+            onChange={(e) => setCheckUrls(e.target.value)}
             onKeyDown={handleDomainKeyDown}
             inputRef={domainInputRef}
-            placeholder="youtube.com or https://youtube.com/some/path"
+            placeholder={"youtube.com\ntwitter.com\nhttps://discord.com/some/path"}
             disabled={running || !!isReconnecting}
-            helperText="Enter a domain or full URL to discover optimal bypass configuration"
+            multiline
+            minRows={2}
+            maxRows={6}
+            helperText="One domain or URL per line. Press Shift+Enter for new line, Enter to start."
           />
           <Box sx={{ flexShrink: 0 }}>
             {!running && !suite && (
@@ -268,8 +281,9 @@ export const DiscoveryRunner = () => {
                 startIcon={<StartIcon />}
                 variant="contained"
                 onClick={() => {
+                  const urls = parseUrls(checkUrls);
                   void startDiscovery(
-                    checkUrl,
+                    urls,
                     options.skipDNS,
                     options.skipCache,
                     options.payloadFiles,
@@ -277,7 +291,7 @@ export const DiscoveryRunner = () => {
                     options.tlsVersion
                   );
                 }}
-                disabled={!checkUrl.trim()}
+                disabled={parseUrls(checkUrls).length === 0}
                 sx={{
                   whiteSpace: "nowrap",
                 }}
@@ -355,6 +369,15 @@ export const DiscoveryRunner = () => {
                   {suite.current_phase === "dns_detection"
                     ? "Checking DNS..."
                     : `${suite.completed_checks} of ${suite.total_checks} checks`}
+                  {suite.current_domain && (
+                    <B4Badge
+                      label={suite.current_domain}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
                 </Typography>
               </Box>
               {suite.current_phase !== "dns_detection" && (
