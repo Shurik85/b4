@@ -29,12 +29,12 @@ import { DiscoveryAddDialog } from "./AddDialog";
 import { B4Alert, B4Badge, B4Section, B4TextField } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { DiscoveryLogPanel } from "./LogPanel";
+import { useDiscovery } from "@hooks/useDiscovery";
 import {
-  useDiscovery,
   StrategyFamily,
   DiscoveryPhase,
   DomainPresetResult,
-} from "@b4.discovery";
+} from "@models/discovery";
 import { useSets } from "@hooks/useSets";
 import { useCaptures } from "@b4.capture";
 import { DiscoveryOptionsPanel, DiscoveryOptions } from "./Options";
@@ -94,7 +94,7 @@ export const DiscoveryRunner = () => {
     skipDNS: localStorage.getItem("b4_discovery_skipdns") === "true",
     skipCache: localStorage.getItem("b4_discovery_skipcache") === "true",
     payloadFiles: [],
-    validationTries: parseInt(localStorage.getItem("b4_discovery_validation_tries") || "1") || 1,
+    validationTries: Number.parseInt(localStorage.getItem("b4_discovery_validation_tries") || "1") || 1,
     tlsVersion: (localStorage.getItem("b4_discovery_tls_version") as DiscoveryOptions["tlsVersion"]) || "auto",
   }));
 
@@ -332,10 +332,11 @@ export const DiscoveryRunner = () => {
           options={options}
           onChange={setOptions}
           onClearCache={() => {
-            void clearCache().then((res) => {
+            void (async () => {
+              const res = await clearCache();
               if (res.success) showSuccess("Discovery cache cleared");
               else showError("Failed to clear cache");
-            });
+            })();
           }}
           captures={captures}
           disabled={running || !!isReconnecting}
@@ -382,7 +383,7 @@ export const DiscoveryRunner = () => {
               </Box>
               {suite.current_phase !== "dns_detection" && (
                 <Typography variant="body2" color="text.secondary">
-                  {isNaN(progress) ? "0" : progress.toFixed(0)}%
+                  {Number.isNaN(progress) ? "0" : progress.toFixed(0)}%
                 </Typography>
               )}
             </Box>

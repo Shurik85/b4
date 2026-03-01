@@ -60,7 +60,7 @@ export function useDiscovery() {
       skipCache: boolean = false,
       payloadFiles: string[] = [],
       validationTries: number = 1,
-      tlsVersion: string = "auto"
+      tlsVersion: string = "auto",
     ): Promise<ApiResponse<void>> => {
       setError(null);
       setSuite(null);
@@ -72,13 +72,20 @@ export function useDiscovery() {
           .map((u) =>
             u.startsWith("http://") || u.startsWith("https://")
               ? u
-              : `https://${u}`
+              : `https://${u}`,
           );
         if (normalized.length === 0) {
           setDiscoveryRunning(false);
           return { success: false, error: "No URLs provided" };
         }
-        const res = await discoveryApi.start(normalized, skipDNS, skipCache, payloadFiles, validationTries, tlsVersion);
+        const res = await discoveryApi.start(
+          normalized,
+          skipDNS,
+          skipCache,
+          payloadFiles,
+          validationTries,
+          tlsVersion,
+        );
         setSuiteId(res.id);
         return { success: true };
       } catch (e) {
@@ -89,7 +96,7 @@ export function useDiscovery() {
         return { success: false, error: String(e) };
       }
     },
-    []
+    [],
   );
 
   const cancelDiscovery = useCallback(async (): Promise<void> => {
@@ -122,7 +129,7 @@ export function useDiscovery() {
         return { success: false, error: String(e) };
       }
     },
-    []
+    [],
   );
 
   const clearCache = useCallback(async (): Promise<ApiResponse<void>> => {
