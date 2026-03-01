@@ -16,8 +16,8 @@
   },
   {
     "name": "DustinWin",
-    "geosite_url": "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo/geosite.dat",
-    "geoip_url": "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo/geoip.dat"
+    "geosite_url": "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-geodata/geosite.dat",
+    "geoip_url": "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-geodata/geoip.dat"
   },
   {
     "name": "Chocolate4U",
