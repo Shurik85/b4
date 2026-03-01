@@ -485,8 +485,23 @@ show_system_info() {
     fi
 
     # Check for missing kernel modules
-    if [ "$(check_kernel_module nf_conntrack)" = "missing" ]; then
-        printf "  ${YELLOW}⚠${NC}  nf_conntrack module not found - may need kernel rebuild"
+    if [ "$(check_kernel_module nf_conntrack)" = "unknown" ]; then
+        printf "  ${RED}✗${NC}  nf_conntrack module not found"
+        recommendations=$((recommendations + 1))
+    fi
+
+    if [ "$(check_kernel_module xt_connbytes)" = "unknown" ]; then
+        printf "  ${RED}✗${NC}  xt_connbytes module not found"
+        recommendations=$((recommendations + 1))
+    fi
+
+    if [ "$(check_kernel_module xt_NFQUEUE)" = "unknown" ]; then
+        printf "  ${RED}✗${NC}  xt_NFQUEUE module not found"
+        recommendations=$((recommendations + 1))
+    fi
+
+    if [ "$(check_kernel_module xt_multiport)" = "unknown" ]; then
+        printf "  ${RED}✗${NC}  xt_multiport module not found"
         recommendations=$((recommendations + 1))
     fi
 
@@ -519,3 +534,4 @@ show_system_info() {
     echo ""
 
 }
+
