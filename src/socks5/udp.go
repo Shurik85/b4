@@ -133,6 +133,19 @@ func (s *Server) findAssoc(addr *net.UDPAddr) *udpAssoc {
 	return nil
 }
 
+// findAssocByIP returns the UDP association for the given client IP.
+func (s *Server) findAssocByIP(ip net.IP) *udpAssoc {
+	s.udpAssocsMu.Lock()
+	defer s.udpAssocsMu.Unlock()
+
+	for _, a := range s.udpAssocs {
+		if a.clientAddr.IP.Equal(ip) {
+			return a
+		}
+	}
+	return nil
+}
+
 // forwardUDP sends the payload to the destination.
 // Uses a shared connection per destination to properly handle responses.
 func (s *Server) forwardUDP(data []byte, dest string, clientAddr *net.UDPAddr) {
@@ -231,13 +244,28 @@ func (s *Server) handleUDPRelay(relay *udpRelay, relayKey string) {
 			continue
 		}
 
+		// Get current client address from association (may have changed port)
+		assoc := s.findAssocByIP(relay.clientAddr.IP)
+		if assoc == nil {
+			// Association closed, stop relay
+			return
+		}
+
+		s.udpAssocsMu.Lock()
+		currentClientAddr := &net.UDPAddr{
+			IP:   assoc.clientAddr.IP,
+			Port: assoc.clientAddr.Port,
+			Zone: assoc.clientAddr.Zone,
+		}
+		s.udpAssocsMu.Unlock()
+
 		// Build SOCKS5 UDP response header + payload
 		reply := buildUDPReply(buf[:n], relay.destAddr)
 
-		// Send response back to client
-		_, err = s.udpConn.WriteToUDP(reply, relay.clientAddr)
+		// Send response back to client using current address
+		_, err = s.udpConn.WriteToUDP(reply, currentClientAddr)
 		if err != nil {
-			log.Errorf("SOCKS5 UDP failed to reply to client %s: %v", relay.clientAddr, err)
+			log.Errorf("SOCKS5 UDP failed to reply to client %s: %v", currentClientAddr, err)
 			continue
 		}
 
@@ -246,8 +274,8 @@ func (s *Server) handleUDPRelay(relay *udpRelay, relayKey string) {
 		relay.lastActive = time.Now()
 		relay.mu.Unlock()
 
-		// Log metrics
-		s.logUDPMetrics(relay.clientAddr, relay.dest, relay.bytesSent, n)
+		// Log metrics with current client address
+		s.logUDPMetrics(currentClientAddr, relay.dest, relay.bytesSent, n)
 	}
 }
 
