@@ -54,6 +54,13 @@ func (s *Server) handleUDPAssociate(conn net.Conn, clientDest string) error {
 		return fmt.Errorf("send UDP reply: %w", err)
 	}
 
+	// Clear handshake deadline - UDP associations are long-lived
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		log.Errorf("SOCKS5 UDP clear deadline failed: %v", err)
+		bindLn.Close()
+		return fmt.Errorf("clear deadline: %w", err)
+	}
+
 	// Start UDP relay in goroutine
 	go s.udpRelay(bindLn, conn, clientIP, clientPort)
 
@@ -187,14 +194,9 @@ func (s *Server) handleUDPPacket(bindLn *net.UDPConn, srcAddr *net.UDPAddr, dest
 		return
 	}
 
-	// We stored our connection; set up the response reader
-	destUDP, err := net.ResolveUDPAddr("udp", dest)
-	if err != nil {
-		log.Errorf("SOCKS5 UDP resolve address %s failed: %v", dest, err)
-		targetNew.Close()
-		conns.Delete(connKey)
-		return
-	}
+	// We stored our connection; use the actual resolved address from the dialed connection
+	// (not a separate ResolveUDPAddr which may pick a different IP for multi-A/AAAA hostnames)
+	destUDP := targetNew.RemoteAddr().(*net.UDPAddr)
 
 	go s.udpReadFromTarget(bindLn, targetNew, srcAddr, destUDP, connKey, conns)
 
