@@ -162,7 +162,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	// Start SOCKS5 server if configured
-	socks5Server := socks5.NewServer(&cfg.System.Socks5, &cfg)
+	socks5Server := socks5.NewServer(&cfg)
 	if err := socks5Server.Start(); err != nil {
 		metrics.RecordEvent("error", fmt.Sprintf("Failed to start SOCKS5 server: %v", err))
 		return log.Errorf("failed to start SOCKS5 server: %w", err)
