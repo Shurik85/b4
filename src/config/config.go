@@ -70,11 +70,6 @@ var DefaultSetConfig = SetConfig{
 			Enabled: false,
 			Count:   3,
 		},
-
-		MSSClamp: MSSClampConfig{
-			Enabled: false,
-			Size:    88,
-		},
 	},
 
 	DNS: DNSConfig{
@@ -159,6 +154,11 @@ var DefaultConfig = Config{
 			VendorLookup: false,
 			WhiteIsBlack: false,
 			Mac:          []string{},
+			MSSClamps:    []DeviceMSSClamp{},
+		},
+		MSSClamp: MSSClampConfig{
+			Enabled: false,
+			Size:    88,
 		},
 	},
 

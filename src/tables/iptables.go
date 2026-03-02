@@ -392,50 +392,53 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 
 	// MSS Clamp rules
 	global, globalSize := cfg.HasGlobalMSSClamp()
-	mssIPv4, mssIPv6 := cfg.CollectMSSClampIPs()
-
-	if global || len(mssIPv4) > 0 || len(mssIPv6) > 0 {
+	deviceClamps := cfg.CollectDeviceMSSClamps()
+	if global || len(deviceClamps) > 0 {
 		log.Infof("IPTABLES: adding MSS clamp rules")
 
 		for _, ipt := range ipts {
-			// Global MSS clamp (main set without IP targets) - all TCP port 443
+			// Global MSS clamp - all TCP port 443
 			if global {
 				tcpMSSSpec := fmt.Sprintf("%d", globalSize)
-				// Outgoing SYN (dport 443)
 				rules = append(rules,
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "I",
 						Spec: []string{"-p", "tcp", "--dport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "FORWARD", Action: "I",
 						Spec: []string{"-p", "tcp", "--dport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
-					// Incoming SYN-ACK (sport 443)
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I",
 						Spec: []string{"-p", "tcp", "--sport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
 				)
 				log.Infof("IPTABLES[%s]: global MSS clamp enabled (size: %d)", ipt, globalSize)
 			}
 
-			// Per-IP MSS clamp rules
-			var mssIPs map[int][]string
-			if ipt == "iptables" {
-				mssIPs = mssIPv4
-			} else {
-				mssIPs = mssIPv6
-			}
-			for size, ips := range mssIPs {
-				tcpMSSSpec := fmt.Sprintf("%d", size)
-				for _, ip := range ips {
-					// Outgoing SYN to target IP
+			// Per-device MSS clamp rules (FORWARD chain with MAC matching)
+			if len(deviceClamps) > 0 {
+				minSize := 1460
+				for size, macs := range deviceClamps {
+					if size < minSize {
+						minSize = size
+					}
+					tcpMSSSpec := fmt.Sprintf("%d", size)
+					for _, mac := range macs {
+						// Outgoing SYN from device (mac-source match, dport 443)
+						rules = append(rules,
+							Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "FORWARD", Action: "I",
+								Spec: []string{"-m", "mac", "--mac-source", mac, "-p", "tcp", "--dport", "443",
+									"--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
+						)
+					}
+					log.Infof("IPTABLES[%s]: per-device MSS clamp for %d devices (size: %d)", ipt, len(macs), size)
+				}
+
+				// iptables cannot match destination MAC. Add a broad FORWARD rule
+				// for incoming SYN-ACK using the smallest per-device size.
+				if !global {
 					rules = append(rules,
-						Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "I",
-							Spec: []string{"-p", "tcp", "-d", ip, "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
 						Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "FORWARD", Action: "I",
-							Spec: []string{"-p", "tcp", "-d", ip, "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
-						// Incoming SYN-ACK from target IP
-						Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I",
-							Spec: []string{"-p", "tcp", "-s", ip, "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
+							Spec: []string{"-p", "tcp", "--sport", "443",
+								"--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", fmt.Sprintf("%d", minSize)}},
 					)
 				}
-				log.Infof("IPTABLES[%s]: MSS clamp for %d targets (size: %d)", ipt, len(ips), size)
 			}
 		}
 	}

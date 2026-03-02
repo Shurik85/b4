@@ -153,18 +153,6 @@ func (c *Config) Validate() error {
 			}
 		}
 
-		if set.TCP.MSSClamp.Enabled {
-			if set.TCP.MSSClamp.Size < 10 {
-				set.TCP.MSSClamp.Size = 10
-			}
-			if set.TCP.MSSClamp.Size > 1460 {
-				set.TCP.MSSClamp.Size = 1460
-			}
-			if set.Id != MAIN_SET_ID && len(set.Targets.IPs) == 0 && len(set.Targets.GeoIpCategories) == 0 && len(set.Targets.IpsToMatch) == 0 {
-				log.Warnf("Set '%s' has MSS clamping enabled but no IP targets configured (only main set supports global MSS clamping)", set.Name)
-			}
-		}
-
 		if set.Id == MAIN_SET_ID {
 			continue
 		}
@@ -183,6 +171,28 @@ func (c *Config) Validate() error {
 
 	if len(c.MainSet.Targets.GeoIpCategories) > 0 && c.System.Geo.GeoIpPath == "" {
 		return fmt.Errorf("--geoip must be specified when using --geoip-categories")
+	}
+
+	// Validate global MSS clamp
+	if c.Queue.MSSClamp.Enabled {
+		if c.Queue.MSSClamp.Size < 10 {
+			c.Queue.MSSClamp.Size = 10
+		}
+		if c.Queue.MSSClamp.Size > 1460 {
+			c.Queue.MSSClamp.Size = 1460
+		}
+	}
+
+	// Validate per-device MSS clamps
+	for i := range c.Queue.Devices.MSSClamps {
+		dc := &c.Queue.Devices.MSSClamps[i]
+		if dc.Size < 10 {
+			dc.Size = 10
+		}
+		if dc.Size > 1460 {
+			dc.Size = 1460
+		}
+		dc.Mac = strings.ToUpper(strings.TrimSpace(dc.Mac))
 	}
 
 	if c.Queue.Threads < 1 {
@@ -418,54 +428,42 @@ func (cfg *Config) CollectUDPPorts() []string {
 	return ports
 }
 
-func (cfg *Config) CollectMSSClampIPs() (ipv4 map[int][]string, ipv6 map[int][]string) {
-	ipv4 = make(map[int][]string)
-	ipv6 = make(map[int][]string)
-	for _, set := range cfg.Sets {
-		if !set.Enabled || !set.TCP.MSSClamp.Enabled || set.TCP.MSSClamp.Size <= 0 {
+// CollectDeviceMSSClamps returns per-device MSS clamp entries grouped by size.
+// The key is the MSS size, and the value is a slice of MAC addresses.
+func (cfg *Config) CollectDeviceMSSClamps() map[int][]string {
+	result := make(map[int][]string)
+	for _, dc := range cfg.Queue.Devices.MSSClamps {
+		mac := strings.ToUpper(strings.TrimSpace(dc.Mac))
+		if mac == "" || dc.Size <= 0 {
 			continue
 		}
-		size := set.TCP.MSSClamp.Size
-		for _, ipStr := range set.Targets.IpsToMatch {
-			ipStr = strings.TrimSpace(ipStr)
-			if ipStr == "" {
-				continue
-			}
-			if strings.Contains(ipStr, ":") {
-				ipv6[size] = append(ipv6[size], ipStr)
-			} else {
-				ipv4[size] = append(ipv4[size], ipStr)
-			}
-		}
+		result[dc.Size] = append(result[dc.Size], mac)
 	}
-	return
+	return result
 }
 
 func (cfg *Config) HasGlobalMSSClamp() (bool, int) {
-	if cfg.MainSet != nil && cfg.MainSet.TCP.MSSClamp.Enabled && cfg.MainSet.TCP.MSSClamp.Size > 0 {
-		if len(cfg.MainSet.Targets.IPs) == 0 && len(cfg.MainSet.Targets.GeoIpCategories) == 0 {
-			return true, cfg.MainSet.TCP.MSSClamp.Size
-		}
+	if cfg.Queue.MSSClamp.Enabled && cfg.Queue.MSSClamp.Size > 0 {
+		return true, cfg.Queue.MSSClamp.Size
 	}
 	return false, 0
 }
 
 // MSSClampFingerprint returns a string representation of the MSS clamp configuration for comparison.
 func (cfg *Config) MSSClampFingerprint() string {
-	global, globalSize := cfg.HasGlobalMSSClamp()
-	ipv4, ipv6 := cfg.CollectMSSClampIPs()
 	parts := []string{}
+
+	global, globalSize := cfg.HasGlobalMSSClamp()
 	if global {
 		parts = append(parts, fmt.Sprintf("global:%d", globalSize))
 	}
-	for size, ips := range ipv4 {
-		sort.Strings(ips)
-		parts = append(parts, fmt.Sprintf("v4:%d:%s", size, strings.Join(ips, ",")))
+
+	deviceClamps := cfg.CollectDeviceMSSClamps()
+	for size, macs := range deviceClamps {
+		sort.Strings(macs)
+		parts = append(parts, fmt.Sprintf("dev:%d:%s", size, strings.Join(macs, ",")))
 	}
-	for size, ips := range ipv6 {
-		sort.Strings(ips)
-		parts = append(parts, fmt.Sprintf("v6:%d:%s", size, strings.Join(ips, ",")))
-	}
+
 	sort.Strings(parts)
 	return strings.Join(parts, ";")
 }

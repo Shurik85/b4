@@ -28,10 +28,6 @@ export function createDefaultSet(setCount: number): B4SetConfig {
         enabled: false,
         count: 3,
       },
-      mss_clamp: {
-        enabled: false,
-        size: 88,
-      },
     } as B4SetConfig["tcp"],
     udp: {
       mode: "fake",

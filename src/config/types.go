@@ -24,20 +24,22 @@ type ApiConfig struct {
 }
 
 type QueueConfig struct {
-	StartNum    int           `json:"start_num" bson:"start_num"`
-	Threads     int           `json:"threads" bson:"threads"`
-	Mark        uint          `json:"mark" bson:"mark"`
-	IPv4Enabled bool          `json:"ipv4" bson:"ipv4"`
-	IPv6Enabled bool          `json:"ipv6" bson:"ipv6"`
-	Interfaces  []string      `json:"interfaces" bson:"interfaces"`
-	Devices     DevicesConfig `json:"devices" bson:"devices"`
+	StartNum    int            `json:"start_num" bson:"start_num"`
+	Threads     int            `json:"threads" bson:"threads"`
+	Mark        uint           `json:"mark" bson:"mark"`
+	IPv4Enabled bool           `json:"ipv4" bson:"ipv4"`
+	IPv6Enabled bool           `json:"ipv6" bson:"ipv6"`
+	Interfaces  []string       `json:"interfaces" bson:"interfaces"`
+	Devices     DevicesConfig  `json:"devices" bson:"devices"`
+	MSSClamp    MSSClampConfig `json:"mss_clamp" bson:"mss_clamp"`
 }
 
 type DevicesConfig struct {
-	Enabled      bool     `json:"enabled" bson:"enabled"`
-	VendorLookup bool     `json:"vendor_lookup" bson:"vendor_lookup"`
-	WhiteIsBlack bool     `json:"wisb" bson:"wisb"`
-	Mac          []string `json:"mac" bson:"mac"`
+	Enabled      bool             `json:"enabled" bson:"enabled"`
+	VendorLookup bool             `json:"vendor_lookup" bson:"vendor_lookup"`
+	WhiteIsBlack bool             `json:"wisb" bson:"wisb"`
+	Mac          []string         `json:"mac" bson:"mac"`
+	MSSClamps    []DeviceMSSClamp `json:"mss_clamps" bson:"mss_clamps"`
 }
 
 type TCPConfig struct {
@@ -53,7 +55,6 @@ type TCPConfig struct {
 	Desync    DesyncConfig    `json:"desync" bson:"desync"`
 	Win       WinConfig       `json:"win" bson:"win"`
 	Duplicate DuplicateConfig `json:"duplicate" bson:"duplicate"`
-	MSSClamp  MSSClampConfig  `json:"mss_clamp" bson:"mss_clamp"`
 }
 
 type WinConfig struct {
@@ -252,4 +253,9 @@ type DuplicateConfig struct {
 type MSSClampConfig struct {
 	Enabled bool `json:"enabled" bson:"enabled"`
 	Size    int  `json:"size" bson:"size"` // MSS value in bytes (e.g., 88)
+}
+
+type DeviceMSSClamp struct {
+	Mac  string `json:"mac" bson:"mac"`
+	Size int    `json:"size" bson:"size"`
 }
