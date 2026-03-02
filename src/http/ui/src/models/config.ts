@@ -90,6 +90,7 @@ export interface TargetsConfig {
   ip: string[];
   geosite_categories: string[];
   geoip_categories: string[];
+  source_devices?: string[];
 }
 
 export interface DomainStatisticsConfig {

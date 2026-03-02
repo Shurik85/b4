@@ -183,7 +183,7 @@ func (w *Worker) Start() error {
 
 			srcMac := w.getMacByIp(srcStr)
 
-			matched, st := matcher.MatchIP(dst)
+			matched, st := matcher.MatchIPWithSource(dst, srcMac)
 			if matched {
 				set = st
 			}
@@ -304,7 +304,7 @@ func (w *Worker) Start() error {
 					}
 
 					if host != "" {
-						if mSNI, stSNI := matcher.MatchSNI(host); mSNI {
+						if mSNI, stSNI := matcher.MatchSNIWithSource(host, srcMac); mSNI {
 							matchedSNI = true
 							matched = true
 							set = stSNI
@@ -393,7 +393,7 @@ func (w *Worker) Start() error {
 				connKey := fmt.Sprintf(connKeyFormat, srcStr, sport, dstStr, dport)
 
 				if sport == 53 || dport == 53 {
-					return w.processDnsPacket(v, sport, dport, payload, raw, ihl, id)
+					return w.processDnsPacket(v, sport, dport, payload, raw, ihl, id, srcMac)
 				}
 
 				if utils.IsPrivateIP(dst) {
@@ -415,7 +415,7 @@ func (w *Worker) Start() error {
 				}
 
 				if !matchedIP {
-					if mLearned, learnedSet, learnedDomain := matcher.MatchLearnedIP(dst); mLearned {
+					if mLearned, learnedSet, learnedDomain := matcher.MatchLearnedIPWithSource(dst, srcMac); mLearned {
 						matchedIP = true
 						matched = true
 						set = learnedSet
@@ -434,7 +434,7 @@ func (w *Worker) Start() error {
 				}
 
 				if host != "" {
-					if mSNI, sniSet := matcher.MatchSNI(host); mSNI {
+					if mSNI, sniSet := matcher.MatchSNIWithSource(host, srcMac); mSNI {
 						matchedQUIC = true
 						set = sniSet
 						sniTarget = sniSet.Name

@@ -63,6 +63,7 @@ export {
   GitHub as GitHubIcon,
   KeyboardArrowDown as ArrowDownIcon,
   DeviceUnknown as DeviceUnknowIcon,
+  Phonelink as DeviceIcon,
   UploadFile as UploadIcon,
   FilterAlt as FilterIcon,
   OpenInFull as FullscreenIcon,

@@ -139,6 +139,7 @@ type TargetsConfig struct {
 	IPs               []string `json:"ip" bson:"ip"`
 	GeoSiteCategories []string `json:"geosite_categories" bson:"geosite_categories"`
 	GeoIpCategories   []string `json:"geoip_categories" bson:"geoip_categories"`
+	SourceDevices     []string `json:"source_devices" bson:"source_devices"`
 	DomainsToMatch    []string `json:"-" bson:"-"`
 	IpsToMatch        []string `json:"-" bson:"-"`
 }
