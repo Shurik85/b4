@@ -90,6 +90,7 @@ export interface TargetsConfig {
   ip: string[];
   geosite_categories: string[];
   geoip_categories: string[];
+  source_devices?: string[];
 }
 
 export interface DomainStatisticsConfig {
@@ -131,6 +132,7 @@ export interface QueueConfig {
   ipv6: boolean;
   interfaces: string[];
   devices: DevicesConfig;
+  mss_clamp: MSSClampConfig;
 }
 
 export interface DevicesConfig {
@@ -138,6 +140,12 @@ export interface DevicesConfig {
   enabled: boolean;
   vendor_lookup: boolean;
   wisb: boolean;
+  mss_clamps: DeviceMSSClamp[];
+}
+
+export interface DeviceMSSClamp {
+  mac: string;
+  size: number;
 }
 
 export interface DiscoveryConfig {
@@ -166,7 +174,6 @@ export interface TcpConfig {
   win: WinConfig;
   incoming: IncomingConfig;
   duplicate?: DuplicateConfig;
-  mss_clamp?: MSSClampConfig;
 }
 
 export interface IncomingConfig {

@@ -42,10 +42,13 @@ var migrationRegistry = map[int]MigrationFunc{
 }
 
 func migrateV22to23(c *Config, _ map[string]interface{}) error {
-	log.Tracef("Migration v22->v23: Adding TCP MSS clamping config")
-	for _, set := range c.Sets {
-		set.TCP.MSSClamp = DefaultSetConfig.TCP.MSSClamp
+	log.Tracef("Migration v22->v23: Adding queue-level MSS clamping config")
+
+	c.Queue.MSSClamp = DefaultConfig.Queue.MSSClamp
+	if c.Queue.Devices.MSSClamps == nil {
+		c.Queue.Devices.MSSClamps = []DeviceMSSClamp{}
 	}
+
 	return nil
 }
 

@@ -10,6 +10,15 @@ import {
   Skeleton,
   Tooltip,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Checkbox,
+  Paper,
+  CircularProgress,
 } from "@mui/material";
 import {
   DomainIcon,
@@ -17,6 +26,8 @@ import {
   InfoIcon,
   ClearIcon,
   IpIcon,
+  DeviceIcon,
+  RefreshIcon,
 } from "@b4.icons";
 
 import {
@@ -28,9 +39,13 @@ import {
   B4Tab,
   B4ChipList,
   B4PlusButton,
+  B4Badge,
+  B4TooltipButton,
 } from "@b4.elements";
 import SettingAutocomplete from "@common/B4Autocomplete";
 import { B4SetConfig, GeoConfig } from "@models/config";
+import { useDevices } from "@b4.devices";
+import { colors } from "@design";
 import { SetStats } from "./Manager";
 
 interface TargetSettingsProps {
@@ -75,6 +90,12 @@ export const TargetSettings = ({
   stats,
 }: TargetSettingsProps) => {
   const [tabValue, setTabValue] = useState(0);
+  const {
+    devices,
+    loading: devicesLoading,
+    available: devicesAvailable,
+    loadDevices,
+  } = useDevices();
   const [newBypassDomain, setNewBypassDomain] = useState("");
   const [newBypassIP, setNewBypassIP] = useState("");
   const [newBypassCategory, setNewBypassCategory] = useState("");
@@ -102,6 +123,10 @@ export const TargetSettings = ({
       void loadAvailableGeoIPCategories();
     }
   }, [geo.sitedat_path, geo.ipdat_path]);
+
+  useEffect(() => {
+    loadDevices().catch(() => {});
+  }, [loadDevices]);
 
   const loadAvailableSiteCategories = async () => {
     setLoadingCategories(true);
@@ -180,7 +205,7 @@ export const TargetSettings = ({
   const handleRemoveBypassIP = (ip: string) => {
     onChange(
       "targets.ip",
-      config.targets.ip.filter((d) => d !== ip)
+      config.targets.ip.filter((d) => d !== ip),
     );
   };
 
@@ -197,14 +222,14 @@ export const TargetSettings = ({
   const handleRemoveBypassGeoIPCategory = (category: string) => {
     onChange(
       "targets.geoip_categories",
-      config.targets.geoip_categories.filter((c) => c !== category)
+      config.targets.geoip_categories.filter((c) => c !== category),
     );
   };
 
   const handleRemoveBypassDomain = (domain: string) => {
     onChange(
       "targets.sni_domains",
-      config.targets.sni_domains.filter((d) => d !== domain)
+      config.targets.sni_domains.filter((d) => d !== domain),
     );
   };
 
@@ -221,7 +246,7 @@ export const TargetSettings = ({
   const handleRemoveBypassCategory = (category: string) => {
     onChange(
       "targets.geosite_categories",
-      config.targets.geosite_categories.filter((c) => c !== category)
+      config.targets.geosite_categories.filter((c) => c !== category),
     );
   };
 
@@ -229,7 +254,7 @@ export const TargetSettings = ({
     setPreviewDialog({ open: true, category, loading: true });
     try {
       const response = await fetch(
-        `/api/geosite/category?tag=${encodeURIComponent(category)}`
+        `/api/geosite/category?tag=${encodeURIComponent(category)}`,
       );
       if (response.ok) {
         const data = (await response.json()) as CategoryPreview;
@@ -243,7 +268,7 @@ export const TargetSettings = ({
 
   const renderCategoryLabel = (
     category: string,
-    breakdown?: Record<string, number>
+    breakdown?: Record<string, number>,
   ) => {
     const count = breakdown?.[category];
     return (
@@ -267,6 +292,22 @@ export const TargetSettings = ({
     );
   };
 
+  const selectedSourceDevices: string[] = config.targets.source_devices ?? [];
+
+  const handleSourceDeviceToggle = (mac: string) => {
+    const current = [...selectedSourceDevices];
+    const index = current.indexOf(mac);
+    if (index === -1) {
+      current.push(mac);
+    } else {
+      current.splice(index, 1);
+    }
+    onChange("targets.source_devices", current);
+  };
+
+  const isSourceDeviceSelected = (mac: string) =>
+    selectedSourceDevices.includes(mac);
+
   return (
     <>
       <Stack spacing={3}>
@@ -282,6 +323,15 @@ export const TargetSettings = ({
             >
               <B4Tab icon={<DomainIcon />} label="Bypass Domains" inline />
               <B4Tab icon={<IpIcon />} label="Bypass IPs" inline />
+              <B4Tab
+                icon={<DeviceIcon />}
+                label={
+                  selectedSourceDevices.length > 0
+                    ? `Source Devices (${selectedSourceDevices.length})`
+                    : "Source Devices"
+                }
+                inline
+              />
             </B4Tabs>
           </Box>
 
@@ -387,7 +437,7 @@ export const TargetSettings = ({
                         getLabel={(c) =>
                           renderCategoryLabel(
                             c,
-                            stats?.geosite_category_breakdown
+                            stats?.geosite_category_breakdown,
                           )
                         }
                         onDelete={handleRemoveBypassCategory}
@@ -522,7 +572,7 @@ export const TargetSettings = ({
                         getLabel={(c) =>
                           renderCategoryLabel(
                             c,
-                            stats?.geoip_category_breakdown
+                            stats?.geoip_category_breakdown,
                           )
                         }
                         onDelete={handleRemoveBypassGeoIPCategory}
@@ -533,6 +583,192 @@ export const TargetSettings = ({
                 </Grid>
               )}
             </Grid>
+          </TabPanel>
+
+          {/* Source Devices Tab */}
+          <TabPanel value={tabValue} index={2}>
+            <B4Alert severity="info">
+              Restrict this set to specific source devices. When devices are
+              selected, this set will only apply to traffic from those devices.
+              Device-specific sets take priority over general sets.
+            </B4Alert>
+
+            {devicesAvailable ? (
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 1,
+                      mt: 2,
+                    }}
+                  >
+                    <Typography variant="subtitle2">
+                      Available Devices
+                      {selectedSourceDevices.length > 0 && (
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          sx={{ ml: 1, color: colors.secondary }}
+                        >
+                          ({selectedSourceDevices.length} selected)
+                        </Typography>
+                      )}
+                    </Typography>
+                    <B4TooltipButton
+                      title="Refresh devices"
+                      icon={
+                        devicesLoading ? (
+                          <CircularProgress size={18} />
+                        ) : (
+                          <RefreshIcon />
+                        )
+                      }
+                      onClick={() => {
+                        loadDevices().catch(() => {});
+                      }}
+                    />
+                  </Box>
+
+                  <TableContainer
+                    component={Paper}
+                    sx={{
+                      bgcolor: colors.background.paper,
+                      border: `1px solid ${colors.border.default}`,
+                      maxHeight: 350,
+                    }}
+                  >
+                    <Table size="small" stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell
+                            padding="checkbox"
+                            sx={{ bgcolor: colors.background.dark }}
+                          >
+                            <Checkbox
+                              color="secondary"
+                              indeterminate={
+                                selectedSourceDevices.length > 0 &&
+                                selectedSourceDevices.length < devices.length
+                              }
+                              checked={
+                                devices.length > 0 &&
+                                selectedSourceDevices.length === devices.length
+                              }
+                              onChange={(e) =>
+                                onChange(
+                                  "targets.source_devices",
+                                  e.target.checked
+                                    ? devices.map((d) => d.mac)
+                                    : [],
+                                )
+                              }
+                            />
+                          </TableCell>
+                          {["MAC Address", "IP", "Name"].map((label) => (
+                            <TableCell
+                              key={label}
+                              sx={{
+                                bgcolor: colors.background.dark,
+                                color: colors.text.secondary,
+                              }}
+                            >
+                              {label}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {devices.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} align="center">
+                              {devicesLoading
+                                ? "Loading devices..."
+                                : "No devices found"}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          devices.map((device) => (
+                            <TableRow
+                              key={device.mac}
+                              hover
+                              onClick={() =>
+                                handleSourceDeviceToggle(device.mac)
+                              }
+                              sx={{ cursor: "pointer" }}
+                            >
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  checked={isSourceDeviceSelected(device.mac)}
+                                  color="secondary"
+                                  onChange={(event) => {
+                                    event.stopPropagation();
+                                    handleSourceDeviceToggle(device.mac);
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  fontFamily: "monospace",
+                                  fontSize: "0.85rem",
+                                }}
+                              >
+                                {device.mac}
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  fontFamily: "monospace",
+                                  fontSize: "0.85rem",
+                                }}
+                              >
+                                {device.ip}
+                              </TableCell>
+                              <TableCell>
+                                <B4Badge
+                                  label={
+                                    device.alias ||
+                                    device.vendor ||
+                                    device.hostname ||
+                                    "Unknown"
+                                  }
+                                  color="primary"
+                                  variant={
+                                    isSourceDeviceSelected(device.mac)
+                                      ? "filled"
+                                      : "outlined"
+                                  }
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                  {selectedSourceDevices.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Button
+                        size="small"
+                        onClick={() => onChange("targets.source_devices", [])}
+                        startIcon={<ClearIcon />}
+                      >
+                        Clear All
+                      </Button>
+                    </Box>
+                  )}
+                </Grid>
+              </Grid>
+            ) : (
+              <Box sx={{ mt: 2 }}>
+                <B4Alert severity="warning">
+                  DHCP lease source not detected. Device discovery is
+                  unavailable. Source device filtering requires a DHCP server.
+                </B4Alert>
+              </Box>
+            )}
           </TabPanel>
         </B4Section>
       </Stack>

@@ -18,7 +18,6 @@ interface TcpGeneralProps {
 
 export const TcpGeneral = ({ config, main, onChange }: TcpGeneralProps) => {
   const dup = config.tcp.duplicate ?? { enabled: false, count: 3 };
-  const mss = config.tcp.mss_clamp ?? { enabled: false, size: 88 };
 
   return (
     <>
@@ -132,57 +131,6 @@ export const TcpGeneral = ({ config, main, onChange }: TcpGeneralProps) => {
         )}
       </Grid>
 
-      {/* MSS Clamping */}
-      <B4FormHeader label="MSS Clamping" />
-      <Grid container spacing={3}>
-        <B4Alert>
-          Reduces the TCP Maximum Segment Size on SYN/SYN-ACK packets, forcing
-          the client to fragment its data (including the TLS ClientHello with
-          SNI) into small segments. Most DPI systems cannot reassemble
-          fragmented ClientHello. Ideal for smart TVs and devices where you
-          cannot install bypass software.{" "}
-          {main.id === config.id
-            ? "On the main set without IP targets, this applies globally to all TCP port 443 traffic."
-            : "Requires IP targets to be configured in this set."}
-        </B4Alert>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={mss.enabled}
-                onChange={(e) =>
-                  onChange("tcp.mss_clamp.enabled", e.target.checked)
-                }
-                color="primary"
-              />
-            }
-            label={
-              <Box>
-                <Typography variant="body1" fontWeight={500}>
-                  Enable MSS Clamping
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Clamp MSS on SYN packets via firewall rules
-                  (nftables/iptables)
-                </Typography>
-              </Box>
-            }
-          />
-        </Grid>
-        {mss.enabled && (
-          <Grid size={{ xs: 12, md: 6 }}>
-            <B4Slider
-              label="MSS Size"
-              value={mss.size}
-              onChange={(value: number) => onChange("tcp.mss_clamp.size", value)}
-              min={10}
-              max={1460}
-              step={1}
-              helperText="Lower values = more fragmentation. 88 is commonly used for YouTube bypass."
-            />
-          </Grid>
-        )}
-      </Grid>
     </>
   );
 };

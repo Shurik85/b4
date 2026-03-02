@@ -27,6 +27,7 @@ type portRange struct {
 
 type SuffixSet struct {
 	sets       map[string]*config.SetConfig
+	multiSets  map[string][]*config.SetConfig // domain -> multiple sets (for source device priority)
 	regexes    []*regexWithSet
 	regexCache sync.Map
 	ipRanger   cidranger.Ranger
@@ -75,9 +76,10 @@ func (e *ipRange) Network() net.IPNet {
 
 func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 	s := &SuffixSet{
-		sets:     make(map[string]*config.SetConfig),
-		regexes:  make([]*regexWithSet, 0),
-		ipRanger: cidranger.NewPCTrieRanger(),
+		sets:      make(map[string]*config.SetConfig),
+		multiSets: make(map[string][]*config.SetConfig),
+		regexes:   make([]*regexWithSet, 0),
+		ipRanger:  cidranger.NewPCTrieRanger(),
 
 		ipCache:      make(map[string]*cacheEntry),
 		ipCacheLRU:   list.New(),
@@ -99,7 +101,6 @@ func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 		if !set.Enabled {
 			continue
 		}
-
 		for _, d := range set.Targets.DomainsToMatch {
 			d = strings.ToLower(strings.TrimSpace(d))
 			if d == "" {
@@ -121,6 +122,7 @@ func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 
 			// Regular domain
 			d = strings.TrimRight(d, ".")
+			s.multiSets[d] = append(s.multiSets[d], set)
 			if _, exists := s.sets[d]; !exists {
 				s.sets[d] = set
 			}
@@ -531,5 +533,184 @@ func (s *SuffixSet) MatchUDPPortOnly(dport uint16) (bool, *config.SetConfig) {
 			return true, r.set
 		}
 	}
+	return false, nil
+}
+
+// setMatchesSource checks if srcMAC is allowed by the set's source device filter.
+// Returns true if the set has no source devices (matches any source) or if srcMAC is in the list.
+func setMatchesSource(set *config.SetConfig, srcMAC string) bool {
+	if len(set.Targets.SourceDevices) == 0 {
+		return true
+	}
+	if srcMAC == "" {
+		return false // Unknown source MAC: don't match device-restricted sets, fall back to general sets
+	}
+	for _, mac := range set.Targets.SourceDevices {
+		if strings.EqualFold(mac, srcMAC) {
+			return true
+		}
+	}
+	return false
+}
+
+// MatchSNIWithSource matches a domain with source device priority.
+// Sets with source_devices that match srcMAC get priority over general sets.
+func (s *SuffixSet) MatchSNIWithSource(host string, srcMAC string) (bool, *config.SetConfig) {
+	if s == nil || (len(s.sets) == 0 && len(s.regexes) == 0) || host == "" {
+		return false, nil
+	}
+
+	lower := strings.ToLower(host)
+
+	// Find all matching sets for this domain and pick best one
+	if matched, set := s.matchDomainWithSource(lower, srcMAC); matched {
+		return true, set
+	}
+
+	// Regex fallback
+	if len(s.regexes) > 0 {
+		return s.matchRegexWithSource(lower, srcMAC)
+	}
+
+	return false, nil
+}
+
+// matchDomainWithSource finds domain matches and applies source device priority.
+// Priority: device-specific set > general set.
+func (s *SuffixSet) matchDomainWithSource(host string, srcMAC string) (bool, *config.SetConfig) {
+	// Collect candidate domains (exact + suffix matches)
+	candidates := s.findDomainCandidates(host)
+
+	if len(candidates) == 0 {
+		return false, nil
+	}
+
+	return selectSetBySource(candidates, srcMAC)
+}
+
+// findDomainCandidates returns all sets that match the given host via exact or suffix match.
+func (s *SuffixSet) findDomainCandidates(host string) []*config.SetConfig {
+	// Try exact match
+	if sets, ok := s.multiSets[host]; ok {
+		return sets
+	}
+
+	// Try suffix matching
+	remaining := host
+	for {
+		idx := strings.IndexByte(remaining, '.')
+		if idx == -1 {
+			break
+		}
+		remaining = remaining[idx+1:]
+		if sets, ok := s.multiSets[remaining]; ok {
+			return sets
+		}
+	}
+	return nil
+}
+
+// matchRegexWithSource applies source device priority to regex matches.
+func (s *SuffixSet) matchRegexWithSource(host string, srcMAC string) (bool, *config.SetConfig) {
+	var candidates []*config.SetConfig
+	for _, rws := range s.regexes {
+		if rws.regex.MatchString(host) {
+			candidates = append(candidates, rws.set)
+		}
+	}
+	if len(candidates) == 0 {
+		return false, nil
+	}
+	return selectSetBySource(candidates, srcMAC)
+}
+
+// MatchIPWithSource matches an IP with source device priority.
+func (s *SuffixSet) MatchIPWithSource(ip net.IP, srcMAC string) (bool, *config.SetConfig) {
+	if s == nil || s.ipRanger == nil || ip == nil {
+		return false, nil
+	}
+
+	entries, err := s.ipRanger.ContainingNetworks(ip)
+	if err != nil || len(entries) == 0 {
+		return false, nil
+	}
+
+	var candidates []*config.SetConfig
+	for _, e := range entries {
+		candidates = append(candidates, e.(*ipRange).set)
+	}
+
+	return selectSetBySource(candidates, srcMAC)
+}
+
+// MatchLearnedIPWithSource matches a learned IP with source device priority.
+func (s *SuffixSet) MatchLearnedIPWithSource(ip net.IP, srcMAC string) (bool, *config.SetConfig, string) {
+	if s == nil || ip == nil {
+		return false, nil, ""
+	}
+
+	ipStr := ip.String()
+
+	s.learnedIPCacheMu.RLock()
+	entry, exists := s.learnedIPCache[ipStr]
+	s.learnedIPCacheMu.RUnlock()
+
+	if !exists {
+		return false, nil, ""
+	}
+
+	s.learnedIPCacheMu.Lock()
+	defer s.learnedIPCacheMu.Unlock()
+
+	entry, exists = s.learnedIPCache[ipStr]
+	if !exists {
+		return false, nil, ""
+	}
+
+	if time.Since(entry.learnedAt) > s.learnedIPTTL {
+		if currentEntry, stillExists := s.learnedIPCache[ipStr]; stillExists && currentEntry == entry {
+			delete(s.learnedIPCache, ipStr)
+			s.learnedIPCacheLRU.Remove(entry.element)
+		}
+		return false, nil, ""
+	}
+
+	if !setMatchesSource(entry.set, srcMAC) {
+		// The learned set doesn't match this source device.
+		// Try to find another set that matches this domain + source.
+		if matched, altSet := s.MatchSNIWithSource(entry.domain, srcMAC); matched {
+			entry.learnedAt = time.Now()
+			s.learnedIPCacheLRU.MoveToFront(entry.element)
+			return true, altSet, entry.domain
+		}
+		return false, nil, ""
+	}
+
+	entry.learnedAt = time.Now()
+	s.learnedIPCacheLRU.MoveToFront(entry.element)
+	return true, entry.set, entry.domain
+}
+
+// selectSetBySource picks the best matching set from candidates using source device priority.
+// Sets with source_devices that match srcMAC take priority over sets without source_devices.
+func selectSetBySource(candidates []*config.SetConfig, srcMAC string) (bool, *config.SetConfig) {
+	if len(candidates) == 0 {
+		return false, nil
+	}
+
+	// First pass: prefer sets WITH source devices that match this srcMAC
+	for _, set := range candidates {
+		if len(set.Targets.SourceDevices) > 0 && setMatchesSource(set, srcMAC) {
+			return true, set
+		}
+	}
+
+	// Second pass: fall back to sets WITHOUT source devices (general sets)
+	for _, set := range candidates {
+		if len(set.Targets.SourceDevices) == 0 {
+			return true, set
+		}
+	}
+
 	return false, nil
 }

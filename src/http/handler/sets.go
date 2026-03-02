@@ -311,6 +311,9 @@ func (api *API) initializeSetDefaults(set *config.SetConfig) {
 	if set.Targets.GeoIpCategories == nil {
 		set.Targets.GeoIpCategories = []string{}
 	}
+	if set.Targets.SourceDevices == nil {
+		set.Targets.SourceDevices = []string{}
+	}
 	if set.TCP.Win.Values == nil {
 		set.TCP.Win.Values = []int{0, 1460, 8192, 65535}
 	}

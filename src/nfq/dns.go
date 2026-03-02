@@ -11,13 +11,13 @@ import (
 	"github.com/florianl/go-nfqueue"
 )
 
-func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, payload []byte, raw []byte, ihl int, id uint32) int {
+func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, payload []byte, raw []byte, ihl int, id uint32, srcMac string) int {
 
 	if dport == 53 {
 		domain, ok := dns.ParseQueryDomain(payload)
 		if ok {
 			matcher := w.getMatcher()
-			if matchedSet, set := matcher.MatchSNI(domain); matchedSet && set.DNS.Enabled && set.DNS.TargetDNS != "" {
+			if matchedSet, set := matcher.MatchSNIWithSource(domain, srcMac); matchedSet && set.DNS.Enabled && set.DNS.TargetDNS != "" {
 
 				targetIP := net.ParseIP(set.DNS.TargetDNS)
 				if targetIP == nil {

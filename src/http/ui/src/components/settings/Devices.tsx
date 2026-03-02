@@ -15,7 +15,9 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  TextField,
 } from "@mui/material";
+import { DeviceMSSClamp } from "@models/config";
 import { DeviceUnknowIcon, RefreshIcon } from "@b4.icons";
 import EditIcon from "@mui/icons-material/Edit";
 import RestoreIcon from "@mui/icons-material/Restore";
@@ -103,6 +105,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
   const enabled = config.queue.devices?.enabled || false;
   const vendorLookup = config.queue.devices?.vendor_lookup || false;
   const wisb = config.queue.devices?.wisb || false;
+  const mssClamps: DeviceMSSClamp[] = config.queue.devices?.mss_clamps || [];
   const {
     devices,
     loading,
@@ -126,6 +129,30 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
       current.splice(index, 1);
     }
     onChange("queue.devices.mac", current);
+  };
+
+  const getMSSSize = (mac: string): number | "" => {
+    const entry = mssClamps.find(
+      (c) => c.mac.toUpperCase() === mac.toUpperCase(),
+    );
+    return entry ? entry.size : "";
+  };
+
+  const handleMSSChange = (mac: string, size: number | null) => {
+    const current = [...mssClamps];
+    const idx = current.findIndex(
+      (c) => c.mac.toUpperCase() === mac.toUpperCase(),
+    );
+    if (size === null || size === 0) {
+      if (idx !== -1) current.splice(idx, 1);
+    } else {
+      if (idx !== -1) {
+        current[idx] = { ...current[idx], size };
+      } else {
+        current.push({ mac: mac.toUpperCase(), size });
+      }
+    }
+    onChange("queue.devices.mss_clamps", current);
   };
 
   const isSelected = (mac: string) => selectedMacs.includes(mac);
@@ -239,7 +266,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                             }
                           />
                         </TableCell>
-                        {["MAC Address", "IP", "Name"].map((label) => (
+                        {["MAC Address", "IP", "Name", "MSS"].map((label) => (
                           <TableCell
                             key={label}
                             sx={{
@@ -255,7 +282,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                     <TableBody>
                       {devices.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} align="center">
+                          <TableCell colSpan={5} align="center">
                             {loading
                               ? "Loading devices..."
                               : "No devices found"}
@@ -309,6 +336,33 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                                   if (result.success) setEditingMac(null);
                                 }}
                                 onCancelEdit={() => setEditingMac(null)}
+                              />
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={getMSSSize(device.mac)}
+                                onChange={(e) => {
+                                  const val =
+                                    e.target.value === ""
+                                      ? null
+                                      : Number(e.target.value);
+                                  handleMSSChange(device.mac, val);
+                                }}
+                                placeholder="off"
+                                slotProps={{
+                                  htmlInput: {
+                                    min: 10,
+                                    max: 1460,
+                                    style: { width: 50, padding: "4px 8px" },
+                                  },
+                                }}
+                                sx={{
+                                  "& .MuiOutlinedInput-root": {
+                                    fontSize: "0.85rem",
+                                  },
+                                }}
                               />
                             </TableCell>
                           </TableRow>
