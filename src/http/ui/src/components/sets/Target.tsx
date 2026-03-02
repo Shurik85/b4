@@ -764,8 +764,8 @@ export const TargetSettings = ({
             ) : (
               <Box sx={{ mt: 2 }}>
                 <B4Alert severity="warning">
-                  DHCP lease source not detected. Device discovery is
-                  unavailable. Source device filtering requires a DHCP server.
+                  ARP table not available. Device discovery is unavailable.
+                  Source device filtering requires a working ARP table.
                 </B4Alert>
               </Box>
             )}
