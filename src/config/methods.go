@@ -345,9 +345,6 @@ func (set *SetConfig) ResetToDefaults() {
 	set.Faking.SNIMutation.FakeSNIs = make([]string, len(defaultSet.Faking.SNIMutation.FakeSNIs))
 	copy(set.Faking.SNIMutation.FakeSNIs, defaultSet.Faking.SNIMutation.FakeSNIs)
 
-	set.Fragmentation.Combo.DecoySNIs = make([]string, len(defaultSet.Fragmentation.Combo.DecoySNIs))
-	copy(set.Fragmentation.Combo.DecoySNIs, defaultSet.Fragmentation.Combo.DecoySNIs)
-
 	set.Fragmentation.SeqOverlapPattern = make([]string, len(defaultSet.Fragmentation.SeqOverlapPattern))
 	copy(set.Fragmentation.SeqOverlapPattern, defaultSet.Fragmentation.SeqOverlapPattern)
 

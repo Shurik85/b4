@@ -18,6 +18,7 @@
 - IMPROVED: **Auto-detect config file** — the `--config` flag is no longer required. When omitted, B4 automatically looks for a config file in `/etc/b4/` and `/opt/etc/b4/`. If no config exists yet, B4 picks the best default location and creates one on first run.
 - IMPROVED: SOCKS5 updates (thanks @remmody [#PR64](https://github.com/DanielLavrushin/b4/pull/64))
 - IMPROVED: **Device Discovery** — now works on all routers. B4 reads the system ARP table instead of DHCP lease files, so devices show up regardless of your router brand (Keenetic, MikroTik, OpenWrt, Asus, etc.). Device hostnames are still picked up from DHCP when available.
+- REMOVED: **Decoy SNI Domains** setting from Combo strategy — the decoy packet now uses the same fake payload configured in your Faking settings instead of a separate list of domain names.
 
 ## [1.38.0] - 2026-02-27
 

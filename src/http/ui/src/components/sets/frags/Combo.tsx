@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { Grid, Box, Typography } from "@mui/material";
-import { B4Slider, B4Switch, B4Select, B4TextField } from "@b4.fields";
+import { B4Slider, B4Switch, B4Select } from "@b4.fields";
 import { B4SetConfig, ComboShuffleMode } from "@models/config";
 import { colors } from "@design";
-import { B4Alert, B4ChipList, B4FormHeader, B4PlusButton } from "@b4.elements";
+import { B4Alert, B4FormHeader } from "@b4.elements";
 
 interface ComboSettingsProps {
   config: B4SetConfig;
@@ -20,38 +19,14 @@ const shuffleModeOptions: { label: string; value: ComboShuffleMode }[] = [
 ];
 
 export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
-  const [newDomain, setNewDomain] = useState("");
   const combo = config.fragmentation.combo;
   const middleSni = config.fragmentation.middle_sni;
-  const decoySNIs = combo.decoy_snis || [];
 
   const enabledSplits = [
     combo.first_byte_split && "1st byte",
     combo.extension_split && "ext",
     middleSni && "SNI",
   ].filter(Boolean);
-
-  const handleAddDomain = () => {
-    const domain = newDomain.trim().toLowerCase();
-    if (domain && !decoySNIs.includes(domain)) {
-      onChange("fragmentation.combo.decoy_snis", [...decoySNIs, domain]);
-      setNewDomain("");
-    }
-  };
-
-  const handleRemoveDomain = (domain: string) => {
-    onChange(
-      "fragmentation.combo.decoy_snis",
-      decoySNIs.filter((d) => d !== domain)
-    );
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddDomain();
-    }
-  };
 
   return (
     <>
@@ -79,119 +54,86 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
       </Grid>
 
       {combo.decoy_enabled && (
-        <>
-          <Grid size={{ xs: 12 }}>
-            <Typography variant="subtitle2">Decoy SNI Domains</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Whitelisted domains used in decoy packet. DPI sees these instead
-              of real target.
-            </Typography>
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-              <B4TextField
-                label="Add Domain"
-                value={newDomain}
-                onChange={(e) => setNewDomain(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="e.g., allowed-site.ru"
-              />
-              <B4PlusButton
-                onClick={handleAddDomain}
-                disabled={!newDomain.trim()}
-              />
-            </Box>
-          </Grid>
-          <B4ChipList
-            items={decoySNIs}
-            getKey={(d) => d}
-            getLabel={(d) => d}
-            onDelete={handleRemoveDomain}
-            emptyMessage="Using defaults: ya.ru, vk.com, mail.ru, dzen.ru"
-            showEmpty
-          />
-          <Grid size={{ xs: 12 }}>
-            <Box
-              sx={{
-                p: 2,
-                bgcolor: colors.background.paper,
-                borderRadius: 1,
-                border: `1px solid ${colors.border.default}`,
-              }}
+        <Grid size={{ xs: 12 }}>
+          <Box
+            sx={{
+              p: 2,
+              bgcolor: colors.background.paper,
+              borderRadius: 1,
+              border: `1px solid ${colors.border.default}`,
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              component="div"
+              sx={{ mb: 1 }}
             >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                component="div"
-                sx={{ mb: 1 }}
-              >
-                HOW DECOY WORKS
-              </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{ minWidth: 80, color: colors.text.secondary }}
-                  >
-                    Sent 1st:
-                  </Typography>
+              HOW DECOY WORKS
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ minWidth: 80, color: colors.text.secondary }}
+                >
+                  Sent 1st:
+                </Typography>
+                <Box
+                  sx={{
+                    p: 1,
+                    bgcolor: colors.tertiary,
+                    borderRadius: 0.5,
+                    fontFamily: "monospace",
+                    fontSize: "0.7rem",
+                    border: `2px dashed ${colors.secondary}`,
+                  }}
+                >
+                  FAKE payload (low TTL)
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{ color: colors.secondary, ml: 1 }}
+                >
+                  → DPI sees, dies before server
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ minWidth: 80, color: colors.text.secondary }}
+                >
+                  Sent 2nd:
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 0.5,
+                    fontFamily: "monospace",
+                    fontSize: "0.7rem",
+                  }}
+                >
                   <Box
                     sx={{
                       p: 1,
-                      bgcolor: colors.tertiary,
+                      bgcolor: colors.accent.secondary,
                       borderRadius: 0.5,
-                      fontFamily: "monospace",
-                      fontSize: "0.7rem",
-                      border: `2px dashed ${colors.secondary}`,
+                      border: `2px solid ${colors.secondary}`,
                     }}
                   >
-                    {decoySNIs[0] || "ya.ru"} (DECOY, low TTL)
+                    REAL (fragmented)
                   </Box>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: colors.secondary, ml: 1 }}
-                  >
-                    → DPI sees, dies before server
-                  </Typography>
                 </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{ minWidth: 80, color: colors.text.secondary }}
-                  >
-                    Sent 2nd:
-                  </Typography>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 0.5,
-                      fontFamily: "monospace",
-                      fontSize: "0.7rem",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        p: 1,
-                        bgcolor: colors.accent.secondary,
-                        borderRadius: 0.5,
-                        border: `2px solid ${colors.secondary}`,
-                      }}
-                    >
-                      REAL (fragmented)
-                    </Box>
-                  </Box>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: colors.secondary, ml: 1 }}
-                  >
-                    → Server receives
-                  </Typography>
-                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{ color: colors.secondary, ml: 1 }}
+                >
+                  → Server receives
+                </Typography>
               </Box>
             </Box>
-          </Grid>
-        </>
+          </Box>
+        </Grid>
       )}
 
       {/* Split Points */}

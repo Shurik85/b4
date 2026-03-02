@@ -63,7 +63,6 @@ export function createDefaultSet(setCount: number): B4SetConfig {
         first_delay_ms: 100,
         jitter_max_us: 2000,
         decoy_enabled: false,
-        decoy_snis: ["ya.ru", "vk.com", "mail.ru"],
       },
       disorder: {
         shuffle_mode: "full",

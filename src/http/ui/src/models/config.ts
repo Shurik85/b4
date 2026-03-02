@@ -269,7 +269,6 @@ export interface ComboFragConfig {
   first_delay_ms: number;
   jitter_max_us: number;
   decoy_enabled: boolean;
-  decoy_snis: string[];
 }
 
 export type DisorderShuffleMode = "full" | "reverse";

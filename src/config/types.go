@@ -220,8 +220,7 @@ type ComboFragConfig struct {
 	ShuffleMode    string   `json:"shuffle_mode" bson:"shuffle_mode"` // "middle", "full", "reverse"
 	FirstDelayMs   int      `json:"first_delay_ms" bson:"first_delay_ms"`
 	JitterMaxUs    int      `json:"jitter_max_us" bson:"jitter_max_us"`
-	DecoyEnabled   bool     `json:"decoy_enabled" bson:"decoy_enabled"`
-	DecoySNIs      []string `json:"decoy_snis" bson:"decoy_snis"`
+	DecoyEnabled bool `json:"decoy_enabled" bson:"decoy_enabled"`
 }
 
 type DisorderFragConfig struct {

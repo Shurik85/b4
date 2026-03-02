@@ -1,11 +1,12 @@
 package nfq
 
 import (
-	"bytes"
+	"encoding/binary"
 	"net"
 	"time"
 
 	"github.com/daniellavrushin/b4/config"
+	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/sock"
 	"github.com/daniellavrushin/b4/utils"
 )
@@ -19,7 +20,7 @@ func (w *Worker) sendComboFragmentsV6(cfg *config.SetConfig, packet []byte, dst 
 
 	combo := &cfg.Fragmentation.Combo
 
-	if combo.DecoyEnabled && len(combo.DecoySNIs) > 0 {
+	if combo.DecoyEnabled {
 		w.sendDecoyPacketV6(cfg, packet, pi, dst)
 	}
 
@@ -92,36 +93,49 @@ func (w *Worker) sendComboFragmentsV6(cfg *config.SetConfig, packet []byte, dst 
 }
 
 func (w *Worker) sendDecoyPacketV6(cfg *config.SetConfig, packet []byte, pi PacketInfo, dst net.IP) {
-	sniStart, sniEnd, ok := locateSNI(pi.Payload)
-	if !ok || sniEnd <= sniStart {
+	log.Tracef("sendDecoyPacketV6: Sending decoy fragment packet to %s, set: %s", dst.String(), cfg.Name)
+	fakeBlob := sock.GetPayload(&cfg.Faking)
+
+	if len(fakeBlob) < 3 {
+		log.Warnf("Not enough fake payload for fragmentation, need at least 3 bytes")
 		return
 	}
 
-	decoySNIs := cfg.Fragmentation.Combo.DecoySNIs
-
-	sniLen := sniEnd - sniStart
-	fakeSNI := []byte(decoySNIs[pi.Seq0%uint32(len(decoySNIs))])
-
-	if len(fakeSNI) < sniLen {
-		fakeSNI = append(fakeSNI, bytes.Repeat([]byte{'.'}, sniLen-len(fakeSNI))...)
-	} else if len(fakeSNI) > sniLen {
-		fakeSNI = fakeSNI[:sniLen]
+	if len(fakeBlob) > 680 {
+		fakeBlob = fakeBlob[:680]
 	}
 
-	decoyPkt := make([]byte, len(packet))
-	copy(decoyPkt, packet)
+	// Build fake packet with this blob as payload
+	fakePacket := make([]byte, pi.PayloadStart+len(fakeBlob))
+	copy(fakePacket[:pi.PayloadStart], packet[:pi.PayloadStart])
+	copy(fakePacket[pi.PayloadStart:], fakeBlob)
 
-	copy(decoyPkt[pi.PayloadStart+sniStart:pi.PayloadStart+sniEnd], fakeSNI)
+	// Update IPv6 payload length
+	binary.BigEndian.PutUint16(fakePacket[4:6], uint16(len(fakePacket)-40))
 
+	// Set low hop limit so it won't reach server
 	hopLimit := cfg.Faking.TTL
 	if hopLimit == 0 {
 		hopLimit = 3
 	}
-	decoyPkt[7] = hopLimit
+	fakePacket[7] = hopLimit
 
-	sock.FixTCPChecksumV6(decoyPkt)
+	sock.FixTCPChecksumV6(fakePacket)
 
-	_ = w.sock.SendIPv6(decoyPkt, dst)
+	// Split at position 2 (like zapret2)
+	splitPos := 2
+
+	// Segment 1: first 2 bytes
+	seg1 := BuildSegmentV6(fakePacket, pi, fakeBlob[:splitPos], 0)
+	ClearPSH(seg1, pi.IPHdrLen)
+	sock.FixTCPChecksumV6(seg1)
+
+	// Segment 2: rest of fake blob
+	seg2 := BuildSegmentV6(fakePacket, pi, fakeBlob[splitPos:], uint32(splitPos))
+
+	_ = w.sock.SendIPv6(seg1, dst)
+	time.Sleep(50 * time.Microsecond)
+	_ = w.sock.SendIPv6(seg2, dst)
 
 	if seg2d := config.ResolveSeg2Delay(cfg.TCP.Seg2Delay, cfg.TCP.Seg2DelayMax); seg2d > 0 {
 		time.Sleep(time.Duration(seg2d) * time.Millisecond)
