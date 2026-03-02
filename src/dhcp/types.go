@@ -1,19 +1,11 @@
 package dhcp
 
-import "time"
-
-type Lease struct {
-	MAC      string
-	IP       string
-	Hostname string
-	Expires  time.Time
+// ARPEntry represents a device discovered from the ARP table.
+type ARPEntry struct {
+	IP     string
+	MAC    string
+	Device string // network interface (e.g. "br0")
 }
 
-type LeaseSource interface {
-	Name() string
-	Detect() bool
-	Parse() ([]Lease, error)
-	Path() string
-}
-
+// LeaseUpdateCallback is called when the IP-to-MAC mapping changes.
 type LeaseUpdateCallback func(ipToMAC map[string]string)

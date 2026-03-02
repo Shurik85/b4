@@ -374,7 +374,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
               </Grid>
             ) : (
               <B4Alert severity="warning">
-                DHCP lease source not detected. Device discovery unavailable.
+                ARP table not available. Device discovery unavailable.
               </B4Alert>
             )}
           </>

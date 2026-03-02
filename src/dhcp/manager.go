@@ -2,6 +2,7 @@ package dhcp
 
 import (
 	"context"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -10,7 +11,7 @@ import (
 )
 
 type Manager struct {
-	source    LeaseSource
+	available bool
 	ipToMAC   map[string]string
 	macToIP   map[string]string
 	hostnames map[string]string // MAC → hostname
@@ -24,19 +25,16 @@ type Manager struct {
 type DetectionResult struct {
 	Available bool
 	Source    string
-	Path      string
+	Path     string
 }
 
 func Detect() DetectionResult {
-	for _, src := range AllSources {
-		if src.Detect() {
-			if leases, err := src.Parse(); err == nil && len(leases) > 0 {
-				log.Infof("DHCP Server: detected %s at %s", src.Name(), src.Path())
-				return DetectionResult{
-					Available: true,
-					Source:    src.Name(),
-					Path:      src.Path(),
-				}
+	if _, err := os.Stat(arpPath); err == nil {
+		if entries, err := parseARP(); err == nil && len(entries) > 0 {
+			return DetectionResult{
+				Available: true,
+				Source:    "arp",
+				Path:     arpPath,
 			}
 		}
 	}
@@ -55,25 +53,18 @@ func NewManager() *Manager {
 		refreshCh: make(chan struct{}, 1),
 	}
 
-	m.detectSource()
+	if _, err := os.Stat(arpPath); err == nil {
+		m.available = true
+		log.Infof("DHCP: using ARP table at %s", arpPath)
+	} else {
+		log.Tracef("DHCP: ARP table not available: %v", err)
+	}
+
 	return m
 }
 
-func (m *Manager) detectSource() {
-	for _, src := range AllSources {
-		if src.Detect() {
-			if leases, err := src.Parse(); err == nil && len(leases) > 0 {
-				m.source = src
-				log.Infof("DHCP: detected %s at %s", src.Name(), src.Path())
-				return
-			}
-		}
-	}
-	log.Tracef("DHCP: no lease source detected")
-}
-
 func (m *Manager) Start() {
-	if m.source == nil {
+	if !m.available {
 		return
 	}
 
@@ -95,7 +86,7 @@ func (m *Manager) Start() {
 		}
 	}()
 
-	log.Infof("DHCP manager started (source: %s)", m.source.Name())
+	log.Infof("DHCP manager started (source: arp)")
 }
 
 func (m *Manager) Stop() {
@@ -103,41 +94,45 @@ func (m *Manager) Stop() {
 }
 
 func (m *Manager) refresh() {
-	if m.source == nil {
+	if !m.available {
 		return
 	}
 
-	leases, err := m.source.Parse()
+	entries, err := parseARP()
 	if err != nil {
-		log.Tracef("DHCP: parse error: %v", err)
+		log.Tracef("DHCP: ARP parse error: %v", err)
 		return
 	}
 
-	if len(leases) == 0 {
-		log.Tracef("DHCP: no leases found")
+	if len(entries) == 0 {
+		log.Tracef("DHCP: no ARP entries found")
 		return
 	}
+
+	// Best-effort hostname enrichment from DHCP lease files
+	leaseHostnames := enrichHostnames()
 
 	m.mu.Lock()
-	m.ipToMAC = make(map[string]string)
-	m.macToIP = make(map[string]string)
+	m.ipToMAC = make(map[string]string, len(entries))
+	m.macToIP = make(map[string]string, len(entries))
 	m.hostnames = make(map[string]string)
 
-	for _, lease := range leases {
-		mac := normalizeMAC(lease.MAC)
-		m.ipToMAC[lease.IP] = mac
-		m.macToIP[mac] = lease.IP
-		if lease.Hostname != "" {
-			m.hostnames[mac] = lease.Hostname
+	for _, entry := range entries {
+		mac := normalizeMAC(entry.MAC)
+		m.ipToMAC[entry.IP] = mac
+		m.macToIP[mac] = entry.IP
+		if hostname, ok := leaseHostnames[mac]; ok {
+			m.hostnames[mac] = hostname
 		}
-		log.Tracef("DHCP: %s -> %s (%s)", lease.IP, mac, lease.Hostname)
+		log.Tracef("DHCP: %s -> %s (dev: %s)", entry.IP, mac, entry.Device)
 	}
 	count := len(m.ipToMAC)
 	m.mu.Unlock()
 
-	log.Infof("DHCP: loaded %d leases", count)
+	log.Infof("DHCP: loaded %d entries from ARP table", count)
 	m.notifyCallbacks()
 }
+
 func (m *Manager) TriggerRefresh() {
 	select {
 	case m.refreshCh <- struct{}{}:
@@ -171,8 +166,7 @@ func (m *Manager) GetMACForIP(ip string) string {
 func (m *Manager) GetIPForMAC(mac string) string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	normalized := normalizeMAC(mac)
-	return m.macToIP[normalized]
+	return m.macToIP[normalizeMAC(mac)]
 }
 
 func (m *Manager) GetAllMappings() map[string]string {
@@ -186,14 +180,14 @@ func (m *Manager) GetAllMappings() map[string]string {
 }
 
 func (m *Manager) IsAvailable() bool {
-	return m.source != nil
+	return m.available
 }
 
 func (m *Manager) SourceInfo() (name, path string) {
-	if m.source == nil {
+	if !m.available {
 		return "", ""
 	}
-	return m.source.Name(), m.source.Path()
+	return "arp", arpPath
 }
 
 func (m *Manager) GetHostnameForMAC(mac string) string {

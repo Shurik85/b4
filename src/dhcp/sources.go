@@ -2,135 +2,134 @@ package dhcp
 
 import (
 	"bufio"
+	"net"
 	"os"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/daniellavrushin/b4/utils"
 )
 
-// Registry of all known sources
-var AllSources = []LeaseSource{
-	&DnsmasqSource{path: "/var/lib/misc/dnsmasq.leases"},
-	&DnsmasqSource{path: "/tmp/dhcp.leases"},
-	&DnsmasqSource{path: "/var/lib/dnsmasq/dnsmasq.leases"},
-	&DnsmasqSource{path: "/tmp/dnsmasq.leases"},
-	&ISCSource{path: "/var/lib/dhcp/dhcpd.leases"},
-	&ISCSource{path: "/var/lib/dhcpd/dhcpd.leases"},
-	// OpenWrt
-	&DnsmasqSource{path: "/tmp/dhcp.leases"},
-	// Merlin/Asus
-	&DnsmasqSource{path: "/var/lib/misc/dnsmasq.leases"},
-}
+const arpPath = "/proc/net/arp"
 
-// === Dnsmasq ===
-// Format: timestamp mac ip hostname clientid
-
-type DnsmasqSource struct {
-	path string
-}
-
-func (d *DnsmasqSource) Name() string { return "dnsmasq" }
-func (d *DnsmasqSource) Path() string { return d.path }
-
-func (d *DnsmasqSource) Detect() bool {
-	_, err := os.Stat(d.path)
-	return err == nil
-}
-
-func (d *DnsmasqSource) Parse() ([]Lease, error) {
-	file, err := os.Open(d.path)
+// parseARP reads /proc/net/arp and returns complete entries with private IPs only.
+func parseARP() ([]ARPEntry, error) {
+	file, err := os.Open(arpPath)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	var leases []Lease
+	var entries []ARPEntry
 	scanner := bufio.NewScanner(file)
+
+	// Skip header line
+	scanner.Scan()
+
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) < 3 {
+		if len(fields) < 6 {
 			continue
 		}
 
-		expires := time.Unix(0, 0)
-		if ts, err := strconv.ParseInt(fields[0], 10, 64); err == nil {
-			expires = time.Unix(ts, 0)
+		ip := fields[0]
+		flags := fields[2]
+		mac := fields[3]
+		device := fields[5]
+
+		// Only keep complete entries (ATF_COM = 0x2)
+		flagVal, err := strconv.ParseUint(flags, 0, 16)
+		if err != nil || flagVal&0x2 == 0 {
+			continue
 		}
 
-		hostname := ""
-		if len(fields) >= 4 && fields[3] != "*" {
-			hostname = fields[3]
+		if mac == "00:00:00:00:00:00" || mac == "ff:ff:ff:ff:ff:ff" {
+			continue
 		}
 
-		leases = append(leases, Lease{
-			MAC:      strings.ToUpper(fields[1]),
-			IP:       fields[2],
-			Hostname: hostname,
-			Expires:  expires,
+		// Only keep LAN devices (private IPs)
+		parsedIP := net.ParseIP(ip)
+		if parsedIP == nil || !utils.IsPrivateIP(parsedIP) {
+			continue
+		}
+
+		entries = append(entries, ARPEntry{
+			IP:     ip,
+			MAC:    strings.ToUpper(mac),
+			Device: device,
 		})
 	}
 
-	return leases, scanner.Err()
+	return entries, scanner.Err()
 }
 
-// === ISC DHCP ===
-// Format: lease { ... } blocks
-
-type ISCSource struct {
-	path string
-}
-
-func (i *ISCSource) Name() string { return "isc-dhcp" }
-func (i *ISCSource) Path() string { return i.path }
-
-func (i *ISCSource) Detect() bool {
-	_, err := os.Stat(i.path)
-	return err == nil
-}
-
-func (i *ISCSource) Parse() ([]Lease, error) {
-	data, err := os.ReadFile(i.path)
-	if err != nil {
-		return nil, err
+// enrichHostnames tries known DHCP lease file paths to extract MAC->hostname mappings.
+// Returns an empty map if no lease files are found. Best-effort only.
+func enrichHostnames() map[string]string {
+	dnsmasqPaths := []string{
+		"/var/lib/misc/dnsmasq.leases",
+		"/tmp/dhcp.leases",
+		"/var/lib/dnsmasq/dnsmasq.leases",
+		"/tmp/dnsmasq.leases",
 	}
-
-	var leases []Lease
-	var current Lease
-	inLease := false
-
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-
-		if strings.HasPrefix(line, "lease ") {
-			inLease = true
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				current = Lease{IP: parts[1]}
-			}
-		} else if line == "}" && inLease {
-			if current.IP != "" && current.MAC != "" {
-				leases = append(leases, current)
-			}
-			current = Lease{}
-			inLease = false
-		} else if inLease {
-			if strings.HasPrefix(line, "hardware ethernet ") {
-				mac := strings.TrimSuffix(strings.TrimPrefix(line, "hardware ethernet "), ";")
-				current.MAC = strings.ToUpper(mac)
-			} else if strings.HasPrefix(line, "client-hostname ") {
-				hostname := strings.TrimSuffix(strings.TrimPrefix(line, "client-hostname "), ";")
-				current.Hostname = strings.Trim(hostname, "\"")
-			} else if strings.HasPrefix(line, "ends ") {
-				// Parse: ends 4 2024/01/15 12:00:00;
-				parts := strings.Fields(strings.TrimSuffix(line, ";"))
-				if len(parts) >= 4 {
-					if t, err := time.Parse("2006/01/02 15:04:05", parts[2]+" "+parts[3]); err == nil {
-						current.Expires = t
-					}
-				}
-			}
+	for _, p := range dnsmasqPaths {
+		if h := parseDnsmasqHostnames(p); len(h) > 0 {
+			return h
 		}
 	}
 
-	return leases, nil
+	iscPaths := []string{
+		"/var/lib/dhcp/dhcpd.leases",
+		"/var/lib/dhcpd/dhcpd.leases",
+	}
+	for _, p := range iscPaths {
+		if h := parseISCHostnames(p); len(h) > 0 {
+			return h
+		}
+	}
+
+	return make(map[string]string)
+}
+
+func parseDnsmasqHostnames(path string) map[string]string {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+
+	result := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) >= 4 && fields[3] != "*" {
+			mac := strings.ToUpper(fields[1])
+			result[mac] = fields[3]
+		}
+	}
+	return result
+}
+
+func parseISCHostnames(path string) map[string]string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	result := make(map[string]string)
+	var mac, hostname string
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "hardware ethernet ") {
+			mac = strings.ToUpper(strings.TrimSuffix(strings.TrimPrefix(line, "hardware ethernet "), ";"))
+		} else if strings.HasPrefix(line, "client-hostname ") {
+			hostname = strings.Trim(strings.TrimSuffix(strings.TrimPrefix(line, "client-hostname "), ";"), "\"")
+		} else if line == "}" {
+			if mac != "" && hostname != "" {
+				result[mac] = hostname
+			}
+			mac, hostname = "", ""
+		}
+	}
+	return result
 }
