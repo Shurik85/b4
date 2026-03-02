@@ -390,6 +390,56 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		}
 	}
 
+	// MSS Clamp rules
+	global, globalSize := cfg.HasGlobalMSSClamp()
+	mssIPv4, mssIPv6 := cfg.CollectMSSClampIPs()
+
+	if global || len(mssIPv4) > 0 || len(mssIPv6) > 0 {
+		log.Infof("IPTABLES: adding MSS clamp rules")
+
+		for _, ipt := range ipts {
+			// Global MSS clamp (main set without IP targets) - all TCP port 443
+			if global {
+				tcpMSSSpec := fmt.Sprintf("%d", globalSize)
+				// Outgoing SYN (dport 443)
+				rules = append(rules,
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "I",
+						Spec: []string{"-p", "tcp", "--dport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "FORWARD", Action: "I",
+						Spec: []string{"-p", "tcp", "--dport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
+					// Incoming SYN-ACK (sport 443)
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I",
+						Spec: []string{"-p", "tcp", "--sport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
+				)
+				log.Infof("IPTABLES[%s]: global MSS clamp enabled (size: %d)", ipt, globalSize)
+			}
+
+			// Per-IP MSS clamp rules
+			var mssIPs map[int][]string
+			if ipt == "iptables" {
+				mssIPs = mssIPv4
+			} else {
+				mssIPs = mssIPv6
+			}
+			for size, ips := range mssIPs {
+				tcpMSSSpec := fmt.Sprintf("%d", size)
+				for _, ip := range ips {
+					// Outgoing SYN to target IP
+					rules = append(rules,
+						Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "I",
+							Spec: []string{"-p", "tcp", "-d", ip, "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
+						Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "FORWARD", Action: "I",
+							Spec: []string{"-p", "tcp", "-d", ip, "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
+						// Incoming SYN-ACK from target IP
+						Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I",
+							Spec: []string{"-p", "tcp", "-s", ip, "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
+					)
+				}
+				log.Infof("IPTABLES[%s]: MSS clamp for %d targets (size: %d)", ipt, len(ips), size)
+			}
+		}
+	}
+
 	sysctls := []SysctlSetting{
 		{Name: "net.netfilter.nf_conntrack_checksum", Desired: "0", Revert: "1"},
 		{Name: "net.netfilter.nf_conntrack_tcp_be_liberal", Desired: "1", Revert: "0"},
@@ -555,6 +605,37 @@ func (ipt *IPTablesManager) clearB4JumpRules() {
 			for {
 				_, err := run(iptBin, "-w", "-t", "nat", "-D", "POSTROUTING", "-o", iface, "-j", "MASQUERADE")
 				if err != nil {
+					break
+				}
+			}
+		}
+
+		// Clean MSS clamp rules (TCPMSS target) from OUTPUT, FORWARD, PREROUTING
+		for _, chain := range []string{"OUTPUT", "FORWARD", "PREROUTING"} {
+			for {
+				out, _ := run(iptBin, "-w", "-t", "mangle", "-S", chain)
+				if !strings.Contains(out, "TCPMSS") {
+					break
+				}
+				removed := false
+				lines := strings.Split(out, "\n")
+				for _, line := range lines {
+					if !strings.Contains(line, "TCPMSS") || !strings.Contains(line, "--set-mss") {
+						continue
+					}
+					// Parse the rule spec from "-A CHAIN ..." format
+					parts := strings.Fields(line)
+					if len(parts) < 3 {
+						continue
+					}
+					// Remove "-A CHAIN" prefix to get the spec
+					spec := parts[2:]
+					if _, err := run(append([]string{iptBin, "-w", "-t", "mangle", "-D", chain}, spec...)...); err == nil {
+						removed = true
+						break
+					}
+				}
+				if !removed {
 					break
 				}
 			}

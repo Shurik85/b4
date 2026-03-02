@@ -144,6 +144,17 @@ func (m *Monitor) checkIPTablesRules() bool {
 				return false
 			}
 		}
+
+		global, _ := m.cfg.HasGlobalMSSClamp()
+		mssIPv4, mssIPv6 := m.cfg.CollectMSSClampIPs()
+		hasMSS := global || (ipt == "iptables" && len(mssIPv4) > 0) || (ipt == "ip6tables" && len(mssIPv6) > 0)
+		if hasMSS {
+			out, _ := run(ipt, "-w", "-t", "mangle", "-S", "OUTPUT")
+			if !strings.Contains(out, "TCPMSS") {
+				log.Tracef("Monitor: OUTPUT MSS clamp rule missing")
+				return false
+			}
+		}
 	}
 
 	return true
@@ -213,6 +224,16 @@ func (m *Monitor) checkNFTablesRules() bool {
 		natOut, _ := nft.runNft("list", "table", "ip", nftNatTableName)
 		if !strings.Contains(natOut, "masquerade") {
 			log.Tracef("Monitor: masquerade rule missing")
+			return false
+		}
+	}
+
+	global, _ := m.cfg.HasGlobalMSSClamp()
+	mssIPv4, mssIPv6 := m.cfg.CollectMSSClampIPs()
+	if global || len(mssIPv4) > 0 || len(mssIPv6) > 0 {
+		out, _ = nft.runNft("list", "chain", "inet", nftTableName, "output")
+		if !strings.Contains(out, "maxseg") {
+			log.Tracef("Monitor: MSS clamp rule missing")
 			return false
 		}
 	}

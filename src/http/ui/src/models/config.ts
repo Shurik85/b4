@@ -166,6 +166,7 @@ export interface TcpConfig {
   win: WinConfig;
   incoming: IncomingConfig;
   duplicate?: DuplicateConfig;
+  mss_clamp?: MSSClampConfig;
 }
 
 export interface IncomingConfig {
@@ -280,6 +281,11 @@ export interface DNSConfig {
 export interface DuplicateConfig {
   enabled: boolean;
   count: number;
+}
+
+export interface MSSClampConfig {
+  enabled: boolean;
+  size: number;
 }
 
 export const MAIN_SET_ID = "11111111-1111-1111-1111-111111111111";

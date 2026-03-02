@@ -53,6 +53,7 @@ type TCPConfig struct {
 	Desync    DesyncConfig    `json:"desync" bson:"desync"`
 	Win       WinConfig       `json:"win" bson:"win"`
 	Duplicate DuplicateConfig `json:"duplicate" bson:"duplicate"`
+	MSSClamp  MSSClampConfig  `json:"mss_clamp" bson:"mss_clamp"`
 }
 
 type WinConfig struct {
@@ -245,4 +246,9 @@ type DNSConfig struct {
 type DuplicateConfig struct {
 	Enabled bool `json:"enabled" bson:"enabled"`
 	Count   int  `json:"count" bson:"count"` // Number of packet copies to send (original is dropped)
+}
+
+type MSSClampConfig struct {
+	Enabled bool `json:"enabled" bson:"enabled"`
+	Size    int  `json:"size" bson:"size"` // MSS value in bytes (e.g., 88)
 }

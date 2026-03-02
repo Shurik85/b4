@@ -70,6 +70,11 @@ var DefaultSetConfig = SetConfig{
 			Enabled: false,
 			Count:   3,
 		},
+
+		MSSClamp: MSSClampConfig{
+			Enabled: false,
+			Size:    88,
+		},
 	},
 
 	DNS: DNSConfig{

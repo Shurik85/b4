@@ -38,6 +38,15 @@ var migrationRegistry = map[int]MigrationFunc{
 	19: migrateV19to20, // Add vendor lookup option to devices config
 	20: migrateV20to21, // Add SOCKS5 proxy server config
 	21: migrateV21to22, // Add NAT masquerade config
+	22: migrateV22to23, // Add TCP MSS clamping config
+}
+
+func migrateV22to23(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v22->v23: Adding TCP MSS clamping config")
+	for _, set := range c.Sets {
+		set.TCP.MSSClamp = DefaultSetConfig.TCP.MSSClamp
+	}
+	return nil
 }
 
 func migrateV21to22(c *Config, _ map[string]interface{}) error {

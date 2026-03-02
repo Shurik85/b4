@@ -385,6 +385,11 @@ func (a *API) PerformSoftRestart(newCfg *config.Config, oldCfg *config.Config) b
 		shouldUpdate = true
 	}
 
+	if oldCfg.MSSClampFingerprint() != newCfg.MSSClampFingerprint() {
+		shouldUpdate = true
+		log.Infof("MSS clamp settings changed, refreshing firewall rules")
+	}
+
 	if shouldUpdate {
 		log.Infof("Core settings changed, performing soft system restart")
 		if oldPorts != newPorts {
