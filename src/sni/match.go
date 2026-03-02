@@ -32,7 +32,6 @@ type SuffixSet struct {
 	regexCache sync.Map
 	ipRanger   cidranger.Ranger
 	portRanges []portRange
-	allSets    []*config.SetConfig // ordered list of all enabled sets for fallback matching
 
 	ipCache      map[string]*cacheEntry
 	ipCacheLRU   *list.List
@@ -102,8 +101,6 @@ func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 		if !set.Enabled {
 			continue
 		}
-		s.allSets = append(s.allSets, set)
-
 		for _, d := range set.Targets.DomainsToMatch {
 			d = strings.ToLower(strings.TrimSpace(d))
 			if d == "" {
@@ -546,7 +543,7 @@ func setMatchesSource(set *config.SetConfig, srcMAC string) bool {
 		return true
 	}
 	if srcMAC == "" {
-		return true // DHCP not available, skip source filtering
+		return false // Unknown source MAC: don't match device-restricted sets, fall back to general sets
 	}
 	for _, mac := range set.Targets.SourceDevices {
 		if strings.EqualFold(mac, srcMAC) {

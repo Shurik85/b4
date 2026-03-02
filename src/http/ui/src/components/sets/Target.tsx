@@ -703,6 +703,10 @@ export const TargetSettings = ({
                                 <Checkbox
                                   checked={isSourceDeviceSelected(device.mac)}
                                   color="secondary"
+                                  onChange={(event) => {
+                                    event.stopPropagation();
+                                    handleSourceDeviceToggle(device.mac);
+                                  }}
                                 />
                               </TableCell>
                               <TableCell
