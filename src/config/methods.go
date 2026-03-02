@@ -31,6 +31,12 @@ func (c *Config) SaveToFile(path string) error {
 		return log.Errorf("failed to marshal config: %v", err)
 	}
 
+	if dir := filepath.Dir(path); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return log.Errorf("failed to create config directory: %v", err)
+		}
+	}
+
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return log.Errorf("failed to create config file: %v", err)

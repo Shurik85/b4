@@ -314,12 +314,12 @@ func discoverConfigPath() string {
 		}
 	}
 	if info, err := os.Stat("/etc/b4"); err == nil && info.IsDir() {
-		return "/etc/b4/config.json"
+		return "/etc/b4/b4.json"
 	}
-	if info, err := os.Stat("/opt/etc"); err == nil && info.IsDir() {
-		return "/opt/etc/b4/config.json"
+	if info, err := os.Stat("/opt/etc/b4"); err == nil && info.IsDir() {
+		return "/opt/etc/b4/b4.json"
 	}
-	return "/etc/b4/config.json"
+	return "/etc/b4/b4.json"
 }
 
 func (c *Config) LoadWithMigration(path string) error {
