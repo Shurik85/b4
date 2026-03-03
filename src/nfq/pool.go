@@ -44,7 +44,7 @@ func NewPool(cfg *config.Config) *Pool {
 		ws = append(ws, w)
 	}
 
-	pool := &Pool{Workers: ws, Dhcp: dhcpMgr}
+	pool := &Pool{Workers: ws, Dhcp: dhcpMgr, stopCleanup: make(chan struct{})}
 
 	dhcpMgr.OnUpdate(func(ipToMAC map[string]string) {
 		for _, w := range pool.Workers {
@@ -64,8 +64,13 @@ func NewPool(cfg *config.Config) *Pool {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
-		for range ticker.C {
-			connState.Cleanup()
+		for {
+			select {
+			case <-ticker.C:
+				connState.Cleanup()
+			case <-pool.stopCleanup:
+				return
+			}
 		}
 	}()
 
@@ -85,6 +90,14 @@ func (p *Pool) Start() error {
 }
 
 func (p *Pool) Stop() {
+	// Stop the connState cleanup goroutine
+	select {
+	case <-p.stopCleanup:
+		// already closed
+	default:
+		close(p.stopCleanup)
+	}
+
 	var wg sync.WaitGroup
 	for _, w := range p.Workers {
 		wg.Add(1)

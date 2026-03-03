@@ -22,6 +22,7 @@ func (s *DetectorSuite) Run() {
 	for _, test := range s.Tests {
 		if s.isCanceled() {
 			log.DiscoveryLogf("[Detector] Suite %s canceled", s.Id)
+			s.scheduleCleanup()
 			return
 		}
 
@@ -68,6 +69,17 @@ func (s *DetectorSuite) Run() {
 	s.mu.Unlock()
 
 	log.DiscoveryLogf("[Detector] Detection suite %s complete in %v", s.Id, s.EndTime.Sub(s.StartTime).Round(time.Second))
+
+	s.scheduleCleanup()
+}
+
+func (s *DetectorSuite) scheduleCleanup() {
+	go func() {
+		time.Sleep(30 * time.Second)
+		suitesMu.Lock()
+		delete(activeSuites, s.Id)
+		suitesMu.Unlock()
+	}()
 }
 
 func (s *DetectorSuite) estimateTotalChecks() int {

@@ -25,9 +25,31 @@ var connState = &connStateTracker{
 	conns: make(map[string]*connInfo),
 }
 
+const maxConnStateEntries = 10000
+
 func (t *connStateTracker) RegisterOutgoing(connKey string, set *config.SetConfig) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	// If at capacity, evict oldest entries before adding
+	if len(t.conns) >= maxConnStateEntries {
+		now := time.Now()
+		var oldestKey string
+		var oldestTime time.Time
+		for k, v := range t.conns {
+			if now.Sub(v.lastSeen) > 120*time.Second {
+				delete(t.conns, k)
+			} else if oldestTime.IsZero() || v.lastSeen.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = v.lastSeen
+			}
+		}
+		// If still at capacity after removing stale entries, evict the oldest
+		if len(t.conns) >= maxConnStateEntries && oldestKey != "" {
+			delete(t.conns, oldestKey)
+		}
+	}
+
 	t.conns[connKey] = &connInfo{
 		set:      set,
 		lastSeen: time.Now(),

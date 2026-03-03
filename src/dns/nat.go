@@ -45,3 +45,22 @@ func DnsNATDelete(clientIP net.IP, clientPort uint16) {
 	delete(dnsNATTable, dnsNATKey(clientIP, clientPort))
 	dnsNATMu.Unlock()
 }
+
+func init() {
+	go dnsNATCleanupLoop()
+}
+
+func dnsNATCleanupLoop() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		dnsNATMu.Lock()
+		now := time.Now()
+		for k, entry := range dnsNATTable {
+			if now.Sub(entry.timestamp) > 10*time.Second {
+				delete(dnsNATTable, k)
+			}
+		}
+		dnsNATMu.Unlock()
+	}
+}
