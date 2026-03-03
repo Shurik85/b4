@@ -326,7 +326,7 @@ func initMemoryLimit() {
 		return
 	}
 
-	totalRAM := info.Totalram * uint64(info.Unit)
+	totalRAM := uint64(info.Totalram) * uint64(info.Unit)
 
 	limit := int64(totalRAM / 2)
 
