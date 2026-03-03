@@ -169,6 +169,7 @@ export interface TcpConfig {
   syn_fake_len: number;
   syn_ttl: number;
   drop_sack: boolean;
+  dport_filter: string;
 
   desync: DesyncConfig;
   win: WinConfig;

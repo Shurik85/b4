@@ -45,6 +45,7 @@ export {
   Layers as SetsIcon,
   Layers as ImportExportIcon,
   ContentCopy as CopyIcon,
+  ContentPaste as PasteIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
   Category as CategoryIcon,
@@ -67,4 +68,5 @@ export {
   UploadFile as UploadIcon,
   FilterAlt as FilterIcon,
   OpenInFull as FullscreenIcon,
+  VpnKey as SniIcon,
 } from "@mui/icons-material";

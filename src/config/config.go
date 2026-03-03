@@ -17,6 +17,8 @@ type Config struct {
 	MainSet *SetConfig   `json:"-" bson:"-"`
 	System  SystemConfig `json:"system" bson:"system"`
 	Sets    []*SetConfig `json:"sets" bson:"sets"`
+
+	tcpPortMap map[uint16]bool // pre-computed TCP port set for fast lookup in packet handler
 }
 
 var DefaultSetConfig = SetConfig{
@@ -42,6 +44,7 @@ var DefaultSetConfig = SetConfig{
 		SynFake:        false,
 		SynFakeLen:     0,
 		SynTTL:         7,
+		DPortFilter:    "",
 
 		DropSACK: false,
 

@@ -1,7 +1,6 @@
 package detector
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -18,8 +17,9 @@ func ClassifyTLSError(err error) (DomainStatus, string) {
 		pattern string
 		detail  string
 	}{
-		{"eof", "TLS connection terminated (DPI EOF injection)"},
 		{"unexpected eof", "TLS unexpected EOF (DPI interference)"},
+		{"eof occurred in violation", "TLS EOF violation (DPI interference)"},
+		{"eof", "TLS connection terminated (DPI EOF injection)"},
 		{"connection reset", "TCP RST injected (DPI reset)"},
 		{"connection refused", "Connection refused"},
 		{"bad record mac", "TLS record MAC corrupted (DPI tampering)"},
@@ -27,8 +27,10 @@ func ClassifyTLSError(err error) (DomainStatus, string) {
 		{"illegal parameter", "TLS illegal parameter (DPI injection)"},
 		{"decode error", "TLS decode error (DPI injection)"},
 		{"record overflow", "TLS record overflow (DPI injection)"},
+		{"record layer failure", "TLS record layer failure (DPI injection)"},
 		{"unrecognized name", "Blocked by SNI filtering"},
 		{"handshake failure", "TLS handshake failed (DPI disruption)"},
+		{"close notify", "TLS close notify (DPI alert injection)"},
 		{"wrong version number", "Non-TLS response received (DPI replacement)"},
 		{"protocol version", "TLS version blocked"},
 	}
@@ -44,6 +46,12 @@ func ClassifyTLSError(err error) (DomainStatus, string) {
 		pattern string
 		detail  string
 	}{
+		{"no shared cipher", "No shared cipher suite (possible MITM)"},
+		{"cipher", "Cipher mismatch (possible MITM)"},
+		{"self-signed", "Self-signed certificate (possible MITM)"},
+		{"self signed", "Self-signed certificate (possible MITM)"},
+		{"hostname mismatch", "Hostname mismatch in certificate (possible MITM)"},
+		{"name mismatch", "Certificate name mismatch (possible MITM)"},
 		{"certificate signed by unknown authority", "Unknown CA (possible MITM)"},
 		{"certificate has expired", "Expired certificate (possible MITM)"},
 		{"certificate is not valid", "Invalid certificate (possible MITM)"},
@@ -63,6 +71,10 @@ func ClassifyTLSError(err error) (DomainStatus, string) {
 
 	if strings.Contains(msg, "no such host") || strings.Contains(msg, "no address") {
 		return DomainError, "DNS resolution failed"
+	}
+
+	if strings.Contains(msg, "internal error") {
+		return DomainError, "TLS internal error"
 	}
 
 	return DomainError, err.Error()
@@ -93,49 +105,3 @@ func ClassifyHTTPResponse(statusCode int, location string, body string) (DomainS
 	return DomainOk, ""
 }
 
-// ClassifyTCPError classifies a TCP streaming error for the 16-20KB test.
-func ClassifyTCPError(err error, bytesRead int64) (TCPStatus, string) {
-	if err == nil {
-		return TCPOk, ""
-	}
-
-	msg := strings.ToLower(err.Error())
-
-	if strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline exceeded") {
-		return TCPTimeout, "Connection timed out"
-	}
-
-	// Connection drop signatures (likely TSPU)
-	dropPatterns := []string{
-		"connection reset",
-		"broken pipe",
-		"connection aborted",
-		"connection refused",
-		"eof",
-		"peer closed",
-		"incomplete",
-	}
-
-	for _, p := range dropPatterns {
-		if strings.Contains(msg, p) {
-			kbRead := float64(bytesRead) / 1024
-			// TSPU typically drops at 14-34KB, we flag 1-69KB range
-			if bytesRead > 1024 && bytesRead < 70*1024 {
-				return TCPDetected, "Connection dropped at " + formatKB(kbRead) + " KB"
-			}
-			return TCPError, "Connection error: " + err.Error()
-		}
-	}
-
-	return TCPError, err.Error()
-}
-
-func formatKB(kb float64) string {
-	if kb < 1 {
-		return "<1"
-	}
-	if kb >= 100 {
-		return fmt.Sprintf("%.0f", kb)
-	}
-	return fmt.Sprintf("%.1f", kb)
-}

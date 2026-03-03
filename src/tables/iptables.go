@@ -243,13 +243,6 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		tcpConnbytesRange := fmt.Sprintf("0:%d", cfg.MainSet.TCP.ConnBytesLimit)
 		udpConnbytesRange := fmt.Sprintf("0:%d", cfg.MainSet.UDP.ConnBytesLimit)
 
-		tcpSpec := append(
-			[]string{"-p", "tcp", "--dport", "443",
-				"-m", "connbytes", "--connbytes-dir", "original",
-				"--connbytes-mode", "packets", "--connbytes", tcpConnbytesRange},
-			manager.buildNFQSpec(queueNum, threads)...,
-		)
-
 		dnsSpec := append(
 			[]string{"-p", "udp", "--dport", "53"},
 			manager.buildNFQSpec(queueNum, threads)...,
@@ -260,25 +253,57 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 			manager.buildNFQSpec(queueNum, threads)...,
 		)
 
-		tcpResponseSpec := append(
-			[]string{"-p", "tcp", "--sport", "443",
-				"-m", "connbytes", "--connbytes-dir", "reply",
-				"--connbytes-mode", "packets", "--connbytes", tcpConnbytesRange},
-			manager.buildNFQSpec(queueNum, threads)...,
-		)
+		// Collect and normalize TCP ports (default: 443)
+		tcpPorts := cfg.CollectTCPPorts()
+		for i, p := range tcpPorts {
+			tcpPorts[i] = strings.ReplaceAll(p, "-", ":")
+		}
 
-		synackSpec := append(
-			[]string{"-p", "tcp", "--sport", "443", "--tcp-flags", "SYN,ACK", "SYN,ACK"},
-			manager.buildNFQSpec(queueNum, threads)...,
-		)
+		// TCP response and SYN-ACK rules (PREROUTING)
+		if manager.hasMultiportSupport(ipt) {
+			tcpPortChunks := chunkPorts(tcpPorts, 15)
+			for _, chunk := range tcpPortChunks {
+				portList := strings.Join(chunk, ",")
+				tcpResponseSpec := append(
+					[]string{"-p", "tcp", "-m", "multiport", "--sports", portList,
+						"-m", "connbytes", "--connbytes-dir", "reply",
+						"--connbytes-mode", "packets", "--connbytes", tcpConnbytesRange},
+					manager.buildNFQSpec(queueNum, threads)...,
+				)
+				synackSpec := append(
+					[]string{"-p", "tcp", "-m", "multiport", "--sports", portList,
+						"--tcp-flags", "SYN,ACK", "SYN,ACK"},
+					manager.buildNFQSpec(queueNum, threads)...,
+				)
+				rules = append(rules,
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: tcpResponseSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: synackSpec},
+				)
+			}
+		} else {
+			for _, port := range tcpPorts {
+				tcpResponseSpec := append(
+					[]string{"-p", "tcp", "--sport", port,
+						"-m", "connbytes", "--connbytes-dir", "reply",
+						"--connbytes-mode", "packets", "--connbytes", tcpConnbytesRange},
+					manager.buildNFQSpec(queueNum, threads)...,
+				)
+				synackSpec := append(
+					[]string{"-p", "tcp", "--sport", port, "--tcp-flags", "SYN,ACK", "SYN,ACK"},
+					manager.buildNFQSpec(queueNum, threads)...,
+				)
+				rules = append(rules,
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: tcpResponseSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: synackSpec},
+				)
+			}
+		}
 
 		rules = append(rules,
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: dnsResponseSpec},
-			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: tcpResponseSpec},
-			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: synackSpec},
 		)
 
-		// Duplication rules: queue ALL TCP/443 to specific IPs (no connbytes limit).
+		// Duplication rules: queue ALL TCP packets on configured ports to specific IPs (no connbytes limit).
 		// Must come before the generic connbytes-limited TCP rule.
 		dupIPv4, dupIPv6 := cfg.CollectDuplicateIPs()
 		var dupIPs []string
@@ -288,17 +313,53 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 			dupIPs = dupIPv6
 		}
 		for _, cidr := range dupIPs {
-			dupSpec := append(
-				[]string{"-p", "tcp", "-d", cidr, "--dport", "443"},
-				manager.buildNFQSpec(queueNum, threads)...,
-			)
-			rules = append(rules,
-				Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: chainName, Action: "A", Spec: dupSpec},
-			)
+			if manager.hasMultiportSupport(ipt) {
+				for _, chunk := range chunkPorts(tcpPorts, 15) {
+					dupSpec := append(
+						[]string{"-p", "tcp", "-d", cidr, "-m", "multiport", "--dports", strings.Join(chunk, ",")},
+						manager.buildNFQSpec(queueNum, threads)...,
+					)
+					rules = append(rules,
+						Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: chainName, Action: "A", Spec: dupSpec},
+					)
+				}
+			} else {
+				for _, port := range tcpPorts {
+					dupSpec := append(
+						[]string{"-p", "tcp", "-d", cidr, "--dport", port},
+						manager.buildNFQSpec(queueNum, threads)...,
+					)
+					rules = append(rules,
+						Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: chainName, Action: "A", Spec: dupSpec},
+					)
+				}
+			}
+		}
+
+		// TCP outbound rules (B4 chain)
+		if manager.hasMultiportSupport(ipt) {
+			for _, chunk := range chunkPorts(tcpPorts, 15) {
+				tcpSpec := append(
+					[]string{"-p", "tcp", "-m", "multiport", "--dports", strings.Join(chunk, ","),
+						"-m", "connbytes", "--connbytes-dir", "original",
+						"--connbytes-mode", "packets", "--connbytes", tcpConnbytesRange},
+					manager.buildNFQSpec(queueNum, threads)...,
+				)
+				rules = append(rules, Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: chainName, Action: "A", Spec: tcpSpec})
+			}
+		} else {
+			for _, port := range tcpPorts {
+				tcpSpec := append(
+					[]string{"-p", "tcp", "--dport", port,
+						"-m", "connbytes", "--connbytes-dir", "original",
+						"--connbytes-mode", "packets", "--connbytes", tcpConnbytesRange},
+					manager.buildNFQSpec(queueNum, threads)...,
+				)
+				rules = append(rules, Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: chainName, Action: "A", Spec: tcpSpec})
+			}
 		}
 
 		rules = append(rules,
-			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: chainName, Action: "A", Spec: tcpSpec},
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: chainName, Action: "A", Spec: dnsSpec},
 		)
 
@@ -535,13 +596,15 @@ func (ipt *IPTablesManager) clearB4JumpRules() {
 			}
 		}
 
-		// Clean PREROUTING - parse and remove any NFQUEUE rules for DNS
+		// Clean PREROUTING - parse and remove any NFQUEUE rules for DNS and TCP
 		for {
 			out, _ := run(iptBin, "-w", "-t", "mangle", "--line-numbers", "-nL", "PREROUTING")
 			lines := strings.Split(out, "\n")
 			removed := false
 			for _, line := range lines {
-				if strings.Contains(line, "spt:53") && strings.Contains(line, "NFQUEUE") {
+				isDNS := strings.Contains(line, "spt:53") && strings.Contains(line, "NFQUEUE")
+				isTCP := strings.Contains(line, "tcp") && strings.Contains(line, "NFQUEUE")
+				if isDNS || isTCP {
 					parts := strings.Fields(line)
 					if len(parts) > 0 {
 						lineNum := parts[0]

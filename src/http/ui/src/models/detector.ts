@@ -1,4 +1,4 @@
-export type DetectorTestType = "dns" | "domains" | "tcp";
+export type DetectorTestType = "dns" | "domains" | "tcp" | "sni";
 export type SuiteStatus = "pending" | "running" | "complete" | "failed" | "canceled";
 
 // DNS types
@@ -68,22 +68,24 @@ export interface DomainsResult {
   summary: string;
 }
 
-// TCP 16-20KB types
+// TCP fat probe types
 export type TCPStatus = "OK" | "DETECTED" | "MIXED" | "TIMEOUT" | "ERROR";
 
 export interface TCPTarget {
   id: string;
-  url: string;
+  ip: string;
+  port: number;
   asn: string;
   provider: string;
-  country: string;
+  sni?: string;
 }
 
 export interface TCPTargetResult {
   target: TCPTarget;
   status: TCPStatus;
-  bytes_read: number;
+  alive: boolean;
   drop_at_kb?: number;
+  rtt_ms?: number;
   detail?: string;
 }
 
@@ -91,6 +93,24 @@ export interface TCPResult {
   targets: TCPTargetResult[];
   detected_count: number;
   ok_count: number;
+  summary: string;
+}
+
+// SNI whitelist brute-force types
+export type SNIStatus = "FOUND" | "NOT_FOUND" | "NOT_BLOCKED";
+
+export interface SNIASNResult {
+  asn: string;
+  provider: string;
+  ip: string;
+  found_sni?: string;
+  status: SNIStatus;
+}
+
+export interface SNIResult {
+  asn_results: SNIASNResult[];
+  found_count: number;
+  tested_count: number;
   summary: string;
 }
 
@@ -107,6 +127,7 @@ export interface DetectorSuite {
   dns_result?: DNSResult;
   domains_result?: DomainsResult;
   tcp_result?: TCPResult;
+  sni_result?: SNIResult;
 }
 
 export interface DetectorResponse {

@@ -43,13 +43,14 @@ type DevicesConfig struct {
 }
 
 type TCPConfig struct {
-	ConnBytesLimit int   `json:"conn_bytes_limit" bson:"conn_bytes_limit"`
-	Seg2Delay      int   `json:"seg2delay" bson:"seg2delay"`
-	Seg2DelayMax   int   `json:"seg2delay_max" bson:"seg2delay_max"`
-	SynFake        bool  `json:"syn_fake" bson:"syn_fake"`
-	SynFakeLen     int   `json:"syn_fake_len" bson:"syn_fake_len"`
-	SynTTL         uint8 `json:"syn_ttl" bson:"syn_ttl"`
-	DropSACK       bool  `json:"drop_sack" bson:"drop_sack"`
+	ConnBytesLimit int    `json:"conn_bytes_limit" bson:"conn_bytes_limit"`
+	Seg2Delay      int    `json:"seg2delay" bson:"seg2delay"`
+	Seg2DelayMax   int    `json:"seg2delay_max" bson:"seg2delay_max"`
+	SynFake        bool   `json:"syn_fake" bson:"syn_fake"`
+	SynFakeLen     int    `json:"syn_fake_len" bson:"syn_fake_len"`
+	SynTTL         uint8  `json:"syn_ttl" bson:"syn_ttl"`
+	DropSACK       bool   `json:"drop_sack" bson:"drop_sack"`
+	DPortFilter    string `json:"dport_filter" bson:"dport_filter"` // comma separated list of ports and port ranges, e.g. "80,443,5222"
 
 	Incoming  IncomingConfig  `json:"incoming" bson:"incoming"`
 	Desync    DesyncConfig    `json:"desync" bson:"desync"`

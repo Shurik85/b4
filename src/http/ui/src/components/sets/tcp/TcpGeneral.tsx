@@ -3,6 +3,7 @@ import { B4SetConfig } from "@models/config";
 import {
   B4Slider,
   B4RangeSlider,
+  B4TextField,
   B4Alert,
   B4FormHeader,
 } from "@b4.elements";
@@ -61,6 +62,16 @@ export const TcpGeneral = ({ config, main, onChange }: TcpGeneralProps) => {
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
+          <B4TextField
+            label="Port Filter"
+            value={config.tcp.dport_filter}
+            onChange={(e) => onChange("tcp.dport_filter", e.target.value)}
+            placeholder="e.g., 80,5222,8000-9000"
+            helperText="Match specific TCP ports (Telegram, XMPP, etc.) - port 443 is always included"
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
           <FormControlLabel
             control={
               <Switch
@@ -91,7 +102,7 @@ export const TcpGeneral = ({ config, main, onChange }: TcpGeneralProps) => {
           Some ISPs throttle by randomly dropping outgoing packets to specific
           IP ranges (e.g. Telegram subnets). Duplication sends multiple copies
           of each packet. When enabled, all other DPI evasion is bypassed for
-          this set. Only applies to TCP port 443.
+          this set. Applies to all configured TCP ports.
         </B4Alert>
         <Grid size={{ xs: 12, md: 6 }}>
           <FormControlLabel

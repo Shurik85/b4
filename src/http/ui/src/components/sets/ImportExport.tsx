@@ -1,9 +1,92 @@
 import { useState, useEffect } from "react";
-import { Box, Button, Stack } from "@mui/material";
-import { ImportExportIcon, RefreshIcon } from "@b4.icons";
+import { Button, Stack } from "@mui/material";
+import { ImportExportIcon, CopyIcon, PasteIcon } from "@b4.icons";
 import { B4Alert, B4Section, B4TextField } from "@b4.elements";
+import { useSnackbar } from "@context/SnackbarProvider";
 
 import { B4SetConfig } from "@models/config";
+import { createDefaultSet } from "@models/defaults";
+
+type Obj = Record<string, unknown>;
+
+function isPlainObject(v: unknown): v is Obj {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function stripObjectDefaults(obj: Obj, defaults: Obj): unknown {
+  const result: Obj = {};
+  for (const key of Object.keys(obj)) {
+    if (!(key in defaults)) {
+      result[key] = obj[key];
+      continue;
+    }
+    const stripped = stripDefaults(obj[key], defaults[key]);
+    if (stripped !== undefined) {
+      result[key] = stripped;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/** Recursively remove fields that match their default values */
+function stripDefaults(obj: unknown, defaults: unknown): unknown {
+  if (Array.isArray(obj)) {
+    return JSON.stringify(obj) === JSON.stringify(defaults) ? undefined : obj;
+  }
+  if (isPlainObject(obj) && isPlainObject(defaults)) {
+    return stripObjectDefaults(obj, defaults);
+  }
+  return obj === defaults ? undefined : obj;
+}
+
+function mergeObjectWithDefaults(partial: Obj, defaults: Obj): Obj {
+  const result = { ...defaults };
+  for (const [key, value] of Object.entries(partial)) {
+    result[key] = key in result ? mergeWithDefaults(value, result[key]) : value;
+  }
+  return result;
+}
+
+/** Deep merge partial config with defaults to reconstruct full config */
+function mergeWithDefaults(partial: unknown, defaults: unknown): unknown {
+  if (partial === undefined || partial === null) return defaults;
+  if (Array.isArray(defaults)) {
+    return Array.isArray(partial) ? partial : defaults;
+  }
+  if (isPlainObject(defaults)) {
+    return isPlainObject(partial)
+      ? mergeObjectWithDefaults(partial, defaults)
+      : defaults;
+  }
+  return partial;
+}
+
+/** Build export JSON: version + name/enabled/targets always included, rest only if non-default */
+function buildExportJson(config: B4SetConfig): Record<string, unknown> {
+  const defaults = createDefaultSet(0);
+  const alwaysInclude = new Set(["name", "enabled"]);
+  const skip = new Set(["id", "stats"]);
+  const configObj = config as unknown as Record<string, unknown>;
+  const defaultsObj = defaults as unknown as Record<string, unknown>;
+
+  const result: Record<string, unknown> = {
+    b4_version: import.meta.env.VITE_APP_VERSION || "dev",
+  };
+
+  for (const key of Object.keys(configObj)) {
+    if (skip.has(key)) continue;
+    if (alwaysInclude.has(key)) {
+      result[key] = configObj[key];
+      continue;
+    }
+    const stripped = stripDefaults(configObj[key], defaultsObj[key]);
+    if (stripped !== undefined) {
+      result[key] = stripped;
+    }
+  }
+
+  return result;
+}
 
 interface ImportExportSettingsProps {
   config: B4SetConfig;
@@ -15,29 +98,16 @@ export const ImportExportSettings = ({
   onImport,
 }: ImportExportSettingsProps) => {
   const [jsonValue, setJsonValue] = useState("");
-  const [originalJson, setOriginalJson] = useState("");
-  const [validationError, setValidationError] = useState("");
-  const [hasChanges, setHasChanges] = useState(false);
+  const { showSuccess, showError } = useSnackbar();
 
   useEffect(() => {
-    const formatted = JSON.stringify(config, null, 0);
-    setJsonValue(formatted);
-    setOriginalJson(formatted);
-    setValidationError("");
-    setHasChanges(false);
+    setJsonValue(JSON.stringify(buildExportJson(config)));
   }, [config]);
-
-  const handleJsonChange = (value: string) => {
-    setJsonValue(value);
-    setHasChanges(value !== originalJson);
-    setValidationError("");
-  };
 
   function migrateSetConfig(set: Record<string, unknown>): B4SetConfig {
     const tcp = set.tcp as Record<string, unknown> | undefined;
 
     if (tcp) {
-      // Migrate flat win_mode/win_values to nested win object
       if ("win_mode" in tcp && !tcp.win) {
         tcp.win = {
           mode: tcp.win_mode || "off",
@@ -47,7 +117,6 @@ export const ImportExportSettings = ({
         delete tcp.win_values;
       }
 
-      // Migrate flat desync fields to nested desync object
       if ("desync_mode" in tcp && !tcp.desync) {
         tcp.desync = {
           mode: tcp.desync_mode || "off",
@@ -61,7 +130,6 @@ export const ImportExportSettings = ({
         delete tcp.post_desync;
       }
 
-      // Ensure incoming exists
       if (!tcp.incoming) {
         tcp.incoming = {
           mode: "off",
@@ -74,17 +142,14 @@ export const ImportExportSettings = ({
       }
     }
 
-    // Ensure fragmentation.seq_overlap_pattern exists
     const frag = set.fragmentation as Record<string, unknown> | undefined;
     if (frag) {
       if (!frag.seq_overlap_pattern) {
         frag.seq_overlap_pattern = [];
       }
-      // Remove deprecated overlap field
       delete frag.overlap;
     }
 
-    // Ensure faking.tls_mod exists
     const faking = set.faking as Record<string, unknown> | undefined;
     if (faking) {
       if (!faking.tls_mod) {
@@ -98,12 +163,19 @@ export const ImportExportSettings = ({
     return set as unknown as B4SetConfig;
   }
 
-  const handleValidate = () => {
+  const importJson = (text: string) => {
     try {
-      const raw = JSON.parse(jsonValue) as Record<string, unknown>;
-      const parsed = migrateSetConfig(raw);
+      const raw = JSON.parse(text) as Record<string, unknown>;
+      const { b4_version: _, ...configFields } = raw;
 
-      // Validate required fields
+      const defaults = createDefaultSet(0);
+      const fullConfig = mergeWithDefaults(
+        configFields,
+        defaults as unknown as Record<string, unknown>
+      ) as Record<string, unknown>;
+
+      const parsed = migrateSetConfig(fullConfig);
+
       if (
         !parsed.name ||
         !parsed.tcp ||
@@ -112,35 +184,34 @@ export const ImportExportSettings = ({
         !parsed.faking ||
         !parsed.targets
       ) {
-        setValidationError(
-          "Invalid set configuration: missing required fields"
-        );
-        return null;
+        showError("Invalid set configuration: missing required fields");
+        return false;
       }
 
-      setValidationError("");
-      return parsed;
-    } catch (error) {
-      setValidationError(
-        error instanceof Error ? error.message : "Invalid JSON format"
-      );
-      return null;
+      parsed.id = config.id;
+      onImport(parsed);
+      showSuccess("Set configuration imported");
+      return true;
+    } catch {
+      showError("Invalid JSON format");
+      return false;
     }
   };
 
-  const handleApply = () => {
-    const validated = handleValidate();
-    if (validated) {
-      // Preserve the original ID
-      validated.id = config.id;
-      onImport(validated);
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pastedText = e.clipboardData.getData("text");
+    if (importJson(pastedText)) {
+      e.preventDefault();
     }
   };
 
-  const handleReset = () => {
-    setJsonValue(originalJson);
-    setHasChanges(false);
-    setValidationError("");
+  const handlePasteButton = () => {
+    void navigator.clipboard.readText().then(importJson);
+  };
+
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(jsonValue);
+    showSuccess("Copied to clipboard");
   };
 
   return (
@@ -149,44 +220,34 @@ export const ImportExportSettings = ({
       icon={<ImportExportIcon />}
     >
       <B4Alert severity="info" sx={{ mb: 2 }}>
-        You can export the current set configuration as JSON, or import a new
-        configuration by pasting valid JSON below.
+        Copy JSON to share this set, or paste a configuration to import it.
       </B4Alert>
       <Stack spacing={2}>
         <B4TextField
           label="Set Configuration JSON"
           value={jsonValue}
-          onChange={(e) => handleJsonChange(e.target.value)}
+          onPaste={handlePaste}
           multiline
           rows={10}
-          helperText="Edit directly or paste a configuration. Changes must be applied to take effect."
+          slotProps={{ input: { readOnly: true } }}
+          helperText="Paste a set configuration JSON to import it."
         />
-
-        {validationError && (
-          <B4Alert severity="error">{validationError}</B4Alert>
-        )}
-
-        <Box sx={{ display: "flex", gap: 2 }}>
+        <Stack direction="row" spacing={2}>
           <Button
             variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={handleReset}
-            disabled={!hasChanges}
+            startIcon={<CopyIcon />}
+            onClick={handleCopy}
           >
-            Reset
-          </Button>
-          <Box sx={{ flex: 1 }} />
-          <Button variant="outlined" onClick={handleValidate}>
-            Validate
+            Copy JSON
           </Button>
           <Button
-            variant="contained"
-            onClick={handleApply}
-            disabled={!hasChanges}
+            variant="outlined"
+            startIcon={<PasteIcon />}
+            onClick={handlePasteButton}
           >
-            Apply Changes
+            Paste JSON
           </Button>
-        </Box>
+        </Stack>
       </Stack>
     </B4Section>
   );

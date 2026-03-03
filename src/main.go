@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"syscall"
@@ -57,6 +58,9 @@ func init() {
 func main() {
 	// Initialize timezone from TZ environment variable
 	initTimezone()
+
+	// Configure memory limit for embedded/constrained environments
+	initMemoryLimit()
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -310,6 +314,30 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Serve
 	log.CloseErrorFile()
 	log.Flush()
 	return nil
+}
+
+func initMemoryLimit() {
+	if os.Getenv("GOMEMLIMIT") != "" {
+		return
+	}
+
+	var info syscall.Sysinfo_t
+	if err := syscall.Sysinfo(&info); err != nil {
+		return
+	}
+
+	totalRAM := info.Totalram * uint64(info.Unit)
+
+	limit := int64(totalRAM / 2)
+
+	const minLimit = 32 * 1024 * 1024
+	if limit < minLimit {
+		limit = minLimit
+	}
+
+	debug.SetMemoryLimit(limit)
+	fmt.Fprintf(os.Stderr, "[INIT] Memory limit set to %d MB (total RAM: %d MB)\n",
+		limit/(1024*1024), totalRAM/(1024*1024))
 }
 
 func initTimezone() {

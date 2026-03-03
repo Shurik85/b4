@@ -26,12 +26,13 @@ type portRange struct {
 }
 
 type SuffixSet struct {
-	sets       map[string]*config.SetConfig
-	multiSets  map[string][]*config.SetConfig // domain -> multiple sets (for source device priority)
-	regexes    []*regexWithSet
-	regexCache sync.Map
-	ipRanger   cidranger.Ranger
-	portRanges []portRange
+	sets          map[string]*config.SetConfig
+	multiSets     map[string][]*config.SetConfig
+	regexes       []*regexWithSet
+	regexCache    sync.Map
+	ipRanger      cidranger.Ranger
+	udpPortRanges []portRange
+	tcpPortRanges []portRange
 
 	ipCache      map[string]*cacheEntry
 	ipCacheLRU   *list.List
@@ -107,7 +108,6 @@ func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 				continue
 			}
 
-			// Handle regex patterns
 			if strings.HasPrefix(d, "regexp:") {
 				pattern := strings.TrimPrefix(d, "regexp:")
 				if seenRegexes[pattern] {
@@ -120,7 +120,6 @@ func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 				continue
 			}
 
-			// Regular domain
 			d = strings.TrimRight(d, ".")
 			s.multiSets[d] = append(s.multiSets[d], set)
 			if _, exists := s.sets[d]; !exists {
@@ -151,36 +150,23 @@ func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 			}
 
 			if err == nil && ipNet != nil {
-				// Store set config in the ranger entry
 				entry := &ipRange{ipNet: ipNet, set: set}
 				_ = s.ipRanger.Insert(entry)
 			}
 		}
 
 		if set.UDP.DPortFilter != "" {
-			ports := strings.Split(set.UDP.DPortFilter, ",")
-			for _, part := range ports {
-				part = strings.TrimSpace(part)
-				if part == "" {
-					continue
+			for _, part := range strings.Split(set.UDP.DPortFilter, ",") {
+				if pr, ok := parsePortRange(part, set); ok {
+					s.udpPortRanges = append(s.udpPortRanges, pr)
 				}
+			}
+		}
 
-				if strings.Contains(part, "-") {
-					bounds := strings.SplitN(part, "-", 2)
-					if len(bounds) == 2 {
-						min, err1 := strconv.Atoi(bounds[0])
-						max, err2 := strconv.Atoi(bounds[1])
-						if err1 == nil && err2 == nil {
-							if min >= 0 && max >= 0 && min <= max {
-								s.portRanges = append(s.portRanges, portRange{min: min, max: max, set: set})
-							}
-						}
-					}
-				} else {
-					port, err := strconv.Atoi(part)
-					if err == nil && port >= 0 {
-						s.portRanges = append(s.portRanges, portRange{min: port, max: port, set: set})
-					}
+		if set.TCP.DPortFilter != "" {
+			for _, part := range strings.Split(set.TCP.DPortFilter, ",") {
+				if pr, ok := parsePortRange(part, set); ok {
+					s.tcpPortRanges = append(s.tcpPortRanges, pr)
 				}
 			}
 		}
@@ -189,17 +175,56 @@ func NewSuffixSet(sets []*config.SetConfig) *SuffixSet {
 	return s
 }
 
+func parsePortRange(part string, set *config.SetConfig) (portRange, bool) {
+	part = strings.TrimSpace(part)
+	if part == "" {
+		return portRange{}, false
+	}
+	if strings.Contains(part, "-") {
+		bounds := strings.SplitN(part, "-", 2)
+		if len(bounds) == 2 {
+			min, err1 := strconv.Atoi(bounds[0])
+			max, err2 := strconv.Atoi(bounds[1])
+			if err1 == nil && err2 == nil && min >= 0 && max >= 0 && min <= max {
+				return portRange{min: min, max: max, set: set}, true
+			}
+		}
+	} else {
+		port, err := strconv.Atoi(part)
+		if err == nil && port >= 0 {
+			return portRange{min: port, max: port, set: set}, true
+		}
+	}
+	return portRange{}, false
+}
+
 func (s *SuffixSet) MatchUDPPort(dport uint16) (bool, *config.SetConfig) {
-	if s == nil || len(s.portRanges) == 0 {
+	if s == nil || len(s.udpPortRanges) == 0 {
 		return false, nil
 	}
 
 	port := int(dport)
 
-	for _, r := range s.portRanges {
+	for _, r := range s.udpPortRanges {
 
 		matched := port >= r.min && port <= r.max
 		if matched {
+			return true, r.set
+		}
+	}
+
+	return false, nil
+}
+
+func (s *SuffixSet) MatchTCPPort(dport uint16) (bool, *config.SetConfig) {
+	if s == nil || len(s.tcpPortRanges) == 0 {
+		return false, nil
+	}
+
+	port := int(dport)
+
+	for _, r := range s.tcpPortRanges {
+		if port >= r.min && port <= r.max {
 			return true, r.set
 		}
 	}
@@ -214,7 +239,6 @@ func (s *SuffixSet) MatchSNI(host string) (bool, *config.SetConfig) {
 
 	lower := strings.ToLower(host)
 
-	// Check exact/suffix match first (fast)
 	if matched, set := s.matchDomain(lower); matched {
 		return true, set
 	}
@@ -286,7 +310,6 @@ func (s *SuffixSet) cacheIPResult(ipStr string, matched bool, set *config.SetCon
 }
 
 func (s *SuffixSet) matchDomain(host string) (bool, *config.SetConfig) {
-	// Quick read-only check
 	s.domainCacheMu.RLock()
 	_, found := s.domainCache[host]
 	s.domainCacheMu.RUnlock()
@@ -324,7 +347,6 @@ func (s *SuffixSet) matchDomain(host string) (bool, *config.SetConfig) {
 		}
 	}
 
-	// Update cache — check if another goroutine already cached this host
 	s.domainCacheMu.Lock()
 	defer s.domainCacheMu.Unlock()
 
@@ -510,40 +532,12 @@ func (s *SuffixSet) GetCacheStats() map[string]interface{} {
 	}
 }
 
-func (s *SuffixSet) PortMatchesSet(dport uint16, targetSet *config.SetConfig) bool {
-	if s == nil || targetSet == nil {
-		return false
-	}
-	port := int(dport)
-	for _, r := range s.portRanges {
-		if r.set == targetSet && port >= r.min && port <= r.max {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *SuffixSet) MatchUDPPortOnly(dport uint16) (bool, *config.SetConfig) {
-	if s == nil || len(s.portRanges) == 0 {
-		return false, nil
-	}
-	port := int(dport)
-	for _, r := range s.portRanges {
-		if len(r.set.Targets.IpsToMatch) == 0 && port >= r.min && port <= r.max {
-			return true, r.set
-		}
-	}
-	return false, nil
-}
-
-// setMatchesSource checks if srcMAC is allowed by the set's source device filter.
-// Returns true if the set has no source devices (matches any source) or if srcMAC is in the list.
 func setMatchesSource(set *config.SetConfig, srcMAC string) bool {
 	if len(set.Targets.SourceDevices) == 0 {
 		return true
 	}
 	if srcMAC == "" {
-		return false // Unknown source MAC: don't match device-restricted sets, fall back to general sets
+		return false
 	}
 	for _, mac := range set.Targets.SourceDevices {
 		if strings.EqualFold(mac, srcMAC) {
@@ -553,8 +547,6 @@ func setMatchesSource(set *config.SetConfig, srcMAC string) bool {
 	return false
 }
 
-// MatchSNIWithSource matches a domain with source device priority.
-// Sets with source_devices that match srcMAC get priority over general sets.
 func (s *SuffixSet) MatchSNIWithSource(host string, srcMAC string) (bool, *config.SetConfig) {
 	if s == nil || (len(s.sets) == 0 && len(s.regexes) == 0) || host == "" {
 		return false, nil
@@ -562,12 +554,10 @@ func (s *SuffixSet) MatchSNIWithSource(host string, srcMAC string) (bool, *confi
 
 	lower := strings.ToLower(host)
 
-	// Find all matching sets for this domain and pick best one
 	if matched, set := s.matchDomainWithSource(lower, srcMAC); matched {
 		return true, set
 	}
 
-	// Regex fallback
 	if len(s.regexes) > 0 {
 		return s.matchRegexWithSource(lower, srcMAC)
 	}
@@ -575,10 +565,7 @@ func (s *SuffixSet) MatchSNIWithSource(host string, srcMAC string) (bool, *confi
 	return false, nil
 }
 
-// matchDomainWithSource finds domain matches and applies source device priority.
-// Priority: device-specific set > general set.
 func (s *SuffixSet) matchDomainWithSource(host string, srcMAC string) (bool, *config.SetConfig) {
-	// Collect candidate domains (exact + suffix matches)
 	candidates := s.findDomainCandidates(host)
 
 	if len(candidates) == 0 {
@@ -588,14 +575,11 @@ func (s *SuffixSet) matchDomainWithSource(host string, srcMAC string) (bool, *co
 	return selectSetBySource(candidates, srcMAC)
 }
 
-// findDomainCandidates returns all sets that match the given host via exact or suffix match.
 func (s *SuffixSet) findDomainCandidates(host string) []*config.SetConfig {
-	// Try exact match
 	if sets, ok := s.multiSets[host]; ok {
 		return sets
 	}
 
-	// Try suffix matching
 	remaining := host
 	for {
 		idx := strings.IndexByte(remaining, '.')
@@ -610,7 +594,6 @@ func (s *SuffixSet) findDomainCandidates(host string) []*config.SetConfig {
 	return nil
 }
 
-// matchRegexWithSource applies source device priority to regex matches.
 func (s *SuffixSet) matchRegexWithSource(host string, srcMAC string) (bool, *config.SetConfig) {
 	var candidates []*config.SetConfig
 	for _, rws := range s.regexes {
@@ -624,7 +607,6 @@ func (s *SuffixSet) matchRegexWithSource(host string, srcMAC string) (bool, *con
 	return selectSetBySource(candidates, srcMAC)
 }
 
-// MatchIPWithSource matches an IP with source device priority.
 func (s *SuffixSet) MatchIPWithSource(ip net.IP, srcMAC string) (bool, *config.SetConfig) {
 	if s == nil || s.ipRanger == nil || ip == nil {
 		return false, nil
@@ -643,7 +625,6 @@ func (s *SuffixSet) MatchIPWithSource(ip net.IP, srcMAC string) (bool, *config.S
 	return selectSetBySource(candidates, srcMAC)
 }
 
-// MatchLearnedIPWithSource matches a learned IP with source device priority.
 func (s *SuffixSet) MatchLearnedIPWithSource(ip net.IP, srcMAC string) (bool, *config.SetConfig, string) {
 	if s == nil || ip == nil {
 		return false, nil, ""
@@ -676,8 +657,6 @@ func (s *SuffixSet) MatchLearnedIPWithSource(ip net.IP, srcMAC string) (bool, *c
 	}
 
 	if !setMatchesSource(entry.set, srcMAC) {
-		// The learned set doesn't match this source device.
-		// Try to find another set that matches this domain + source.
 		if matched, altSet := s.MatchSNIWithSource(entry.domain, srcMAC); matched {
 			entry.learnedAt = time.Now()
 			s.learnedIPCacheLRU.MoveToFront(entry.element)
@@ -691,21 +670,17 @@ func (s *SuffixSet) MatchLearnedIPWithSource(ip net.IP, srcMAC string) (bool, *c
 	return true, entry.set, entry.domain
 }
 
-// selectSetBySource picks the best matching set from candidates using source device priority.
-// Sets with source_devices that match srcMAC take priority over sets without source_devices.
 func selectSetBySource(candidates []*config.SetConfig, srcMAC string) (bool, *config.SetConfig) {
 	if len(candidates) == 0 {
 		return false, nil
 	}
 
-	// First pass: prefer sets WITH source devices that match this srcMAC
 	for _, set := range candidates {
 		if len(set.Targets.SourceDevices) > 0 && setMatchesSource(set, srcMAC) {
 			return true, set
 		}
 	}
 
-	// Second pass: fall back to sets WITHOUT source devices (general sets)
 	for _, set := range candidates {
 		if len(set.Targets.SourceDevices) == 0 {
 			return true, set

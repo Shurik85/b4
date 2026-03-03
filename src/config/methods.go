@@ -211,14 +211,17 @@ func (c *Config) Validate() error {
 
 			if set.Id == MAIN_SET_ID {
 				set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
+				set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
 				continue
 			}
 
 			set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
+			set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
 		}
 	}
 
 	c.LoadCapturePayloads()
+	c.BuildTCPPortMap()
 
 	return nil
 }
@@ -423,6 +426,63 @@ func (cfg *Config) CollectUDPPorts() []string {
 	sort.Strings(ports)
 	ports = mergeAndNormalizePorts(ports)
 	return ports
+}
+
+func (cfg *Config) CollectTCPPorts() []string {
+	portSet := make(map[string]bool)
+	portSet["443"] = true
+
+	for _, set := range cfg.Sets {
+		if !set.Enabled || set.TCP.DPortFilter == "" {
+			continue
+		}
+		for _, p := range strings.Split(set.TCP.DPortFilter, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				portSet[p] = true
+			}
+		}
+	}
+
+	ports := make([]string, 0, len(portSet))
+	for p := range portSet {
+		ports = append(ports, p)
+	}
+	sort.Strings(ports)
+	ports = mergeAndNormalizePorts(ports)
+	return ports
+}
+
+// BuildTCPPortMap builds a fast lookup map of all configured TCP ports.
+// Call this after CollectTCPPorts to pre-compute the set for packet handler use.
+func (cfg *Config) BuildTCPPortMap() {
+	cfg.tcpPortMap = make(map[uint16]bool)
+	for _, p := range cfg.CollectTCPPorts() {
+		p = strings.TrimSpace(p)
+		if strings.Contains(p, "-") {
+			parts := strings.Split(p, "-")
+			if len(parts) == 2 {
+				start, _ := strconv.Atoi(parts[0])
+				end, _ := strconv.Atoi(parts[1])
+				for i := start; i <= end; i++ {
+					cfg.tcpPortMap[uint16(i)] = true
+				}
+			}
+		} else {
+			port, _ := strconv.Atoi(p)
+			if port > 0 {
+				cfg.tcpPortMap[uint16(port)] = true
+			}
+		}
+	}
+}
+
+// IsTCPPort checks if a port is in the configured TCP port set.
+func (cfg *Config) IsTCPPort(port uint16) bool {
+	if cfg.tcpPortMap == nil {
+		return port == 443
+	}
+	return cfg.tcpPortMap[port]
 }
 
 // CollectDeviceMSSClamps returns per-device MSS clamp entries grouped by size.

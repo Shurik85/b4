@@ -1,20 +1,6 @@
 import { useState, useCallback } from "react";
-import {
-  Box,
-  Button,
-  Collapse,
-  Stack,
-  Typography,
-  LinearProgress,
-  Paper,
-  CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from "@mui/material";
+import { Box, Button, Stack, Typography, CircularProgress } from "@mui/material";
+import { motion, AnimatePresence } from "motion/react";
 import {
   StartIcon,
   StopIcon,
@@ -23,81 +9,22 @@ import {
   DnsIcon,
   DomainIcon,
   NetworkIcon,
-  CheckCircleIcon,
+  SniIcon,
   WarningIcon,
-  ErrorIcon,
-  BlockIcon,
-  ExpandIcon,
-  CollapseIcon,
 } from "@b4.icons";
 import { colors } from "@design";
-import { B4Alert, B4Badge, B4Section, B4Switch } from "@b4.elements";
+import { B4Alert, B4Section } from "@b4.elements";
 import { useDetector } from "@hooks/useDetector";
-import type {
-  DetectorTestType,
-  DNSStatus,
-  DomainStatus,
-  TCPStatus,
-  DNSDomainResult,
-  DomainCheckResult,
-  TCPTargetResult,
-} from "@models/detector";
+import type { DetectorTestType } from "@models/detector";
 
-const testNames: Record<DetectorTestType, string> = {
-  dns: "DNS Integrity",
-  domains: "Domain Accessibility",
-  tcp: "TCP Connection Drop",
-};
-
-const testDescriptions: Record<DetectorTestType, string> = {
-  dns: "Compares UDP DNS vs DoH to detect spoofing and interception",
-  domains: "Probes blocked domains via TLS 1.3, TLS 1.2, and HTTP",
-  tcp: "Downloads from CDN endpoints to detect TSPU connection drops at 16-20KB",
-};
-
-const testIcons: Record<DetectorTestType, React.ReactNode> = {
-  dns: <DnsIcon fontSize="small" />,
-  domains: <DomainIcon fontSize="small" />,
-  tcp: <NetworkIcon fontSize="small" />,
-};
-
-function StatusChip({ status, label }: { status: string; label?: string }) {
-  const display = label || status;
-  let color: "primary" | "error" | "info" | "secondary" | "default" = "default";
-
-  switch (status) {
-    case "OK":
-      color = "primary";
-      break;
-    case "DNS_SPOOFING":
-    case "TLS_DPI":
-    case "DETECTED":
-    case "BLOCKED":
-      color = "error";
-      break;
-    case "DNS_INTERCEPTION":
-    case "TLS_MITM":
-    case "ISP_PAGE":
-    case "DNS_FAKE":
-    case "MIXED":
-      color = "secondary";
-      break;
-    case "TIMEOUT":
-    case "ERROR":
-      color = "info";
-      break;
-  }
-
-  return <B4Badge label={display} size="small" color={color} />;
-}
-
-function SummaryIcon({ ok }: { ok: boolean }) {
-  return ok ? (
-    <CheckCircleIcon sx={{ color: colors.secondary, fontSize: 20 }} />
-  ) : (
-    <WarningIcon sx={{ color: "#f44336", fontSize: 20 }} />
-  );
-}
+import { TestSelectionGrid } from "./TestSelectionGrid";
+import { ProgressGauge } from "./ProgressGauge";
+import { SummaryDashboard } from "./SummaryDashboard";
+import { ResultSection } from "./ResultSection";
+import { DNSResults } from "./results/DNSResults";
+import { DomainsResults } from "./results/DomainsResults";
+import { TCPResults } from "./results/TCPResults";
+import { SNIResults } from "./results/SNIResults";
 
 export const DetectorRunner = () => {
   const {
@@ -116,6 +43,7 @@ export const DetectorRunner = () => {
     dns: true,
     domains: true,
     tcp: true,
+    sni: false,
   });
 
   const isReconnecting = suiteId && running && !suite;
@@ -139,6 +67,12 @@ export const DetectorRunner = () => {
   }, [selectedTests, startDetector]);
 
   const anyTestSelected = Object.values(selectedTests).some(Boolean);
+  const hasAnyResult =
+    suite &&
+    (suite.dns_result ||
+      suite.domains_result ||
+      suite.tcp_result ||
+      suite.sni_result);
 
   return (
     <Stack spacing={3}>
@@ -163,51 +97,24 @@ export const DetectorRunner = () => {
         </B4Alert>
 
         {/* Test selection */}
-        {!running && !suite && (
-          <Stack spacing={1}>
-            {(["dns", "domains", "tcp"] as DetectorTestType[]).map((test) => (
-              <Box
-                key={test}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  px: 2,
-                  py: 1,
-                  borderRadius: 1,
-                  bgcolor: selectedTests[test]
-                    ? colors.accent.primary
-                    : "transparent",
-                  border: `1px solid ${
-                    selectedTests[test]
-                      ? colors.border.medium
-                      : colors.border.light
-                  }`,
-                }}
-              >
-                {testIcons[test]}
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {testNames[test]}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: colors.text.secondary }}
-                  >
-                    {testDescriptions[test]}
-                  </Typography>
-                </Box>
-                <B4Switch
-                  label=""
-                  checked={selectedTests[test]}
-                  onChange={(checked) =>
-                    setSelectedTests((prev) => ({ ...prev, [test]: checked }))
-                  }
-                />
-              </Box>
-            ))}
-          </Stack>
-        )}
+        <AnimatePresence mode="wait">
+          {!running && !suite && (
+            <motion.div
+              key="selection"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TestSelectionGrid
+                selectedTests={selectedTests}
+                onToggle={(test, checked) =>
+                  setSelectedTests((prev) => ({ ...prev, [test]: checked }))
+                }
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Action buttons */}
         <Box sx={{ display: "flex", gap: 1 }}>
@@ -253,45 +160,43 @@ export const DetectorRunner = () => {
           </Box>
         )}
 
-        {/* Progress */}
-        {running && suite && (
-          <Box>
-            <Box
-              sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
+        {/* Progress gauge */}
+        <AnimatePresence>
+          {running && suite && (
+            <motion.div
+              key="progress"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  {suite.current_test && (
-                    <B4Badge
-                      label={testNames[suite.current_test]}
-                      size="small"
-                      color="primary"
-                      sx={{ mr: 1 }}
-                    />
-                  )}
-                  {suite.completed_checks} of {suite.total_checks} checks
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {progress.toFixed(0)}%
-              </Typography>
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              value={progress}
-              sx={{
-                height: 8,
-                borderRadius: 4,
-                bgcolor: colors.background.dark,
-                "& .MuiLinearProgress-bar": {
-                  bgcolor: colors.secondary,
-                  borderRadius: 4,
-                },
-              }}
-            />
-          </Box>
-        )}
+              <ProgressGauge
+                progress={progress}
+                currentTest={suite.current_test}
+                completedChecks={suite.completed_checks}
+                totalChecks={suite.total_checks}
+                tests={suite.tests}
+                suite={suite}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </B4Section>
+
+      {/* Summary Dashboard */}
+      <AnimatePresence>
+        {hasAnyResult && (
+          <motion.div
+            key="summary"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <SummaryDashboard suite={suite} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* DNS Results */}
       {suite?.dns_result && (
@@ -321,7 +226,7 @@ export const DetectorRunner = () => {
               </B4Alert>
             )}
           {suite.dns_result.domains && suite.dns_result.domains.length > 0 && (
-            <DNSTable domains={suite.dns_result.domains} />
+            <DNSResults domains={suite.dns_result.domains} />
           )}
         </ResultSection>
       )}
@@ -336,7 +241,7 @@ export const DetectorRunner = () => {
         >
           {suite.domains_result.domains &&
             suite.domains_result.domains.length > 0 && (
-              <DomainsTable domains={suite.domains_result.domains} />
+              <DomainsResults domains={suite.domains_result.domains} />
             )}
         </ResultSection>
       )}
@@ -344,268 +249,34 @@ export const DetectorRunner = () => {
       {/* TCP Results */}
       {suite?.tcp_result && (
         <ResultSection
-          title="TCP Connection Drop Test"
+          title="TCP Fat Probe Test"
           icon={<NetworkIcon />}
           summary={suite.tcp_result.summary}
           ok={suite.tcp_result.detected_count === 0}
         >
           {suite.tcp_result.targets && suite.tcp_result.targets.length > 0 && (
-            <TCPTable targets={suite.tcp_result.targets} />
+            <TCPResults targets={suite.tcp_result.targets} />
           )}
+        </ResultSection>
+      )}
+
+      {/* SNI Results */}
+      {suite?.sni_result && (
+        <ResultSection
+          title="SNI Whitelist Brute-Force"
+          icon={<SniIcon />}
+          summary={suite.sni_result.summary}
+          ok={
+            suite.sni_result.tested_count === 0 ||
+            suite.sni_result.found_count > 0
+          }
+        >
+          {suite.sni_result.asn_results &&
+            suite.sni_result.asn_results.length > 0 && (
+              <SNIResults results={suite.sni_result.asn_results} />
+            )}
         </ResultSection>
       )}
     </Stack>
   );
 };
-
-// Result section wrapper
-function ResultSection({
-  title,
-  icon,
-  summary,
-  ok,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  summary: string;
-  ok: boolean;
-  children: React.ReactNode;
-}) {
-  const [expanded, setExpanded] = useState(true);
-
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        bgcolor: colors.background.paper,
-        border: `1px solid ${colors.border.default}`,
-        borderRadius: 2,
-        overflow: "hidden",
-      }}
-    >
-      <Box
-        onClick={() => setExpanded((v) => !v)}
-        sx={{
-          p: 2,
-          bgcolor: colors.accent.primary,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer",
-          userSelect: "none",
-          "&:hover": { bgcolor: colors.accent.primaryHover },
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          {icon}
-          <Typography variant="h6" sx={{ color: colors.text.primary }}>
-            {title}
-          </Typography>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <SummaryIcon ok={ok} />
-          <Typography
-            variant="body2"
-            sx={{
-              color: ok ? colors.secondary : "#f44336",
-              fontWeight: 600,
-            }}
-          >
-            {summary}
-          </Typography>
-          {expanded ? (
-            <CollapseIcon sx={{ color: colors.text.secondary, fontSize: 20 }} />
-          ) : (
-            <ExpandIcon sx={{ color: colors.text.secondary, fontSize: 20 }} />
-          )}
-        </Box>
-      </Box>
-      <Collapse in={expanded}>
-        <Box sx={{ p: 2 }}>
-          <Stack spacing={2}>{children}</Stack>
-        </Box>
-      </Collapse>
-    </Paper>
-  );
-}
-
-// DNS results table
-function DNSTable({ domains }: { domains: DNSDomainResult[] }) {
-  return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <StyledHeaderCell>Domain</StyledHeaderCell>
-            <StyledHeaderCell>DoH IP</StyledHeaderCell>
-            <StyledHeaderCell>UDP IP</StyledHeaderCell>
-            <StyledHeaderCell>Status</StyledHeaderCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {domains.map((d) => (
-            <TableRow key={d.domain}>
-              <StyledCell>
-                {d.domain}
-                {d.is_stub_ip && (
-                  <B4Badge
-                    label="STUB"
-                    size="small"
-                    color="error"
-                    sx={{ ml: 1 }}
-                  />
-                )}
-              </StyledCell>
-              <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
-                {d.doh_ip}
-              </StyledCell>
-              <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
-                {d.udp_ip}
-              </StyledCell>
-              <StyledCell>
-                <StatusChip status={d.status} />
-              </StyledCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-}
-
-// Domain accessibility results table
-function DomainsTable({ domains }: { domains: DomainCheckResult[] }) {
-  return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <StyledHeaderCell>Domain</StyledHeaderCell>
-            <StyledHeaderCell>IP</StyledHeaderCell>
-            <StyledHeaderCell>TLS 1.3</StyledHeaderCell>
-            <StyledHeaderCell>TLS 1.2</StyledHeaderCell>
-            <StyledHeaderCell>HTTP</StyledHeaderCell>
-            <StyledHeaderCell>Overall</StyledHeaderCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {domains.map((d) => (
-            <TableRow key={d.domain}>
-              <StyledCell>{d.domain}</StyledCell>
-              <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
-                {d.ip || "-"}
-              </StyledCell>
-              <StyledCell>
-                {d.tls13 ? <StatusChip status={d.tls13.status} /> : "-"}
-              </StyledCell>
-              <StyledCell>
-                {d.tls12 ? <StatusChip status={d.tls12.status} /> : "-"}
-              </StyledCell>
-              <StyledCell>
-                {d.http ? <StatusChip status={d.http.status} /> : "-"}
-              </StyledCell>
-              <StyledCell>
-                <StatusChip status={d.overall} />
-              </StyledCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-}
-
-// TCP drop test results table
-function TCPTable({ targets }: { targets: TCPTargetResult[] }) {
-  return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <StyledHeaderCell>#</StyledHeaderCell>
-            <StyledHeaderCell>Provider</StyledHeaderCell>
-            <StyledHeaderCell>ASN</StyledHeaderCell>
-            <StyledHeaderCell>Country</StyledHeaderCell>
-            <StyledHeaderCell>Status</StyledHeaderCell>
-            <StyledHeaderCell>Detail</StyledHeaderCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {targets.map((t) => (
-            <TableRow key={t.target.id}>
-              <StyledCell>{t.target.id}</StyledCell>
-              <StyledCell>{t.target.provider}</StyledCell>
-              <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
-                {t.target.asn}
-              </StyledCell>
-              <StyledCell>{t.target.country}</StyledCell>
-              <StyledCell>
-                <StatusChip status={t.status} />
-              </StyledCell>
-              <StyledCell
-                sx={{
-                  fontSize: "0.8rem",
-                  color: colors.text.secondary,
-                  maxWidth: 300,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {t.detail || "-"}
-              </StyledCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-}
-
-// Styled table cells
-function StyledHeaderCell({
-  children,
-  ...props
-}: { children: React.ReactNode } & Record<string, unknown>) {
-  return (
-    <TableCell
-      sx={{
-        color: colors.text.secondary,
-        borderBottom: `1px solid ${colors.border.default}`,
-        fontSize: "0.75rem",
-        textTransform: "uppercase",
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        py: 1,
-        ...((props.sx as object) || {}),
-      }}
-    >
-      {children}
-    </TableCell>
-  );
-}
-
-function StyledCell({
-  children,
-  sx: sxProp,
-  ...props
-}: {
-  children: React.ReactNode;
-  sx?: Record<string, unknown>;
-} & Record<string, unknown>) {
-  return (
-    <TableCell
-      sx={{
-        color: colors.text.primary,
-        borderBottom: `1px solid ${colors.border.light}`,
-        whiteSpace: "nowrap",
-        py: 0.75,
-        ...(sxProp || {}),
-      }}
-      {...props}
-    >
-      {children}
-    </TableCell>
-  );
-}

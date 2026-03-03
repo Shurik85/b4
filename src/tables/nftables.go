@@ -202,7 +202,16 @@ func (n *NFTablesManager) Apply() error {
 		return err
 	}
 
-	// Duplication rules: queue ALL TCP/443 packets to specific IPs (no connbytes limit).
+	// Collect TCP and UDP ports
+	tcpPorts := cfg.CollectTCPPorts()
+	var tcpPortExpr string
+	if len(tcpPorts) == 1 {
+		tcpPortExpr = tcpPorts[0]
+	} else {
+		tcpPortExpr = "{ " + strings.Join(tcpPorts, ", ") + " }"
+	}
+
+	// Duplication rules: queue ALL TCP packets on configured ports to specific IPs (no connbytes limit).
 	// Must come before the generic connbytes-limited rules.
 	dupIPv4, dupIPv6 := cfg.CollectDuplicateIPs()
 	queueAction := strings.Fields(n.buildNFQueueAction())
@@ -213,7 +222,7 @@ func (n *NFTablesManager) Apply() error {
 		} else {
 			ipExpr = "{ " + strings.Join(dupIPv4, ", ") + " }"
 		}
-		args := append([]string{"meta", "nfproto", "ipv4", "ip", "daddr", ipExpr, "tcp", "dport", "443", "counter"}, queueAction...)
+		args := append([]string{"meta", "nfproto", "ipv4", "ip", "daddr", ipExpr, "tcp", "dport", tcpPortExpr, "counter"}, queueAction...)
 		if err := n.addRule(nftChainName, args...); err != nil {
 			return err
 		}
@@ -225,7 +234,7 @@ func (n *NFTablesManager) Apply() error {
 		} else {
 			ipExpr = "{ " + strings.Join(dupIPv6, ", ") + " }"
 		}
-		args := append([]string{"meta", "nfproto", "ipv6", "ip6", "daddr", ipExpr, "tcp", "dport", "443", "counter"}, queueAction...)
+		args := append([]string{"meta", "nfproto", "ipv6", "ip6", "daddr", ipExpr, "tcp", "dport", tcpPortExpr, "counter"}, queueAction...)
 		if err := n.addRule(nftChainName, args...); err != nil {
 			return err
 		}
@@ -234,7 +243,7 @@ func (n *NFTablesManager) Apply() error {
 	tcpLimit := fmt.Sprintf("%d", cfg.MainSet.TCP.ConnBytesLimit+1)
 	udpLimit := fmt.Sprintf("%d", cfg.MainSet.UDP.ConnBytesLimit+1)
 
-	if err := n.addQueueRule(nftChainName, "tcp", "dport", "443", "ct", "original", "packets", "<", tcpLimit, "counter"); err != nil {
+	if err := n.addQueueRule(nftChainName, "tcp", "dport", tcpPortExpr, "ct", "original", "packets", "<", tcpLimit, "counter"); err != nil {
 		return err
 	}
 
@@ -246,11 +255,11 @@ func (n *NFTablesManager) Apply() error {
 		return err
 	}
 
-	if err := n.addQueueRule("prerouting", "tcp", "sport", "443", "ct", "original", "packets", "<", tcpLimit, "counter"); err != nil {
+	if err := n.addQueueRule("prerouting", "tcp", "sport", tcpPortExpr, "ct", "original", "packets", "<", tcpLimit, "counter"); err != nil {
 		return err
 	}
 
-	if err := n.addQueueRule("prerouting", "tcp", "sport", "443", "tcp", "flags", "&", "(syn|ack)", "==", "(syn|ack)", "counter"); err != nil {
+	if err := n.addQueueRule("prerouting", "tcp", "sport", tcpPortExpr, "tcp", "flags", "&", "(syn|ack)", "==", "(syn|ack)", "counter"); err != nil {
 		return err
 	}
 

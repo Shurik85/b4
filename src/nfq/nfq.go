@@ -207,13 +207,21 @@ func (w *Worker) Start() error {
 				sport := binary.BigEndian.Uint16(tcp[0:2])
 				dport := binary.BigEndian.Uint16(tcp[2:4])
 
-				if sport == HTTPSPort {
+				if cfg.IsTCPPort(sport) {
 					return w.HandleIncoming(q, id, v, raw, ihl, src, dstStr, dport, srcStr, sport, payload)
 				}
 
-				// Packet duplication path: duplicate ALL outgoing TCP/443 packets
+				// If IP matching didn't find a set, try TCP port-based set matching
+				if !matched && cfg.IsTCPPort(dport) {
+					if portMatched, portSet := matcher.MatchTCPPort(dport); portMatched {
+						matched = true
+						set = portSet
+					}
+				}
+
+				// Packet duplication path: duplicate ALL outgoing TCP packets on configured ports
 				// without TLS/SNI parsing. Bypasses DPI evasion entirely.
-				if matched && dport == HTTPSPort && set.TCP.Duplicate.Enabled && set.TCP.Duplicate.Count > 0 {
+				if matched && cfg.IsTCPPort(dport) && set.TCP.Duplicate.Enabled && set.TCP.Duplicate.Count > 0 {
 					log.Tracef("TCP duplicate to %s:%d (%d copies, set: %s)", dstStr, dport, set.TCP.Duplicate.Count, set.Name)
 
 					m := metrics.GetMetricsCollector()
@@ -243,11 +251,11 @@ func (w *Worker) Start() error {
 				isSyn := (tcpFlags & 0x02) != 0
 				isAck := (tcpFlags & 0x10) != 0
 				isRst := (tcpFlags & 0x04) != 0
-				if isRst && dport == HTTPSPort {
+				if isRst && cfg.IsTCPPort(dport) {
 					log.Tracef("RST received from %s:%d", dstStr, dport)
 				}
 
-				if isSyn && !isAck && dport == HTTPSPort && matched && !set.TCP.Duplicate.Enabled {
+				if isSyn && !isAck && cfg.IsTCPPort(dport) && matched && !set.TCP.Duplicate.Enabled {
 					log.Tracef("TCP SYN to %s:%d (set: %s)", dstStr, dport, set.Name)
 
 					metrics := metrics.GetMetricsCollector()
@@ -284,12 +292,17 @@ func (w *Worker) Start() error {
 				}
 
 				host := ""
-				matchedIP := matched
+				matchedIP := st != nil
 				matchedSNI := false
 				ipTarget := ""
 				sniTarget := ""
 
-				if dport == HTTPSPort && len(payload) > 0 {
+				// Show port-matched set name in log
+				if !matchedIP && matched && set != nil {
+					ipTarget = set.Name
+				}
+
+				if cfg.IsTCPPort(dport) && len(payload) > 0 {
 					log.Tracef("TCP payload to %s: len=%d, first5=%x", dstStr, len(payload), payload[:min(5, len(payload))])
 					if len(payload) >= 5 && payload[0] == 0x16 {
 						log.Tracef("TLS record: type=%x ver=%x%x len=%d", payload[0], payload[1], payload[2],
@@ -403,7 +416,7 @@ func (w *Worker) Start() error {
 					return 0
 				}
 
-				matchedIP := matched
+				matchedIP := st != nil
 				matchedQUIC := false
 				isSTUN := false
 				host := ""
@@ -425,6 +438,17 @@ func (w *Worker) Start() error {
 					}
 				}
 
+				// If IP matching didn't find a set, try UDP port-based set matching
+				matchedPort := false
+				if !matched {
+					if portMatched, portSet := matcher.MatchUDPPort(dport); portMatched {
+						matchedPort = true
+						matched = true
+						set = portSet
+						ipTarget = portSet.Name
+					}
+				}
+
 				isSTUN = stun.IsSTUNMessage(payload)
 
 				if host == "" {
@@ -442,7 +466,7 @@ func (w *Worker) Start() error {
 					}
 				}
 
-				if !matchedQUIC && matchedIP && set.UDP.FilterQUIC == "all" {
+				if !matchedQUIC && (matchedIP || matchedPort) && set.UDP.FilterQUIC == "all" {
 					if quic.IsInitial(payload) {
 						matchedQUIC = true
 					}
@@ -452,7 +476,7 @@ func (w *Worker) Start() error {
 					captureManager.CapturePayload(connKey, host, "quic", payload)
 				}
 
-				shouldHandle := (matchedIP || matchedQUIC) && !(isSTUN && set.UDP.FilterSTUN)
+				shouldHandle := (matchedIP || matchedQUIC || matchedPort) && !(isSTUN && set.UDP.FilterSTUN)
 
 				matched = shouldHandle
 

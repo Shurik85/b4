@@ -16,9 +16,10 @@ type Segment struct {
 }
 
 type Pool struct {
-	Workers  []*Worker
-	configMu sync.Mutex
-	Dhcp     *dhcp.Manager
+	Workers     []*Worker
+	configMu    sync.Mutex
+	Dhcp        *dhcp.Manager
+	stopCleanup chan struct{}
 }
 
 type PacketInfo struct {

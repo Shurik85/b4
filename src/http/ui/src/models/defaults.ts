@@ -14,6 +14,7 @@ export function createDefaultSet(setCount: number): B4SetConfig {
       syn_fake_len: 0,
       syn_ttl: 3,
       drop_sack: false,
+      dport_filter: "",
       win: { mode: "off", values: [0, 1460, 8192, 65535] },
       desync: { mode: "off", ttl: 3, count: 3, post_desync: false },
       incoming: {
@@ -80,6 +81,8 @@ export function createDefaultSet(setCount: number): B4SetConfig {
       custom_payload: "",
       payload_file: "",
       tls_mod: [] as string[],
+      tcp_md5: false,
+      timestamp_decrease: 0,
       sni_mutation: {
         mode: "off",
         grease_count: 3,
@@ -93,6 +96,7 @@ export function createDefaultSet(setCount: number): B4SetConfig {
       ip: [],
       geosite_categories: [],
       geoip_categories: [],
+      source_devices: [],
     } as B4SetConfig["targets"],
   };
 }

@@ -128,7 +128,7 @@ func getSystemInterfaces() ([]string, error) {
 	}
 	// Only exclude container-related interfaces when running on bare metal
 	if !inDocker {
-		excludePrefixes = append(excludePrefixes, "veth", "docker", "virbr")
+		excludePrefixes = append(excludePrefixes, "docker", "virbr")
 	}
 
 	var ifaceNames []string
@@ -351,15 +351,21 @@ func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 
 func (a *API) PerformSoftRestart(newCfg *config.Config, oldCfg *config.Config) bool {
 
-	oldPorts := strings.Join(oldCfg.CollectUDPPorts(), ",")
-	newPorts := strings.Join(newCfg.CollectUDPPorts(), ",")
+	oldUDPPorts := strings.Join(oldCfg.CollectUDPPorts(), ",")
+	newUDPPorts := strings.Join(newCfg.CollectUDPPorts(), ",")
+	oldTCPPorts := strings.Join(oldCfg.CollectTCPPorts(), ",")
+	newTCPPorts := strings.Join(newCfg.CollectTCPPorts(), ",")
 	shouldUpdate := false
 	if oldCfg.System.Tables.SkipSetup != newCfg.System.Tables.SkipSetup {
 
 		shouldUpdate = true
 	}
 
-	if !newCfg.System.Tables.SkipSetup && oldPorts != newPorts {
+	if !newCfg.System.Tables.SkipSetup && oldUDPPorts != newUDPPorts {
+		shouldUpdate = true
+	}
+
+	if !newCfg.System.Tables.SkipSetup && oldTCPPorts != newTCPPorts {
 		shouldUpdate = true
 	}
 
@@ -396,8 +402,11 @@ func (a *API) PerformSoftRestart(newCfg *config.Config, oldCfg *config.Config) b
 
 	if shouldUpdate {
 		log.Infof("Core settings changed, performing soft system restart")
-		if oldPorts != newPorts {
-			log.Infof("UDP ports changed (%s -> %s), refreshing firewall rules", oldPorts, newPorts)
+		if oldUDPPorts != newUDPPorts {
+			log.Infof("UDP ports changed (%s -> %s), refreshing firewall rules", oldUDPPorts, newUDPPorts)
+		}
+		if oldTCPPorts != newTCPPorts {
+			log.Infof("TCP ports changed (%s -> %s), refreshing firewall rules", oldTCPPorts, newTCPPorts)
 		}
 		if err := tablesRefreshFunc(); err != nil {
 			log.Errorf("Failed to refresh tables: %v", err)

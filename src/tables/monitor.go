@@ -117,8 +117,10 @@ func (m *Monitor) checkIPTablesRules() bool {
 		}
 
 		out, _ := run(ipt, "-w", "-t", "mangle", "-S", "PREROUTING")
-		if !strings.Contains(out, "sport 53") || !strings.Contains(out, "sport 443") {
-			log.Tracef("Monitor: PREROUTING response rules missing")
+		hasDNS := strings.Contains(out, "sport 53") && strings.Contains(out, "NFQUEUE")
+		hasTCP := strings.Contains(out, "tcp") && strings.Contains(out, "NFQUEUE")
+		if !hasDNS || !hasTCP {
+			log.Tracef("Monitor: PREROUTING response rules missing (dns=%v, tcp=%v)", hasDNS, hasTCP)
 			return false
 		}
 
@@ -200,8 +202,10 @@ func (m *Monitor) checkNFTablesRules() bool {
 		return false
 	}
 	out, _ := nft.runNft("list", "chain", "inet", nftTableName, "prerouting")
-	if !strings.Contains(out, "sport 53") || !strings.Contains(out, "sport 443") {
-		log.Tracef("Monitor: prerouting response rules missing")
+	hasDNS := strings.Contains(out, "sport 53") && strings.Contains(out, "queue")
+	hasTCP := strings.Contains(out, "tcp sport") && strings.Contains(out, "queue")
+	if !hasDNS || !hasTCP {
+		log.Tracef("Monitor: prerouting response rules missing (dns=%v, tcp=%v)", hasDNS, hasTCP)
 		return false
 	}
 

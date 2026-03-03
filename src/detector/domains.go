@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -260,12 +261,52 @@ func (s *DetectorSuite) probeHTTP(ctx context.Context, domain, ip string) *HTTPP
 		}
 	}
 
+	// Cross-domain redirect detection: ISP may redirect to a foreign domain
+	if location != "" && resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		if isCrossDomainRedirect(domain, location) {
+			return &HTTPProbeResult{
+				Status:     DomainISPPage,
+				Detail:     "Cross-domain redirect to: " + location,
+				StatusCode: resp.StatusCode,
+				RedirectTo: location,
+			}
+		}
+	}
+
 	return &HTTPProbeResult{
 		Status:     DomainOk,
 		Detail:     fmt.Sprintf("HTTP %d", resp.StatusCode),
 		StatusCode: resp.StatusCode,
 		RedirectTo: location,
 	}
+}
+
+// isCrossDomainRedirect checks if a redirect Location points to a completely
+// different domain (not a subdomain or known CDN/auth endpoint).
+func isCrossDomainRedirect(originalDomain, locationURL string) bool {
+	parsed, err := url.Parse(locationURL)
+	if err != nil || parsed.Host == "" {
+		return false
+	}
+
+	redirectHost := strings.ToLower(strings.TrimPrefix(parsed.Host, "www."))
+	originalHost := strings.ToLower(strings.TrimPrefix(originalDomain, "www."))
+
+	// Same domain or subdomain — not suspicious
+	if redirectHost == originalHost ||
+		strings.HasSuffix(redirectHost, "."+originalHost) ||
+		strings.HasSuffix(originalHost, "."+redirectHost) {
+		return false
+	}
+
+	// Check against CDN/auth patterns — these are legitimate redirects
+	for _, pattern := range CDNRedirectPatterns {
+		if strings.Contains(redirectHost, pattern) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func deriveOverallStatus(dr DomainCheckResult) DomainStatus {

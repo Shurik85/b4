@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 
 	"github.com/daniellavrushin/b4/detector"
 	"github.com/daniellavrushin/b4/log"
@@ -43,11 +44,22 @@ func (api *API) handleStartDetector(w http.ResponseWriter, r *http.Request) {
 			tests = append(tests, detector.TestDomains)
 		case "tcp":
 			tests = append(tests, detector.TestTCP)
+		case "sni":
+			tests = append(tests, detector.TestSNI)
 		default:
 			http.Error(w, fmt.Sprintf("Unknown test type: %s", t), http.StatusBadRequest)
 			return
 		}
 	}
+
+	// Enforce ordering: dns → domains → tcp → sni
+	testOrder := map[detector.TestType]int{
+		detector.TestDNS: 0, detector.TestDomains: 1,
+		detector.TestTCP: 2, detector.TestSNI: 3,
+	}
+	sort.Slice(tests, func(i, j int) bool {
+		return testOrder[tests[i]] < testOrder[tests[j]]
+	})
 
 	suite := detector.NewDetectorSuite(tests)
 
