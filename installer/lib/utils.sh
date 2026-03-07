@@ -139,17 +139,31 @@ detect_architecture() {
 
 is_little_endian() {
     uname -m | grep -qi "el" && return 0
+    [ -f /sys/kernel/cpu_byteorder ] && grep -qi "little" /sys/kernel/cpu_byteorder 2>/dev/null && return 0
     [ -f /proc/cpuinfo ] && grep -qi "little.endian\|byteorder.*little" /proc/cpuinfo 2>/dev/null && return 0
     command_exists opkg && opkg print-architecture 2>/dev/null | grep -qi "mipsel\|mips64el" && return 0
-    # ELF header check
+    # ELF header byte 6 (index 5): 1=little-endian, 2=big-endian
     [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null | od -An -tx1 | tr -d ' ')" = "01" ] && return 0
     return 1
 }
 
 is_softfloat() {
+    # On OpenWrt/Entware, check opkg architecture (most reliable)
+    if command_exists opkg; then
+        local opkg_arch
+        opkg_arch="$(opkg print-architecture 2>/dev/null)"
+        echo "$opkg_arch" | grep -qi "softfloat\|_nofpu\|soft_float" && return 0
+        # If opkg reports a known MIPS target without softfloat marker, it's hardfloat
+        echo "$opkg_arch" | grep -qi "mips" && return 1
+    fi
+    # Check ELF soft-float flag in /bin/sh using file command if available
+    if command_exists file; then
+        file /bin/sh 2>/dev/null | grep -qi "soft.float" && return 0
+        file /bin/sh 2>/dev/null | grep -qi "MIPS\|ELF" && return 1
+    fi
+    # Fallback: check /proc/cpuinfo for explicit soft-float indicators
     [ -f /proc/cpuinfo ] || return 1
-    ! grep -qi "fpu" /proc/cpuinfo 2>/dev/null && return 0
-    grep -qi "nofpu\|no fpu" /proc/cpuinfo 2>/dev/null && return 0
+    grep -qi "nofpu\|no fpu\|soft.float" /proc/cpuinfo 2>/dev/null && return 0
     return 1
 }
 
