@@ -1,5 +1,10 @@
 # B4 - Bye Bye Big Bro
 
+## [1.39.3] - 2026-03-07
+
+- IMPROVED: **Device list sorting** — devices are now sorted alphabetically by name, with selected devices always shown at the top for easier access.
+- FIXED: **Set Import not working on Android** — pasting a set configuration from the clipboard was not possible on Android devices.
+
 ## [1.39.2] - 2026-03-03
 
 - ADDED: **TCP Port Filter** — B4 no longer only captures TCP port 443. You can now configure custom TCP ports per set (e.g., `80,5222,8000-9000`) in the TCP settings tab, just like UDP. Port 443 is always included. Firewall rules, packet processing, and the monitor all update automatically — no restart needed. Useful for services like Telegram (port 5222), WhatsApp (5222-5223), Signal (4433), XMPP, and others that use non-443 TCP ports.

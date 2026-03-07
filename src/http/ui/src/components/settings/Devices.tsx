@@ -289,7 +289,16 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        devices.map((device) => (
+                        [...devices]
+                          .sort((a, b) => {
+                            const aSelected = isSelected(a.mac);
+                            const bSelected = isSelected(b.mac);
+                            if (aSelected !== bSelected) return aSelected ? -1 : 1;
+                            const aName = (a.alias || a.vendor || a.hostname || "").toLowerCase();
+                            const bName = (b.alias || b.vendor || b.hostname || "").toLowerCase();
+                            return aName.localeCompare(bName);
+                          })
+                          .map((device) => (
                           <TableRow
                             key={device.mac}
                             hover

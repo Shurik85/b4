@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button, Stack } from "@mui/material";
-import { ImportExportIcon, CopyIcon, PasteIcon } from "@b4.icons";
+import { ImportExportIcon, CopyIcon, DownloadIcon } from "@b4.icons";
 import { B4Alert, B4Section, B4TextField } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
 
@@ -205,8 +205,8 @@ export const ImportExportSettings = ({
     }
   };
 
-  const handlePasteButton = () => {
-    void navigator.clipboard.readText().then(importJson);
+  const handleImport = () => {
+    importJson(jsonValue);
   };
 
   const handleCopy = () => {
@@ -226,11 +226,11 @@ export const ImportExportSettings = ({
         <B4TextField
           label="Set Configuration JSON"
           value={jsonValue}
+          onChange={(e) => setJsonValue(e.target.value)}
           onPaste={handlePaste}
           multiline
           rows={10}
-          slotProps={{ input: { readOnly: true } }}
-          helperText="Paste a set configuration JSON to import it."
+          helperText="Paste or type a set configuration JSON to import it."
         />
         <Stack direction="row" spacing={2}>
           <Button
@@ -242,10 +242,10 @@ export const ImportExportSettings = ({
           </Button>
           <Button
             variant="outlined"
-            startIcon={<PasteIcon />}
-            onClick={handlePasteButton}
+            startIcon={<DownloadIcon />}
+            onClick={handleImport}
           >
-            Paste JSON
+            Import
           </Button>
         </Stack>
       </Stack>
