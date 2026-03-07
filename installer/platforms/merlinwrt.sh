@@ -51,10 +51,10 @@ platform_merlinwrt_info() {
     if [ ! -d "/opt/etc/init.d" ]; then
         log_warn "Entware not detected!"
         log_info "Entware is required for MerlinWRT. Install it first:"
-        log_info "  1. Plug in a USB drive"
-        log_info "  2. Format it via the router admin panel"
-        log_info "  3. Go to Administration > System > Enable Entware"
-        log_info "  Or visit: https://github.com/Entware/Entware/wiki/Install-on-Asuswrt-Merlin"
+        log_info "  1. Plug in a USB drive and format it via the router admin panel"
+        log_info "  2. Open SSH and run: amtm"
+        log_info "  3. Select option 'ep' to install Entware"
+        log_info "  More info: https://diversion.ch/amtm.html"
 
         # Fallback to /jffs if available
         if [ -d "/jffs" ] && [ -w "/jffs" ]; then
@@ -154,7 +154,7 @@ platform_merlinwrt_find_storage() {
     fi
 
     log_err "No writable persistent storage found"
-    log_info "Please install Entware with a USB drive"
+    log_info "Please install Entware via amtm (run 'amtm' in SSH, select 'ep')"
     return 1
 }
 

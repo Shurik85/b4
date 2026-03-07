@@ -128,8 +128,49 @@ wizard_manual_configure() {
 
     # 5. Architecture
     auto_arch=$(detect_architecture)
-    read_input "Architecture [${auto_arch}]: " "$auto_arch"
-    B4_ARCH="$_INPUT"
+    B4_SUPPORTED_ARCHS="amd64 arm64 armv7 armv6 armv5 386 mips mipsle mips_softfloat mipsle_softfloat mips64 mips64le loong64 ppc64 ppc64le riscv64 s390x"
+
+    # Find the index of the detected architecture for default
+    _arch_default=1
+    _arch_idx=1
+    for a in $B4_SUPPORTED_ARCHS; do
+        if [ "$a" = "$auto_arch" ]; then
+            _arch_default=$_arch_idx
+            break
+        fi
+        _arch_idx=$((_arch_idx + 1))
+    done
+
+    while true; do
+        echo "  Available architectures:"
+        _arch_idx=1
+        for a in $B4_SUPPORTED_ARCHS; do
+            if [ "$a" = "$auto_arch" ]; then
+                printf "    ${BOLD}%2d${NC}) %s ${DIM}(detected)${NC}\n" "$_arch_idx" "$a"
+            else
+                printf "    ${BOLD}%2d${NC}) %s\n" "$_arch_idx" "$a"
+            fi
+            _arch_idx=$((_arch_idx + 1))
+        done
+        echo ""
+
+        read_input "Select architecture [${_arch_default}]: " "$_arch_default"
+        _arch_idx=1
+        B4_ARCH=""
+        for a in $B4_SUPPORTED_ARCHS; do
+            if [ "$_arch_idx" = "$_INPUT" ]; then
+                B4_ARCH="$a"
+                break
+            fi
+            _arch_idx=$((_arch_idx + 1))
+        done
+
+        if [ -n "$B4_ARCH" ]; then
+            break
+        fi
+        log_warn "Invalid selection, please try again"
+        echo ""
+    done
 
     # 6. Package manager
     detect_pkg_manager

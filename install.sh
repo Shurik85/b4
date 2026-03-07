@@ -95,7 +95,10 @@ check_root() {
 
 setup_temp() {
     rm -rf "$TEMP_DIR" 2>/dev/null || true
-    mkdir -p "$TEMP_DIR" || { log_err "Cannot create temp dir"; exit 1; }
+    mkdir -p "$TEMP_DIR" || {
+        log_err "Cannot create temp dir"
+        exit 1
+    }
 }
 
 cleanup_temp() {
@@ -126,13 +129,22 @@ detect_pkg_manager() {
 pkg_install() {
     detect_pkg_manager
     case "$B4_PKG_MANAGER" in
-    apt)    apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq "$@" >/dev/null 2>&1 ;;
-    dnf)    dnf install -y -q "$@" >/dev/null 2>&1 ;;
-    yum)    yum install -y -q "$@" >/dev/null 2>&1 ;;
+    apt)
+        apt-get update -qq >/dev/null 2>&1
+        apt-get install -y -qq "$@" >/dev/null 2>&1
+        ;;
+    dnf) dnf install -y -q "$@" >/dev/null 2>&1 ;;
+    yum) yum install -y -q "$@" >/dev/null 2>&1 ;;
     pacman) pacman -S --noconfirm --needed "$@" >/dev/null 2>&1 ;;
-    apk)    apk add --quiet "$@" >/dev/null 2>&1 ;;
-    opkg)   opkg update >/dev/null 2>&1; opkg install "$@" >/dev/null 2>&1 ;;
-    *)      log_warn "No package manager detected"; return 1 ;;
+    apk) apk add --quiet "$@" >/dev/null 2>&1 ;;
+    opkg)
+        opkg update >/dev/null 2>&1
+        opkg install "$@" >/dev/null 2>&1
+        ;;
+    *)
+        log_warn "No package manager detected"
+        return 1
+        ;;
     esac
 }
 
@@ -140,25 +152,28 @@ detect_architecture() {
     arch=$(uname -m)
 
     case "$arch" in
-    x86_64 | amd64)         echo "amd64" ;;
+    x86_64 | amd64) echo "amd64" ;;
     i386 | i486 | i586 | i686) echo "386" ;;
-    aarch64 | arm64)        echo "arm64" ;;
+    aarch64 | arm64) echo "arm64" ;;
     armv7 | armv7l)
         if [ -f /proc/cpuinfo ] &&
-           grep -qE "(vfpv[3-9])" /proc/cpuinfo 2>/dev/null &&
-           grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then
+            grep -qE "(vfpv[3-9])" /proc/cpuinfo 2>/dev/null &&
+            grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then
             echo "armv7"
         else
             echo "armv5"
         fi
         ;;
-    armv6*)                 echo "armv6" ;;
-    armv5*)                 echo "armv5" ;;
+    armv6*) echo "armv6" ;;
+    armv5*) echo "armv5" ;;
     arm*)
         if [ -f /proc/cpuinfo ]; then
-            if grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then echo "armv7"
-            elif grep -qE "CPU architecture:\s*6" /proc/cpuinfo 2>/dev/null; then echo "armv6"
-            else echo "armv5"
+            if grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then
+                echo "armv7"
+            elif grep -qE "CPU architecture:\s*6" /proc/cpuinfo 2>/dev/null; then
+                echo "armv6"
+            else
+                echo "armv5"
             fi
         else
             echo "armv5"
@@ -176,17 +191,21 @@ detect_architecture() {
         if is_softfloat; then variant="${variant}_softfloat"; fi
         echo "$variant"
         ;;
-    ppc64le)    echo "ppc64le" ;;
-    ppc64)      echo "ppc64" ;;
-    riscv64)    echo "riscv64" ;;
-    s390x)      echo "s390x" ;;
+    ppc64le) echo "ppc64le" ;;
+    ppc64) echo "ppc64" ;;
+    riscv64) echo "riscv64" ;;
+    s390x) echo "s390x" ;;
     loongarch64) echo "loong64" ;;
-    *) log_err "Unsupported architecture: $arch"; exit 1 ;;
+    *)
+        log_err "Unsupported architecture: $arch"
+        exit 1
+        ;;
     esac
 }
 
 is_little_endian() {
     uname -m | grep -qi "el" && return 0
+    [ -f /sys/kernel/cpu_byteorder ] && grep -qi "little" /sys/kernel/cpu_byteorder 2>/dev/null && return 0
     [ -f /proc/cpuinfo ] && grep -qi "little.endian\|byteorder.*little" /proc/cpuinfo 2>/dev/null && return 0
     command_exists opkg && opkg print-architecture 2>/dev/null | grep -qi "mipsel\|mips64el" && return 0
     [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null | od -An -tx1 | tr -d ' ')" = "01" ] && return 0
@@ -194,9 +213,23 @@ is_little_endian() {
 }
 
 is_softfloat() {
-    [ -f /proc/cpuinfo ] || return 1
-    ! grep -qi "fpu" /proc/cpuinfo 2>/dev/null && return 0
-    grep -qi "nofpu\|no fpu" /proc/cpuinfo 2>/dev/null && return 0
+    if command_exists opkg; then
+        _sf_opkg_arch="$(opkg print-architecture 2>/dev/null)"
+        echo "$_sf_opkg_arch" | grep -qi "softfloat\|_nofpu\|soft_float" && return 0
+        echo "$_sf_opkg_arch" | grep -qi "mips" && return 1
+    fi
+    if [ -f /proc/cpuinfo ]; then
+        grep -qi "nofpu\|no fpu\|soft.float" /proc/cpuinfo 2>/dev/null && return 0
+    fi
+    if command_exists file; then
+        _sf_file_out="$(file /bin/sh 2>/dev/null)"
+        echo "$_sf_file_out" | grep -qi "soft.float" && return 0
+        echo "$_sf_file_out" | grep -qi "MIPS\|ELF" && return 1
+    fi
+    if command_exists readelf; then
+        readelf -A /bin/sh 2>/dev/null | grep -qi "soft.float\|softfloat" && return 0
+    fi
+
     return 1
 }
 
@@ -236,9 +269,10 @@ convert_to_proxy_url() {
     url="$1"
     case "$url" in
     https://raw.githubusercontent.com/${REPO_OWNER}/* | \
-    https://github.com/${REPO_OWNER}/* | \
-    https://api.github.com/repos/${REPO_OWNER}/*)
-        echo "${PROXY_BASE_URL}/${url}" ;;
+        https://github.com/${REPO_OWNER}/* | \
+        https://api.github.com/repos/${REPO_OWNER}/*)
+        echo "${PROXY_BASE_URL}/${url}"
+        ;;
     *) echo "$url" ;;
     esac
 }
@@ -404,7 +438,8 @@ check_exit() {
     [eEqQ] | exit | EXIT | quit | QUIT)
         echo ""
         log_info "Aborted by user."
-        exit 0 ;;
+        exit 0
+        ;;
     esac
 }
 
@@ -555,8 +590,48 @@ wizard_manual_configure() {
     B4_SERVICE_TYPE="$_INPUT"
 
     auto_arch=$(detect_architecture)
-    read_input "Architecture [${auto_arch}]: " "$auto_arch"
-    B4_ARCH="$_INPUT"
+    B4_SUPPORTED_ARCHS="amd64 arm64 armv7 armv6 armv5 386 mips mipsle mips_softfloat mipsle_softfloat mips64 mips64le loong64 ppc64 ppc64le riscv64 s390x"
+
+    _arch_default=1
+    _arch_idx=1
+    for a in $B4_SUPPORTED_ARCHS; do
+        if [ "$a" = "$auto_arch" ]; then
+            _arch_default=$_arch_idx
+            break
+        fi
+        _arch_idx=$((_arch_idx + 1))
+    done
+
+    while true; do
+        echo "  Available architectures:"
+        _arch_idx=1
+        for a in $B4_SUPPORTED_ARCHS; do
+            if [ "$a" = "$auto_arch" ]; then
+                printf "    ${BOLD}%2d${NC}) %s ${DIM}(detected)${NC}\n" "$_arch_idx" "$a"
+            else
+                printf "    ${BOLD}%2d${NC}) %s\n" "$_arch_idx" "$a"
+            fi
+            _arch_idx=$((_arch_idx + 1))
+        done
+        echo ""
+
+        read_input "Select architecture [${_arch_default}]: " "$_arch_default"
+        _arch_idx=1
+        B4_ARCH=""
+        for a in $B4_SUPPORTED_ARCHS; do
+            if [ "$_arch_idx" = "$_INPUT" ]; then
+                B4_ARCH="$a"
+                break
+            fi
+            _arch_idx=$((_arch_idx + 1))
+        done
+
+        if [ -n "$B4_ARCH" ]; then
+            break
+        fi
+        log_warn "Invalid selection, please try again"
+        echo ""
+    done
 
     detect_pkg_manager
     read_input "Package manager [${B4_PKG_MANAGER:-none}]: " "$B4_PKG_MANAGER"
@@ -951,10 +1026,10 @@ platform_merlinwrt_info() {
     if [ ! -d "/opt/etc/init.d" ]; then
         log_warn "Entware not detected!"
         log_info "Entware is required for MerlinWRT. Install it first:"
-        log_info "  1. Plug in a USB drive"
-        log_info "  2. Format it via the router admin panel"
-        log_info "  3. Go to Administration > System > Enable Entware"
-        log_info "  Or visit: https://github.com/Entware/Entware/wiki/Install-on-Asuswrt-Merlin"
+        log_info "  1. Plug in a USB drive and format it via the router admin panel"
+        log_info "  2. Open SSH and run: amtm"
+        log_info "  3. Select option 'ep' to install Entware"
+        log_info "  More info: https://diversion.ch/amtm.html"
 
         if [ -d "/jffs" ] && [ -w "/jffs" ]; then
             log_warn "Falling back to /jffs (limited space, Entware recommended)"
@@ -1044,7 +1119,7 @@ platform_merlinwrt_find_storage() {
     fi
 
     log_err "No writable persistent storage found"
-    log_info "Please install Entware with a USB drive"
+    log_info "Please install Entware via amtm (run 'amtm' in SSH, select 'ep')"
     return 1
 }
 
@@ -2201,7 +2276,7 @@ action_update() {
         log_info "Latest: ${latest_ver}"
     fi
 
-    if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -q "$latest_ver"; then
+    if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -Fq "$latest_ver"; then
         log_ok "Already up to date"
         return 0
     fi
@@ -2575,8 +2650,6 @@ main() {
             B4_BIN_DIR="${arg#*=}" ;;
         --data-dir=*)
             B4_DATA_DIR="${arg#*=}" ;;
-        --dry-run)
-            DRY_RUN=1 ;;
         --help | -h)
             _show_help
             exit 0 ;;

@@ -44,7 +44,10 @@ check_root() {
 # --- Temp directory management ---
 setup_temp() {
     rm -rf "$TEMP_DIR" 2>/dev/null || true
-    mkdir -p "$TEMP_DIR" || { log_err "Cannot create temp dir"; exit 1; }
+    mkdir -p "$TEMP_DIR" || {
+        log_err "Cannot create temp dir"
+        exit 1
+    }
 }
 
 cleanup_temp() {
@@ -76,13 +79,22 @@ detect_pkg_manager() {
 pkg_install() {
     detect_pkg_manager
     case "$B4_PKG_MANAGER" in
-    apt)    apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq "$@" >/dev/null 2>&1 ;;
-    dnf)    dnf install -y -q "$@" >/dev/null 2>&1 ;;
-    yum)    yum install -y -q "$@" >/dev/null 2>&1 ;;
+    apt)
+        apt-get update -qq >/dev/null 2>&1
+        apt-get install -y -qq "$@" >/dev/null 2>&1
+        ;;
+    dnf) dnf install -y -q "$@" >/dev/null 2>&1 ;;
+    yum) yum install -y -q "$@" >/dev/null 2>&1 ;;
     pacman) pacman -S --noconfirm --needed "$@" >/dev/null 2>&1 ;;
-    apk)    apk add --quiet "$@" >/dev/null 2>&1 ;;
-    opkg)   opkg update >/dev/null 2>&1; opkg install "$@" >/dev/null 2>&1 ;;
-    *)      log_warn "No package manager detected"; return 1 ;;
+    apk) apk add --quiet "$@" >/dev/null 2>&1 ;;
+    opkg)
+        opkg update >/dev/null 2>&1
+        opkg install "$@" >/dev/null 2>&1
+        ;;
+    *)
+        log_warn "No package manager detected"
+        return 1
+        ;;
     esac
 }
 
@@ -91,26 +103,29 @@ detect_architecture() {
     arch=$(uname -m)
 
     case "$arch" in
-    x86_64 | amd64)         echo "amd64" ;;
+    x86_64 | amd64) echo "amd64" ;;
     i386 | i486 | i586 | i686) echo "386" ;;
-    aarch64 | arm64)        echo "arm64" ;;
+    aarch64 | arm64) echo "arm64" ;;
     armv7 | armv7l)
         # Check for full ARMv7 VFP support, otherwise use armv5 for safety
         if [ -f /proc/cpuinfo ] &&
-           grep -qE "(vfpv[3-9])" /proc/cpuinfo 2>/dev/null &&
-           grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then
+            grep -qE "(vfpv[3-9])" /proc/cpuinfo 2>/dev/null &&
+            grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then
             echo "armv7"
         else
             echo "armv5"
         fi
         ;;
-    armv6*)                 echo "armv6" ;;
-    armv5*)                 echo "armv5" ;;
+    armv6*) echo "armv6" ;;
+    armv5*) echo "armv5" ;;
     arm*)
         if [ -f /proc/cpuinfo ]; then
-            if grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then echo "armv7"
-            elif grep -qE "CPU architecture:\s*6" /proc/cpuinfo 2>/dev/null; then echo "armv6"
-            else echo "armv5"
+            if grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then
+                echo "armv7"
+            elif grep -qE "CPU architecture:\s*6" /proc/cpuinfo 2>/dev/null; then
+                echo "armv6"
+            else
+                echo "armv5"
             fi
         else
             echo "armv5"
@@ -128,28 +143,49 @@ detect_architecture() {
         if is_softfloat; then variant="${variant}_softfloat"; fi
         echo "$variant"
         ;;
-    ppc64le)    echo "ppc64le" ;;
-    ppc64)      echo "ppc64" ;;
-    riscv64)    echo "riscv64" ;;
-    s390x)      echo "s390x" ;;
+    ppc64le) echo "ppc64le" ;;
+    ppc64) echo "ppc64" ;;
+    riscv64) echo "riscv64" ;;
+    s390x) echo "s390x" ;;
     loongarch64) echo "loong64" ;;
-    *) log_err "Unsupported architecture: $arch"; exit 1 ;;
+    *)
+        log_err "Unsupported architecture: $arch"
+        exit 1
+        ;;
     esac
 }
 
 is_little_endian() {
     uname -m | grep -qi "el" && return 0
+    [ -f /sys/kernel/cpu_byteorder ] && grep -qi "little" /sys/kernel/cpu_byteorder 2>/dev/null && return 0
     [ -f /proc/cpuinfo ] && grep -qi "little.endian\|byteorder.*little" /proc/cpuinfo 2>/dev/null && return 0
     command_exists opkg && opkg print-architecture 2>/dev/null | grep -qi "mipsel\|mips64el" && return 0
-    # ELF header check
+    # ELF header byte 6 (index 5): 1=little-endian, 2=big-endian
     [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null | od -An -tx1 | tr -d ' ')" = "01" ] && return 0
     return 1
 }
 
 is_softfloat() {
-    [ -f /proc/cpuinfo ] || return 1
-    ! grep -qi "fpu" /proc/cpuinfo 2>/dev/null && return 0
-    grep -qi "nofpu\|no fpu" /proc/cpuinfo 2>/dev/null && return 0
+    # On OpenWrt/Entware, check opkg architecture (most reliable)
+    if command_exists opkg; then
+        _sf_opkg_arch="$(opkg print-architecture 2>/dev/null)"
+        echo "$_sf_opkg_arch" | grep -qi "softfloat\|_nofpu\|soft_float" && return 0
+        echo "$_sf_opkg_arch" | grep -qi "mips" && return 1
+    fi
+    # Check /proc/cpuinfo for soft-float indicators
+    if [ -f /proc/cpuinfo ]; then
+        grep -qi "nofpu\|no fpu\|soft.float" /proc/cpuinfo 2>/dev/null && return 0
+    fi
+    # Check ELF soft-float flag via file or readelf if available
+    if command_exists file; then
+        _sf_file_out="$(file /bin/sh 2>/dev/null)"
+        echo "$_sf_file_out" | grep -qi "soft.float" && return 0
+        echo "$_sf_file_out" | grep -qi "MIPS\|ELF" && return 1
+    fi
+    if command_exists readelf; then
+        readelf -A /bin/sh 2>/dev/null | grep -qi "soft.float\|softfloat" && return 0
+    fi
+
     return 1
 }
 
@@ -192,9 +228,10 @@ convert_to_proxy_url() {
     url="$1"
     case "$url" in
     https://raw.githubusercontent.com/${REPO_OWNER}/* | \
-    https://github.com/${REPO_OWNER}/* | \
-    https://api.github.com/repos/${REPO_OWNER}/*)
-        echo "${PROXY_BASE_URL}/${url}" ;;
+        https://github.com/${REPO_OWNER}/* | \
+        https://api.github.com/repos/${REPO_OWNER}/*)
+        echo "${PROXY_BASE_URL}/${url}"
+        ;;
     *) echo "$url" ;;
     esac
 }
@@ -377,7 +414,8 @@ check_exit() {
     [eEqQ] | exit | EXIT | quit | QUIT)
         echo ""
         log_info "Aborted by user."
-        exit 0 ;;
+        exit 0
+        ;;
     esac
 }
 
