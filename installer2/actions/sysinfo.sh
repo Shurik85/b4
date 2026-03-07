@@ -49,10 +49,18 @@ action_sysinfo() {
     log_sep
 
     found_bin=""
+    _bin_crashed=""
     for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /tmp/b4; do
         [ -z "$dir" ] && continue
         if [ -f "${dir}/${BINARY_NAME}" ] && [ -x "${dir}/${BINARY_NAME}" ]; then
-            _ver_full=$("${dir}/${BINARY_NAME}" --version 2>&1) || _ver_full=""
+            # Run in subshell to suppress kernel crash messages (e.g. "Segmentation fault")
+            _ver_exit=0
+            _ver_full=$(sh -c "\"${dir}/${BINARY_NAME}\" --version 2>/dev/null" 2>/dev/null) || _ver_exit=$?
+            # Binary crashed (segfault=139, abort=134, etc.)
+            if [ "$_ver_exit" -gt 128 ] 2>/dev/null; then
+                _bin_crashed="${dir}/${BINARY_NAME}"
+                continue
+            fi
             if echo "$_ver_full" | grep -qi "b4 version\|bypass\|dpi"; then
                 found_bin="${dir}/${BINARY_NAME}"
                 _ver_out=$(echo "$_ver_full" | grep -i "version" | head -1)
@@ -64,6 +72,21 @@ action_sysinfo() {
     if [ -n "$found_bin" ]; then
         log_detail "Binary" "$found_bin"
         log_detail "Version" "$_ver_out"
+    elif [ -n "$_bin_crashed" ]; then
+        log_detail "Binary" "${_bin_crashed}"
+        _arch_hint=""
+        if command_exists file; then
+            _arch_hint=$(file "$_bin_crashed" 2>/dev/null | sed 's/.*: //')
+        elif command_exists readelf; then
+            _arch_hint=$(readelf -h "$_bin_crashed" 2>/dev/null | awk '/Machine:/ {$1=""; print substr($0,2)}')
+        fi
+        if [ -n "$_arch_hint" ]; then
+            log_detail "Status" "${RED}crashes on startup (segfault)${NC}"
+            log_detail "Binary type" "$_arch_hint"
+            log_detail "System arch" "$(uname -m)"
+        else
+            log_detail "Status" "${RED}crashes on startup (segfault) — wrong architecture?${NC}"
+        fi
     else
         log_detail "Binary" "${YELLOW}not found${NC}"
     fi
