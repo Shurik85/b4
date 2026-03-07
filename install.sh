@@ -362,6 +362,14 @@ verify_checksum() {
     fi
 }
 
+is_lxc_container() {
+    if [ -f /proc/1/environ ]; then
+        tr '\0' '\n' < /proc/1/environ 2>/dev/null | grep -q '^container=lxc' && return 0
+    fi
+    [ -f /run/systemd/container ] && grep -q "lxc" /run/systemd/container 2>/dev/null && return 0
+    return 1
+}
+
 _kmod_builtin() {
     _mod="$1"
     _kver=$(uname -r)
@@ -802,6 +810,8 @@ platform_generic_linux_info() {
 }
 
 platform_generic_linux_check_deps() {
+    _generic_linux_check_lxc
+
     missing=""
 
     if ! command_exists curl && ! command_exists wget; then
@@ -826,6 +836,28 @@ platform_generic_linux_check_deps() {
     _generic_linux_check_recommended
 }
 
+_generic_linux_check_lxc() {
+    is_lxc_container || return 0
+
+    echo ""
+    log_warn "Running inside an LXC container"
+    log_info "B4 requires netfilter/NFQUEUE support from the host kernel."
+    log_info "The LXC container config (on the host) must include:"
+    echo "" >&2
+    printf "  ${BOLD}lxc.cgroup2.devices.allow: c 10:200 rwm${NC}\n" >&2
+    printf "  ${BOLD}lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file${NC}\n" >&2
+    printf "  ${BOLD}lxc.prlimit.nofile: 1048576${NC}\n" >&2
+    printf "  ${BOLD}features: nesting=1,keyctl=1${NC}\n" >&2
+    echo "" >&2
+    log_info "On Proxmox: edit /etc/pve/lxc/<CTID>.conf and restart the container."
+    echo ""
+
+    if ! confirm "Continue installation?"; then
+        log_info "Aborted. Apply the LXC config changes first, then re-run the installer."
+        exit 0
+    fi
+}
+
 _generic_linux_check_kmods() {
     for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
         _kmod_available "$mod" && continue
@@ -845,7 +877,13 @@ _generic_linux_check_kmods() {
 _generic_linux_check_recommended() {
     rec_missing=""
     command_exists jq || rec_missing="${rec_missing} jq"
-    command_exists iptables || command_exists nft || rec_missing="${rec_missing} iptables"
+    if ! command_exists iptables && ! command_exists nft; then
+        if [ "$B4_PKG_MANAGER" = "apk" ]; then
+            rec_missing="${rec_missing} nftables"
+        else
+            rec_missing="${rec_missing} iptables"
+        fi
+    fi
 
     if [ -n "$rec_missing" ]; then
         log_warn "Recommended but missing:${rec_missing}"
@@ -2354,6 +2392,7 @@ action_sysinfo() {
     log_detail "Architecture (b4)" "$(detect_architecture 2>/dev/null || echo 'unknown')"
     [ -f /etc/os-release ] && log_detail "Distribution" "$(. /etc/os-release && echo "$PRETTY_NAME")"
     [ -f /etc/openwrt_release ] && log_detail "OpenWrt" "$(. /etc/openwrt_release && echo "$DISTRIB_DESCRIPTION")"
+    is_lxc_container && log_detail "Container" "${YELLOW}LXC${NC}"
 
     cpu_cores=""
     if [ -f /proc/cpuinfo ]; then

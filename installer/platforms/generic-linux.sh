@@ -49,6 +49,9 @@ platform_generic_linux_info() {
 }
 
 platform_generic_linux_check_deps() {
+    # Warn about LXC container requirements
+    _generic_linux_check_lxc
+
     missing=""
 
     # Check basic tools
@@ -76,6 +79,28 @@ platform_generic_linux_check_deps() {
     _generic_linux_check_recommended
 }
 
+_generic_linux_check_lxc() {
+    is_lxc_container || return 0
+
+    echo ""
+    log_warn "Running inside an LXC container"
+    log_info "B4 requires netfilter/NFQUEUE support from the host kernel."
+    log_info "The LXC container config (on the host) must include:"
+    echo "" >&2
+    printf "  ${BOLD}lxc.cgroup2.devices.allow: c 10:200 rwm${NC}\n" >&2
+    printf "  ${BOLD}lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file${NC}\n" >&2
+    printf "  ${BOLD}lxc.prlimit.nofile: 1048576${NC}\n" >&2
+    printf "  ${BOLD}features: nesting=1,keyctl=1${NC}\n" >&2
+    echo "" >&2
+    log_info "On Proxmox: edit /etc/pve/lxc/<CTID>.conf and restart the container."
+    echo ""
+
+    if ! confirm "Continue installation?"; then
+        log_info "Aborted. Apply the LXC config changes first, then re-run the installer."
+        exit 0
+    fi
+}
+
 _generic_linux_check_kmods() {
     for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
         _kmod_available "$mod" && continue
@@ -95,7 +120,14 @@ _generic_linux_check_kmods() {
 _generic_linux_check_recommended() {
     rec_missing=""
     command_exists jq || rec_missing="${rec_missing} jq"
-    command_exists iptables || command_exists nft || rec_missing="${rec_missing} iptables"
+    if ! command_exists iptables && ! command_exists nft; then
+        # Prefer nftables on Alpine (apk) — iptables often doesn't work in LXC
+        if [ "$B4_PKG_MANAGER" = "apk" ]; then
+            rec_missing="${rec_missing} nftables"
+        else
+            rec_missing="${rec_missing} iptables"
+        fi
+    fi
 
     if [ -n "$rec_missing" ]; then
         log_warn "Recommended but missing:${rec_missing}"

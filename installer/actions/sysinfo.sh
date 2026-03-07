@@ -12,6 +12,7 @@ action_sysinfo() {
     log_detail "Architecture (b4)" "$(detect_architecture 2>/dev/null || echo 'unknown')"
     [ -f /etc/os-release ] && log_detail "Distribution" "$(. /etc/os-release && echo "$PRETTY_NAME")"
     [ -f /etc/openwrt_release ] && log_detail "OpenWrt" "$(. /etc/openwrt_release && echo "$DISTRIB_DESCRIPTION")"
+    is_lxc_container && log_detail "Container" "${YELLOW}LXC${NC}"
 
     # CPU
     cpu_cores=""

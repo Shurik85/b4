@@ -325,6 +325,17 @@ verify_checksum() {
     fi
 }
 
+# --- Container detection ---
+is_lxc_container() {
+    # Check /proc/1/environ for container=lxc
+    if [ -f /proc/1/environ ]; then
+        tr '\0' '\n' < /proc/1/environ 2>/dev/null | grep -q '^container=lxc' && return 0
+    fi
+    # Fallback: check systemd container detection
+    [ -f /run/systemd/container ] && grep -q "lxc" /run/systemd/container 2>/dev/null && return 0
+    return 1
+}
+
 # --- Kernel module helpers ---
 # Check if a kernel module is built-in (compiled into kernel, not loadable)
 _kmod_builtin() {
