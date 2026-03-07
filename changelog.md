@@ -6,6 +6,8 @@
 - ADDED: **New fake payload types** — two new options in Faking settings: "All Zeros" (sends empty-looking data) and "Inverted Original" (sends a flipped copy of the real data). Some networks respond better to these than the default payloads.
 - ADDED: New Discovery presets for multidisorder mode — Discovery can now automatically test these new techniques when searching for the best bypass configuration.
 - ADDED: **Upload GeoIP/GeoSite files** — you can now upload `.dat` files directly from your computer using the "Upload" button in `Settings > Geo Databases`.
+- CHANGED: **Main Set removed** — there is no longer a special "main" set. All sets are now equal and independent. Your existing main set will be converted into a regular set automatically.
+- CHANGED: **Connection Bytes Limits moved to Settings** — TCP and UDP connection bytes limits are now in `Settings > Core > Queue Settings` instead of being tied to a specific set.
 - IMPROVED: **Device list sorting** — devices are now sorted alphabetically by name, with selected devices always shown at the top for easier access.
 - FIXED: **Set Import not working on Android** — pasting a set configuration from the clipboard was not possible on Android devices.
 
