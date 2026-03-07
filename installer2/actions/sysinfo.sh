@@ -72,6 +72,10 @@ action_sysinfo() {
     if [ -n "$found_bin" ]; then
         log_detail "Binary" "$found_bin"
         log_detail "Version" "$_ver_out"
+        # Warn if found binary is not in the expected directory
+        if [ -n "$B4_BIN_DIR" ] && [ -n "$_bin_crashed" ]; then
+            log_detail "WARNING" "${RED}${_bin_crashed} crashes (segfault) — wrong architecture?${NC}"
+        fi
     elif [ -n "$_bin_crashed" ]; then
         log_detail "Binary" "${_bin_crashed}"
         _arch_hint=""
