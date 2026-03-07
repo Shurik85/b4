@@ -21,48 +21,62 @@
 > [!NOTE]
 > В некоторых системах необходимо запускать `sudo b4install.sh`.
 
+Через wget:
+
 ```bash
-wget -O ~/b4install.sh https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh && chmod +x ~/b4install.sh && ~/b4install.sh
+wget -qO- https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh
+```
+
+Через curl:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh
 ```
 
 Если что-то пошло не так, попробуйте запустить с флагом `--sysinfo` — это выполнит диагностику системы:
 
 ```bash
-wget -O ~/b4install.sh https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh && chmod +x ~/b4install.sh && ~/b4install.sh --sysinfo
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --sysinfo
 ```
 
 Или передайте `--help` для получения дополнительной информации о доступных опциях:
 
 ```bash
-wget -O ~/b4install.sh https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh && chmod +x ~/b4install.sh && ~/b4install.sh --help
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --help
+```
+
+Удалить B4:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --remove
 ```
 
 ### Опции установщика
 
 ```bash
 # Установить последнюю версию b4
-./b4install.sh
+./install.sh
 
 # Показать справку
-./b4install.sh -h
+./install.sh -h
 
 # Показать диагностику системы и статус b4
-./b4install.sh --sysinfo
+./install.sh --sysinfo
 
 # Установить определённую версию
-./b4install.sh v1.10.0
+./install.sh v1.10.0
 
 # Тихий режим (подавляет вывод, кроме ошибок)
-./b4install.sh --quiet
+./install.sh --quiet
 
 # Указать источник и путь назначения geosite.dat
-./b4install.sh --geosite-src=--geosite-src=https://example.com/geosite.dat --geosite-dst=/opt/etc/b4
+./install.sh --geosite-src=--geosite-src=https://example.com/geosite.dat --geosite-dst=/opt/etc/b4
 
 # Обновить b4 до последней версии
-./b4install.sh --update
+./install.sh --update
 
 # Удалить b4
-./b4install.sh --remove
+./install.sh --remove
 ```
 
 ### Сборка из исходников

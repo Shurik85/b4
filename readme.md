@@ -21,48 +21,62 @@ That's it. The installer will take care of the rest
 > [!NOTE]
 > In some systems you need to run `sudo b4install.sh`.
 
+With wget:
+
 ```bash
-wget -O ~/b4install.sh https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh && chmod +x ~/b4install.sh && ~/b4install.sh
+wget -qO- https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh
+```
+
+With curl:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh
 ```
 
 If something went wrong try to run it with the flag `--sysinfo` - this will diagnose the system
 
 ```bash
-wget -O ~/b4install.sh https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh && chmod +x ~/b4install.sh && ~/b4install.sh --sysinfo
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --sysinfo
 ```
 
 Or pass `--help` to get more information about the possible options.
 
 ```bash
-wget -O ~/b4install.sh https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh && chmod +x ~/b4install.sh && ~/b4install.sh --help
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --help
+```
+
+To remove B4:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --remove
 ```
 
 ### Installer options
 
 ```bash
 # Install latest b4 version
-./b4install.sh
+./install.sh
 
 # Show help message
-./b4install.sh -h
+./install.sh -h
 
 # Show system diagnostics and b4 status
-./b4install.sh --sysinfo
+./install.sh --sysinfo
 
 # Install specific version
-./b4install.sh v1.10.0
+./install.sh v1.10.0
 
 # Quiet mode (suppress output except for errors)
-./b4install.sh --quiet
+./install.sh --quiet
 
 # Specify geosite.dat source URL and destination
-./b4install.sh --geosite-src=--geosite-src=https://example.com/geosite.dat --geosite-dst=/opt/etc/b4
+./install.sh --geosite-src=--geosite-src=https://example.com/geosite.dat --geosite-dst=/opt/etc/b4
 
 # Update b4 to latest version
-./b4install.sh --update
+./install.sh --update
 
 # Uninstall b4
-./b4install.sh --remove
+./install.sh --remove
 ```
 
 ### Building from Source

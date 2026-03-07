@@ -1,13 +1,12 @@
 #!/bin/sh
-# B4 Universal Installer Script (POSIX Compliant)
-# Automatically detects system architecture and installs the appropriate b4 binary
-# Supports OpenWRT, MerlinWRT, and other Linux-based routers with only sh shell
+# B4 Installer — Universal Linux installer with wizard interface
+# Supports desktop Linux, OpenWRT, MerlinWRT, Keenetic, Mikrotik, Docker, and more
 #
-# AUTO-GENERATED - Do not edit directly
-# Edit files in installer/ and run installer/build.sh
+# AUTO-GENERATED — Do not edit directly
+# Edit files in installer2/ and run: make build-installer
 #
 
 set -e
 
-# Entware paths first so wget-ssl/curl from /opt/bin are preferred over BusyBox
+# Ensure sane PATH (Entware paths first for wget-ssl/curl from /opt/bin)
 export PATH="/opt/bin:/opt/sbin:$HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:$PATH"

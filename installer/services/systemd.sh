@@ -1,0 +1,52 @@
+#!/bin/sh
+# Service type: systemd
+# Manages b4 as a systemd unit on standard Linux systems
+
+service_systemd_install() {
+    ensure_dir "$B4_SERVICE_DIR" "Service directory" || return 1
+
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+[Unit]
+Description=B4 DPI Bypass Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=${B4_BIN_DIR}/${BINARY_NAME} --config ${B4_CONFIG_FILE}
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    log_ok "Systemd service created: ${B4_SERVICE_NAME}"
+    log_info "  systemctl start ${B4_SERVICE_NAME}"
+    log_info "  systemctl enable ${B4_SERVICE_NAME}  # auto-start on boot"
+}
+
+service_systemd_remove() {
+    systemctl stop "${B4_SERVICE_NAME}" 2>/dev/null || true
+    systemctl disable "${B4_SERVICE_NAME}" 2>/dev/null || true
+    rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    systemctl daemon-reload
+    log_info "Removed systemd service: ${B4_SERVICE_NAME}"
+}
+
+service_systemd_start() {
+    if systemctl restart "${B4_SERVICE_NAME}" 2>/dev/null; then
+        log_ok "Service started"
+        return 0
+    fi
+    log_warn "Could not start service"
+    return 1
+}
+
+service_systemd_stop() {
+    systemctl stop "${B4_SERVICE_NAME}" 2>/dev/null || true
+}
+
+register_service "systemd"

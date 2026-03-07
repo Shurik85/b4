@@ -1,5 +1,5 @@
 #!/bin/sh
-# Colors for output (if terminal supports it)
+# Terminal colors (disabled when not a TTY)
 if [ -t 1 ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -8,14 +8,8 @@ if [ -t 1 ]; then
     CYAN='\033[0;36m'
     MAGENTA='\033[0;35m'
     BOLD='\033[1m'
-    NC='\033[0m' # No Color
+    DIM='\033[2m'
+    NC='\033[0m'
 else
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    CYAN=''
-    MAGENTA=''
-    BOLD=''
-    NC=''
+    RED='' GREEN='' YELLOW='' BLUE='' CYAN='' MAGENTA='' BOLD='' DIM='' NC=''
 fi
