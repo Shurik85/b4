@@ -197,7 +197,6 @@ b4 --geosite /etc/b4/geosite.dat --geosite-categories youtube,netflix
 
 - **Loyalsoldier** - универсальный
 - **RUNET Freedom** - для РФ
-- **Nidelon** - альтернативный для РФ
   :::
 
 ### Установка конкретной версии

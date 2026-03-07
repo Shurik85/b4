@@ -10,9 +10,9 @@ import {
   Chip,
   Divider,
 } from "@mui/material";
-import { DomainIcon, DownloadIcon, SuccessIcon } from "@b4.icons";
+import { DomainIcon, DownloadIcon, SuccessIcon, UploadIcon } from "@b4.icons";
 import { B4Alert, B4Section, B4TextField } from "@b4.elements";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { colors } from "@design";
 import { geodatApi, GeodatSource, GeoFileInfo } from "@b4.settings";
 
@@ -30,8 +30,10 @@ interface GeoFileCardProps {
   customURL: string;
   onCustomURLChange: (value: string) => void;
   downloading: boolean;
+  uploading: boolean;
   status: string;
   onDownload: () => void;
+  onUpload: (file: File) => void;
 }
 
 const GeoFileCard = ({
@@ -46,9 +48,12 @@ const GeoFileCard = ({
   customURL,
   onCustomURLChange,
   downloading,
+  uploading,
   status,
   onDownload,
+  onUpload,
 }: GeoFileCardProps) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return "Unknown";
     const mb = bytes / (1024 * 1024);
@@ -117,15 +122,13 @@ const GeoFileCard = ({
           {configPath || "Not configured"}
         </Typography>
 
-        {configUrl && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ wordBreak: "break-all" }}
-          >
-            Source: {configUrl}
-          </Typography>
-        )}
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ wordBreak: "break-all" }}
+        >
+          Source: {configUrl || (fileInfo.exists ? "Local upload" : "Not set")}
+        </Typography>
 
         {fileInfo.exists && (
           <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -169,8 +172,8 @@ const GeoFileCard = ({
           />
         )}
 
-        {/* Download button */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        {/* Download & Upload buttons */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Button
             variant="contained"
             size="small"
@@ -184,19 +187,49 @@ const GeoFileCard = ({
             onClick={onDownload}
             disabled={
               downloading ||
+              uploading ||
               (selectedSource === CUSTOM_SOURCE && !customURL) ||
               !selectedSource
             }
           >
-            {downloading ? "Downloading..." : "Download"}
+            {downloading ? "Updating..." : "Update"}
           </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={
+              uploading ? (
+                <CircularProgress size={16} />
+              ) : (
+                <UploadIcon />
+              )
+            }
+            onClick={() => fileInputRef.current?.click()}
+            disabled={downloading || uploading}
+          >
+            {uploading ? "Uploading..." : "Upload"}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".dat,.db"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onUpload(file);
+              e.target.value = "";
+            }}
+          />
           {status && (
             <Typography
-              variant="caption"
+              variant="body2"
               sx={{
                 color: status.toLowerCase().includes("error")
-                  ? colors.quaternary
-                  : colors.text.secondary,
+                  ? "#f44336"
+                  : colors.secondary,
+                fontWeight: 600,
+                width: "100%",
+                mt: 0.5,
               }}
             >
               {status}
@@ -224,6 +257,7 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
   const [geositeSource, setGeositeSource] = useState<string>("");
   const [geositeCustomURL, setGeositeCustomURL] = useState<string>("");
   const [geositeDownloading, setGeositeDownloading] = useState(false);
+  const [geositeUploading, setGeositeUploading] = useState(false);
   const [geositeStatus, setGeositeStatus] = useState<string>("");
 
   // GeoIP state
@@ -231,6 +265,7 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
   const [geoipSource, setGeoipSource] = useState<string>("");
   const [geoipCustomURL, setGeoipCustomURL] = useState<string>("");
   const [geoipDownloading, setGeoipDownloading] = useState(false);
+  const [geoipUploading, setGeoipUploading] = useState(false);
   const [geoipStatus, setGeoipStatus] = useState<string>("");
 
   // Filter sources per file type
@@ -293,10 +328,10 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
         setGeositeSource(CUSTOM_SOURCE);
         setGeositeCustomURL(configUrl);
       }
-    } else {
+    } else if (!config.system.geo.sitedat_path) {
       setGeositeSource(geositeSources[0].name);
     }
-  }, [geositeSources, geositeSource, config.system.geo.sitedat_url]);
+  }, [geositeSources, geositeSource, config.system.geo.sitedat_url, config.system.geo.sitedat_path]);
 
   useEffect(() => {
     if (geoipSources.length === 0 || geoipSource) return;
@@ -309,10 +344,10 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
         setGeoipSource(CUSTOM_SOURCE);
         setGeoipCustomURL(configUrl);
       }
-    } else {
+    } else if (!config.system.geo.ipdat_path) {
       setGeoipSource(geoipSources[0].name);
     }
-  }, [geoipSources, geoipSource, config.system.geo.ipdat_url]);
+  }, [geoipSources, geoipSource, config.system.geo.ipdat_url, config.system.geo.ipdat_path]);
 
   const extractDir = (path: string): string => {
     if (!path) return "";
@@ -384,6 +419,40 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
     }
   };
 
+  const handleGeositeUpload = async (file: File) => {
+    setGeositeUploading(true);
+    setGeositeStatus("Uploading geosite.dat...");
+    try {
+      await geodatApi.upload(file, "geosite", destPath);
+      setGeositeStatus("Uploaded successfully");
+      setGeositeSource("");
+      loadConfig();
+      void checkFileStatus();
+      setTimeout(() => setGeositeStatus(""), 5000);
+    } catch (error) {
+      setGeositeStatus(`Error: ${String(error)}`);
+    } finally {
+      setGeositeUploading(false);
+    }
+  };
+
+  const handleGeoipUpload = async (file: File) => {
+    setGeoipUploading(true);
+    setGeoipStatus("Uploading geoip.dat...");
+    try {
+      await geodatApi.upload(file, "geoip", destPath);
+      setGeoipStatus("Uploaded successfully");
+      setGeoipSource("");
+      loadConfig();
+      void checkFileStatus();
+      setTimeout(() => setGeoipStatus(""), 5000);
+    } catch (error) {
+      setGeoipStatus(`Error: ${String(error)}`);
+    } finally {
+      setGeoipUploading(false);
+    }
+  };
+
   return (
     <Stack spacing={3}>
       <B4Alert>
@@ -422,8 +491,10 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
               customURL={geositeCustomURL}
               onCustomURLChange={setGeositeCustomURL}
               downloading={geositeDownloading}
+              uploading={geositeUploading}
               status={geositeStatus}
               onDownload={() => void handleGeositeDownload()}
+              onUpload={(file) => void handleGeositeUpload(file)}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
@@ -439,8 +510,10 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
               customURL={geoipCustomURL}
               onCustomURLChange={setGeoipCustomURL}
               downloading={geoipDownloading}
+              uploading={geoipUploading}
               status={geoipStatus}
               onDownload={() => void handleGeoipDownload()}
+              onUpload={(file) => void handleGeoipUpload(file)}
             />
           </Grid>
         </Grid>

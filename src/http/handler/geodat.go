@@ -39,6 +39,7 @@ type GeodatSource struct {
 
 func (api *API) RegisterGeodatApi() {
 	api.mux.HandleFunc("/api/geodat/download", api.handleGeodatDownload)
+	api.mux.HandleFunc("/api/geodat/upload", api.handleGeodatUpload)
 	api.mux.HandleFunc("/api/geodat/sources", api.handleGeodatSources)
 	api.mux.HandleFunc("/api/geodat/info", api.handleFileInfo)
 }
@@ -164,6 +165,124 @@ func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(response)
+}
+
+func (api *API) handleGeodatUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	const maxUploadSize = 500 * 1024 * 1024 // 500MB
+
+	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+		http.Error(w, "Failed to parse upload", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "File required", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	fileType := r.FormValue("type")
+	if fileType != "geosite" && fileType != "geoip" {
+		http.Error(w, "Type must be 'geosite' or 'geoip'", http.StatusBadRequest)
+		return
+	}
+
+	destPath := r.FormValue("destination_path")
+	if destPath == "" {
+		http.Error(w, "Destination path required", http.StatusBadRequest)
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if ext != ".dat" && ext != ".db" {
+		http.Error(w, "Only .dat and .db files are accepted", http.StatusBadRequest)
+		return
+	}
+
+	if err := os.MkdirAll(destPath, 0755); err != nil {
+		msg := fmt.Sprintf("Failed to create directory %s: %v", destPath, err)
+		log.Errorf("geodat upload: %s", msg)
+		writeJsonError(w, http.StatusInternalServerError, msg)
+		return
+	}
+
+	destFile := filepath.Join(destPath, fileType+".dat")
+
+	tmpFile, err := os.CreateTemp(destPath, ".geodat-upload-*.tmp")
+	if err != nil {
+		msg := fmt.Sprintf("Failed to create temp file: %v", err)
+		log.Errorf("geodat upload: %s", msg)
+		writeJsonError(w, http.StatusInternalServerError, msg)
+		return
+	}
+	tmpPath := tmpFile.Name()
+
+	size, err := io.Copy(tmpFile, file)
+	if err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		msg := fmt.Sprintf("Failed to write uploaded file: %v", err)
+		log.Errorf("geodat upload: %s", msg)
+		writeJsonError(w, http.StatusInternalServerError, msg)
+		return
+	}
+
+	if err := tmpFile.Sync(); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		msg := fmt.Sprintf("Failed to flush file to disk: %v", err)
+		log.Errorf("geodat upload: %s", msg)
+		writeJsonError(w, http.StatusInternalServerError, msg)
+		return
+	}
+	tmpFile.Close()
+
+	if err := os.Rename(tmpPath, destFile); err != nil {
+		os.Remove(tmpPath)
+		msg := fmt.Sprintf("Failed to move uploaded file to %s: %v", destFile, err)
+		log.Errorf("geodat upload: %s", msg)
+		writeJsonError(w, http.StatusInternalServerError, msg)
+		return
+	}
+
+	if fileType == "geosite" {
+		api.cfg.System.Geo.GeoSitePath = destFile
+		api.cfg.System.Geo.GeoSiteURL = ""
+	} else {
+		api.cfg.System.Geo.GeoIpPath = destFile
+		api.cfg.System.Geo.GeoIpURL = ""
+	}
+
+	if err := api.saveAndPushConfig(api.cfg); err != nil {
+		msg := fmt.Sprintf("Failed to save configuration: %v", err)
+		log.Errorf("geodat upload: %s", msg)
+		writeJsonError(w, http.StatusInternalServerError, msg)
+		return
+	}
+
+	api.geodataManager.UpdatePaths(api.cfg.System.Geo.GeoSitePath, api.cfg.System.Geo.GeoIpPath)
+	api.geodataManager.ClearCache()
+
+	for _, set := range api.cfg.Sets {
+		log.Infof("Reloading geo targets for set: %s", set.Name)
+		api.loadTargetsForSetCached(set)
+	}
+
+	log.Infof("Uploaded %s.dat (%d bytes) from %s", fileType, size, header.Filename)
+
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Uploaded %s.dat (%d bytes)", fileType, size),
+		"path":    destFile,
+		"size":    size,
+	})
 }
 
 func checkDiskSpace(dir string, needed int64) error {

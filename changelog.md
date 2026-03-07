@@ -2,6 +2,7 @@
 
 ## [1.39.3] - 2026-03-07
 
+- ADDED: **Upload GeoIP/GeoSite files** — you can now upload `.dat` files directly from your computer using the "Upload" button in `Settings > Geo Databases`.
 - IMPROVED: **Device list sorting** — devices are now sorted alphabetically by name, with selected devices always shown at the top for easier access.
 - FIXED: **Set Import not working on Android** — pasting a set configuration from the clipboard was not possible on Android devices.
 
