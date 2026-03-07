@@ -1836,7 +1836,8 @@ _service_entware_install_rcfunc() {
 ENABLED=yes
 PROCS=b4
 ARGS="--config=${B4_CONFIG_FILE}"
-PREARGS="nohup"
+PREARGS=""
+command -v nohup >/dev/null 2>&1 && PREARGS="nohup"
 DESC="\$PROCS"
 PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -1877,7 +1878,11 @@ start() {
     echo "Starting b4..."
     [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
     kernel_mod_load
-    nohup \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+    if command -v nohup >/dev/null 2>&1; then
+        nohup \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+    else
+        \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+    fi
     echo \$! >"\$PIDFILE"
     sleep 1
     if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
@@ -2119,7 +2124,11 @@ start() {
     echo "Starting b4..."
     [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
     kernel_mod_load
-    nohup \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
+    if command -v nohup >/dev/null 2>&1; then
+        nohup \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
+    else
+        \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
+    fi
     echo \$! >"\$PIDFILE"
     sleep 1
     if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
@@ -2769,17 +2778,25 @@ action_sysinfo() {
         fi
     fi
 
-    # --- Network tools ---
+    # --- Tools & dependencies ---
     echo ""
-    log_info "Network tools:"
-    for tool in iptables nft jq tar sha256sum; do
+    log_info "Required tools:"
+    # Firewall
+    if command_exists iptables; then
+        printf "    ${GREEN}found${NC}   iptables\n" >&2
+    elif command_exists nft; then
+        printf "    ${GREEN}found${NC}   nft ${DIM}(nftables)${NC}\n" >&2
+    else
+        printf "    ${RED}missing${NC} iptables or nft ${DIM}(firewall required)${NC}\n" >&2
+    fi
+    # Archive
+    for tool in tar; do
         if command_exists "$tool"; then
             printf "    ${GREEN}found${NC}   %s\n" "$tool" >&2
         else
-            printf "    ${YELLOW}missing${NC} %s\n" "$tool" >&2
+            printf "    ${RED}missing${NC} %s ${DIM}(required for install)${NC}\n" >&2
         fi
     done
-
     # curl/wget with HTTPS check
     if command_exists curl; then
         if curl -sI --max-time 5 "https://github.com" >/dev/null 2>&1; then
@@ -2787,10 +2804,7 @@ action_sysinfo() {
         else
             printf "    ${YELLOW}found${NC}   curl ${RED}(HTTPS failed)${NC}\n" >&2
         fi
-    else
-        printf "    ${YELLOW}missing${NC} curl\n" >&2
-    fi
-    if command_exists wget; then
+    elif command_exists wget; then
         if wget --spider -q --timeout=5 "https://github.com" 2>/dev/null; then
             printf "    ${GREEN}found${NC}   wget ${GREEN}(HTTPS OK)${NC}\n" >&2
         elif wget --spider -q --timeout=5 --no-check-certificate "https://github.com" 2>/dev/null; then
@@ -2799,7 +2813,30 @@ action_sysinfo() {
             printf "    ${YELLOW}found${NC}   wget ${RED}(HTTPS failed)${NC}\n" >&2
         fi
     else
-        printf "    ${YELLOW}missing${NC} wget\n" >&2
+        printf "    ${RED}missing${NC} curl or wget ${DIM}(required for download)${NC}\n" >&2
+    fi
+
+    echo ""
+    log_info "Optional tools:"
+    for tool in jq sha256sum nohup modprobe; do
+        if command_exists "$tool"; then
+            printf "    ${GREEN}found${NC}   %s\n" "$tool" >&2
+        else
+            case "$tool" in
+            jq)        printf "    ${YELLOW}missing${NC} %s ${DIM}(config editing won't work)${NC}\n" "$tool" >&2 ;;
+            sha256sum) printf "    ${YELLOW}missing${NC} %s ${DIM}(checksum verify skipped)${NC}\n" "$tool" >&2 ;;
+            nohup)     printf "    ${YELLOW}missing${NC} %s ${DIM}(service may stop on session close)${NC}\n" "$tool" >&2 ;;
+            modprobe)  printf "    ${YELLOW}missing${NC} %s ${DIM}(kernel modules loaded via insmod)${NC}\n" "$tool" >&2 ;;
+            esac
+        fi
+    done
+    # Show secondary download tool if primary exists
+    if command_exists curl && command_exists wget; then
+        printf "    ${GREEN}found${NC}   wget ${DIM}(fallback downloader)${NC}\n" >&2
+    elif command_exists wget && ! command_exists curl; then
+        printf "    ${YELLOW}missing${NC} curl ${DIM}(wget used as primary)${NC}\n" >&2
+    elif command_exists curl && ! command_exists wget; then
+        printf "    ${DIM}  ---${NC}   wget ${DIM}(not needed, curl available)${NC}\n" >&2
     fi
 
     # Package manager

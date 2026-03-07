@@ -29,7 +29,8 @@ _service_entware_install_rcfunc() {
 ENABLED=yes
 PROCS=b4
 ARGS="--config=${B4_CONFIG_FILE}"
-PREARGS="nohup"
+PREARGS=""
+command -v nohup >/dev/null 2>&1 && PREARGS="nohup"
 DESC="\$PROCS"
 PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -70,7 +71,11 @@ start() {
     echo "Starting b4..."
     [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
     kernel_mod_load
-    nohup \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+    if command -v nohup >/dev/null 2>&1; then
+        nohup \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+    else
+        \$PROG --config \$CONFIG >/opt/var/log/b4.log 2>&1 &
+    fi
     echo \$! >"\$PIDFILE"
     sleep 1
     if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
