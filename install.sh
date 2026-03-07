@@ -362,30 +362,41 @@ verify_checksum() {
 
 # --- Process management ---
 is_b4_running() {
-    # Try pgrep first (with and without -x for BusyBox compat)
+    # Check PID files first (most reliable)
+    for pf in /var/run/b4.pid /opt/var/run/b4.pid; do
+        if [ -f "$pf" ]; then
+            _pid=$(cat "$pf" 2>/dev/null)
+            [ -n "$_pid" ] && kill -0 "$_pid" 2>/dev/null && return 0
+        fi
+    done
+    # Try pgrep -x (exact process name match — won't match scripts containing "b4")
     if command_exists pgrep; then
         pgrep -x "$BINARY_NAME" >/dev/null 2>&1 && return 0
-        pgrep -f "${BINARY_NAME}" >/dev/null 2>&1 && return 0
     fi
-    # Fallback: check ps output for the binary name
-    ps w 2>/dev/null | grep -v grep | grep -q "${BINARY_NAME}" && return 0
-    ps 2>/dev/null | grep -v grep | grep -q "${BINARY_NAME}" && return 0
-    # Check PID files
-    for pf in /var/run/b4.pid /opt/var/run/b4.pid; do
-        [ -f "$pf" ] && kill -0 "$(cat "$pf")" 2>/dev/null && return 0
-    done
+    # Fallback: check ps for the actual b4 binary (not scripts mentioning b4)
+    # Match paths like /usr/bin/b4 or standalone "b4" command, exclude our own PID
+    _mypid=$$
+    _ps_out=$(ps w 2>/dev/null || ps 2>/dev/null) || true
+    if [ -n "$_ps_out" ]; then
+        echo "$_ps_out" | grep -v grep | grep -v "$_mypid" | grep -q "[/ ]${BINARY_NAME}$" && return 0
+        echo "$_ps_out" | grep -v grep | grep -v "$_mypid" | grep -q "[/ ]${BINARY_NAME} " && return 0
+    fi
     return 1
 }
 
 stop_b4() {
     if ! is_b4_running; then return 0; fi
     log_info "Stopping running b4 process..."
+    # Try PID file first
+    for pf in /var/run/b4.pid /opt/var/run/b4.pid; do
+        if [ -f "$pf" ]; then
+            _pid=$(cat "$pf" 2>/dev/null)
+            [ -n "$_pid" ] && kill "$_pid" 2>/dev/null || true
+        fi
+    done
+    # Then try pkill -x (exact name match)
     if command_exists pkill; then
         pkill -x "$BINARY_NAME" 2>/dev/null || true
-    else
-        ps 2>/dev/null | grep -v grep | grep "${BINARY_NAME}" | awk '{print $1}' | while read pid; do
-            kill "$pid" 2>/dev/null || true
-        done
     fi
     sleep 2
 }
