@@ -1767,7 +1767,7 @@ service_entware_start() {
             log_ok "Service started"
             return 0
         fi
-        log_error "Service crashed immediately after start"
+        log_err "Service crashed immediately after start"
         for _logf in /var/log/b4/errors.log /opt/var/log/b4.log; do
             if [ -s "$_logf" ]; then
                 log_info "Last log entries from $_logf:"
@@ -1877,7 +1877,7 @@ service_procd_start() {
             log_ok "Service started"
             return 0
         fi
-        log_error "Service crashed immediately after start"
+        log_err "Service crashed immediately after start"
         for _logf in /var/log/b4/errors.log /tmp/log/b4.log; do
             if [ -s "$_logf" ]; then
                 log_info "Last log entries from $_logf:"
@@ -1936,12 +1936,19 @@ service_systemd_remove() {
 
 service_systemd_start() {
     if systemctl restart "${B4_SERVICE_NAME}" 2>/dev/null; then
-        sleep 2
-        if systemctl is-active --quiet "${B4_SERVICE_NAME}" 2>/dev/null; then
-            log_ok "Service started"
-            return 0
-        fi
-        log_error "Service crashed immediately after start"
+        _elapsed=0
+        while [ "$_elapsed" -lt 10 ]; do
+            sleep 1
+            _elapsed=$((_elapsed + 1))
+            if systemctl is-active --quiet "${B4_SERVICE_NAME}" 2>/dev/null; then
+                log_ok "Service started"
+                return 0
+            fi
+            if systemctl is-failed --quiet "${B4_SERVICE_NAME}" 2>/dev/null; then
+                break
+            fi
+        done
+        log_err "Service failed to start"
         log_info "Check logs with: journalctl -u ${B4_SERVICE_NAME} --no-pager -n 10"
         journalctl -u "${B4_SERVICE_NAME}" --no-pager -n 5 2>/dev/null | while IFS= read -r _line; do
             log_info "  $_line"
@@ -2033,7 +2040,7 @@ service_sysv_start() {
             log_ok "Service started"
             return 0
         fi
-        log_error "Service crashed immediately after start"
+        log_err "Service crashed immediately after start"
         for _logf in /var/log/b4/errors.log /var/log/b4.log; do
             if [ -s "$_logf" ]; then
                 log_info "Last log entries from $_logf:"

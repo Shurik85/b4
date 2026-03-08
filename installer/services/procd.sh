@@ -71,7 +71,7 @@ service_procd_start() {
             log_ok "Service started"
             return 0
         fi
-        log_error "Service crashed immediately after start"
+        log_err "Service crashed immediately after start"
         for _logf in /var/log/b4/errors.log /tmp/log/b4.log; do
             if [ -s "$_logf" ]; then
                 log_info "Last log entries from $_logf:"
