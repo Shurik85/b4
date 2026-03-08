@@ -15,6 +15,7 @@ func (api *API) RegisterSetsApi() {
 	api.mux.HandleFunc("/api/sets/{id}", api.handleSetById)
 	api.mux.HandleFunc("/api/sets/reorder", api.handleReorderSets)
 	api.mux.HandleFunc("/api/sets/{id}/add-domain", api.handleSetDomains)
+	api.mux.HandleFunc("/api/sets/batch-delete", api.handleBatchDeleteSets)
 }
 
 func (api *API) handleTargetedDomains(w http.ResponseWriter, r *http.Request) {
@@ -210,11 +211,6 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func (api *API) deleteSet(w http.ResponseWriter, id string) {
-	if id == config.MAIN_SET_ID {
-		http.Error(w, "Cannot delete main set", http.StatusForbidden)
-		return
-	}
-
 	oldConfig := api.cfg
 
 	found := false
@@ -341,4 +337,60 @@ func (api *API) loadTargetsForSetCached(set *config.SetConfig) {
 	}
 	ips = append(ips, set.Targets.IPs...)
 	set.Targets.IpsToMatch = ips
+}
+
+func (api *API) handleBatchDeleteSets(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Ids []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Ids) == 0 {
+		http.Error(w, "No set IDs provided", http.StatusBadRequest)
+		return
+	}
+
+	oldConfig := api.cfg.Clone()
+
+	toDelete := make(map[string]bool, len(req.Ids))
+	for _, id := range req.Ids {
+		toDelete[id] = true
+	}
+
+	filtered := make([]*config.SetConfig, 0, len(api.cfg.Sets))
+	for _, set := range api.cfg.Sets {
+		if !toDelete[set.Id] {
+			filtered = append(filtered, set)
+		}
+	}
+
+	deleted := len(api.cfg.Sets) - len(filtered)
+	if deleted == 0 {
+		http.Error(w, "No matching sets found", http.StatusNotFound)
+		return
+	}
+
+	api.cfg.Sets = filtered
+
+	if err := api.saveAndPushConfig(api.cfg); err != nil {
+		log.Errorf("Failed to save config after batch deleting sets: %v", err)
+		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		return
+	}
+
+	if api.PerformSoftRestart(api.cfg, oldConfig) {
+		log.Infof("Soft restart completed successfully")
+	}
+
+	log.Infof("Batch deleted %d sets", deleted)
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "deleted": deleted})
 }

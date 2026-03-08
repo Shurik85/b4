@@ -15,7 +15,7 @@ import { B4Alert } from "@b4.elements";
 import { colors } from "@design";
 import { B4Dialog } from "@common/B4Dialog";
 import { B4Badge } from "@common/B4Badge";
-import { B4SetConfig, MAIN_SET_ID, NEW_SET_ID } from "@models/config";
+import { B4SetConfig, NEW_SET_ID } from "@models/config";
 import { SetSelector } from "@common/SetSelector";
 
 interface AddSniModalProps {
@@ -53,7 +53,8 @@ export const AddSniModal = ({
       if (createNewSet) {
         setSelectedSetId(NEW_SET_ID);
       } else if (sets.length > 0) {
-        setSelectedSetId(MAIN_SET_ID);
+        const firstEnabled = sets.find((s) => s.enabled);
+        setSelectedSetId(firstEnabled?.id ?? sets[0]?.id ?? "");
       }
     }
   }, [open, sets, createNewSet]);

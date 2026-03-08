@@ -21,7 +21,15 @@ func BuildFakeSNIPacketV4(original []byte, cfg *config.SetConfig) []byte {
 		originalTLS = original[payloadStart:]
 	}
 
-	var fakePayload = GetPayload(&cfg.Faking)
+	var fakePayload []byte
+	if cfg.Faking.SNIType == config.FakePayloadInverted && len(originalTLS) > 0 {
+		fakePayload = make([]byte, len(originalTLS))
+		for i, b := range originalTLS {
+			fakePayload[i] = ^b
+		}
+	} else {
+		fakePayload = GetPayload(&cfg.Faking)
+	}
 
 	if len(cfg.Faking.TLSMod) > 0 {
 		flags := ParseTLSMod(cfg.Faking.TLSMod)

@@ -17,6 +17,8 @@ const (
 	FakePayloadDefault1
 	FakePayloadDefault2
 	FakePayloadCapture
+	FakePayloadZero     // All-zero payload (0x00000000)
+	FakePayloadInverted // Bitwise-inverted original TLS payload
 )
 
 type ApiConfig struct {
@@ -24,14 +26,16 @@ type ApiConfig struct {
 }
 
 type QueueConfig struct {
-	StartNum    int            `json:"start_num" bson:"start_num"`
-	Threads     int            `json:"threads" bson:"threads"`
-	Mark        uint           `json:"mark" bson:"mark"`
-	IPv4Enabled bool           `json:"ipv4" bson:"ipv4"`
-	IPv6Enabled bool           `json:"ipv6" bson:"ipv6"`
-	Interfaces  []string       `json:"interfaces" bson:"interfaces"`
-	Devices     DevicesConfig  `json:"devices" bson:"devices"`
-	MSSClamp    MSSClampConfig `json:"mss_clamp" bson:"mss_clamp"`
+	StartNum          int            `json:"start_num" bson:"start_num"`
+	Threads           int            `json:"threads" bson:"threads"`
+	Mark              uint           `json:"mark" bson:"mark"`
+	IPv4Enabled       bool           `json:"ipv4" bson:"ipv4"`
+	IPv6Enabled       bool           `json:"ipv6" bson:"ipv6"`
+	TCPConnBytesLimit int            `json:"tcp_conn_bytes_limit" bson:"tcp_conn_bytes_limit"`
+	UDPConnBytesLimit int            `json:"udp_conn_bytes_limit" bson:"udp_conn_bytes_limit"`
+	Interfaces        []string       `json:"interfaces" bson:"interfaces"`
+	Devices           DevicesConfig  `json:"devices" bson:"devices"`
+	MSSClamp          MSSClampConfig `json:"mss_clamp" bson:"mss_clamp"`
 }
 
 type DevicesConfig struct {
@@ -206,6 +210,8 @@ type SetConfig struct {
 	Targets       TargetsConfig       `json:"targets" bson:"targets"`
 	Enabled       bool                `json:"enabled" bson:"enabled"`
 	DNS           DNSConfig           `json:"dns" bson:"dns"`
+	TCPPortRanges []PortRange         `json:"-" bson:"-"`
+	UDPPortRanges []PortRange         `json:"-" bson:"-"`
 }
 
 type GeoDatConfig struct {
@@ -216,18 +222,22 @@ type GeoDatConfig struct {
 }
 
 type ComboFragConfig struct {
-	FirstByteSplit bool     `json:"first_byte_split" bson:"first_byte_split"`
-	ExtensionSplit bool     `json:"extension_split" bson:"extension_split"`
-	ShuffleMode    string   `json:"shuffle_mode" bson:"shuffle_mode"` // "middle", "full", "reverse"
-	FirstDelayMs   int      `json:"first_delay_ms" bson:"first_delay_ms"`
-	JitterMaxUs    int      `json:"jitter_max_us" bson:"jitter_max_us"`
-	DecoyEnabled bool `json:"decoy_enabled" bson:"decoy_enabled"`
+	FirstByteSplit  bool   `json:"first_byte_split" bson:"first_byte_split"`
+	ExtensionSplit  bool   `json:"extension_split" bson:"extension_split"`
+	ShuffleMode     string `json:"shuffle_mode" bson:"shuffle_mode"` // "middle", "full", "reverse"
+	FirstDelayMs    int    `json:"first_delay_ms" bson:"first_delay_ms"`
+	JitterMaxUs     int    `json:"jitter_max_us" bson:"jitter_max_us"`
+	DecoyEnabled    bool   `json:"decoy_enabled" bson:"decoy_enabled"`
+	FakePerSegment  bool   `json:"fake_per_segment" bson:"fake_per_segment"`
+	FakePerSegCount int    `json:"fake_per_seg_count" bson:"fake_per_seg_count"` // Number of fake packets per segment (default 1)
 }
 
 type DisorderFragConfig struct {
-	ShuffleMode string `json:"shuffle_mode" bson:"shuffle_mode"` // "full", "reverse"
-	MinJitterUs int    `json:"min_jitter_us" bson:"min_jitter_us"`
-	MaxJitterUs int    `json:"max_jitter_us" bson:"max_jitter_us"`
+	ShuffleMode     string `json:"shuffle_mode" bson:"shuffle_mode"` // "full", "reverse"
+	MinJitterUs     int    `json:"min_jitter_us" bson:"min_jitter_us"`
+	MaxJitterUs     int    `json:"max_jitter_us" bson:"max_jitter_us"`
+	FakePerSegment  bool   `json:"fake_per_segment" bson:"fake_per_segment"`
+	FakePerSegCount int    `json:"fake_per_seg_count" bson:"fake_per_seg_count"` // Number of fake packets per segment (default 1)
 }
 
 // ResolveSeg2Delay returns a delay value between min and max (inclusive).

@@ -261,6 +261,42 @@ export const DisorderSettings = ({
         </B4Alert>
       )}
 
+      <B4FormHeader label="Fake Per Segment (multidisorder)" />
+
+      <Grid size={{ xs: 12 }}>
+        <B4Alert severity="info">
+          Multidisorder: sends fake overlap packets before each real segment,
+          not just the first. Floods DPI reassembly with garbage.
+        </B4Alert>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 6 }}>
+        <B4Switch
+          label="Fake Per Segment"
+          checked={disorder.fake_per_segment}
+          onChange={(checked: boolean) =>
+            onChange("fragmentation.disorder.fake_per_segment", checked)
+          }
+          description="Send fake overlap before every segment"
+        />
+      </Grid>
+
+      {disorder.fake_per_segment && (
+        <Grid size={{ xs: 12, md: 6 }}>
+          <B4Slider
+            label="Fakes Per Segment"
+            value={disorder.fake_per_seg_count || 1}
+            onChange={(value: number) =>
+              onChange("fragmentation.disorder.fake_per_seg_count", value)
+            }
+            min={1}
+            max={11}
+            step={1}
+            helperText="Number of fake packets before each segment"
+          />
+        </Grid>
+      )}
+
       <B4FormHeader label="Sequence Overlap (seqovl)" />
 
       <B4Alert sx={{ m: 0 }}>

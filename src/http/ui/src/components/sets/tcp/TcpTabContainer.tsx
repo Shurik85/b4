@@ -1,6 +1,6 @@
 import { Box, Fade } from "@mui/material";
 import { useState, type ReactNode } from "react";
-import { B4SetConfig } from "@models/config";
+import { B4SetConfig, QueueConfig } from "@models/config";
 import { B4Tabs, B4Tab, B4Section } from "@b4.elements";
 import { TcpIcon, FragIcon, FakingIcon, CoreIcon } from "@b4.icons";
 import { TcpGeneral } from "./TcpGeneral";
@@ -9,7 +9,7 @@ import { TcpFaking } from "./TcpFaking";
 
 interface TcpTabContainerProps {
   config: B4SetConfig;
-  main: B4SetConfig;
+  queue: QueueConfig;
   onChange: (
     field: string,
     value: string | number | boolean | string[] | number[],
@@ -47,7 +47,7 @@ enum TCP_TABS {
 
 export const TcpTabContainer = ({
   config,
-  main,
+  queue,
   onChange,
 }: TcpTabContainerProps) => {
   const [activeTab, setActiveTab] = useState<TCP_TABS>(TCP_TABS.GENERAL);
@@ -70,7 +70,7 @@ export const TcpTabContainer = ({
       </B4Tabs>
 
       <TabPanel value={activeTab} index={TCP_TABS.GENERAL}>
-        <TcpGeneral config={config} main={main} onChange={onChange} />
+        <TcpGeneral config={config} queue={queue} onChange={onChange} />
       </TabPanel>
 
       <TabPanel value={activeTab} index={TCP_TABS.SPLITTING}>

@@ -1,10 +1,16 @@
 import { Box, Typography } from "@mui/material";
 import { colors } from "@design";
 import DecryptedText from "@common/DecryptedText";
+import { useState } from "react";
 
 export  function Logo() {
+  const [hover, setHover] = useState(false);
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", gap: 0, cursor: hover ? "none" : "default" }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
       <Typography
         variant="h4"
         component="div"
@@ -34,7 +40,7 @@ export  function Logo() {
           mt: -0.5,
         }}
       >
-        <DecryptedText text="Bye Bye Big Bro" />
+        <DecryptedText text="Bye Bye Big Bro" externalHover={hover} />
       </Typography>
     </Box>
   );

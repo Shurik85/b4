@@ -392,6 +392,93 @@ func GetPhase1Presets() []ConfigPreset {
 			},
 		},
 
+		// 14. Multidisorder combo (fake per segment + reverse order)
+		{
+			Name:        "multidisorder-combo",
+			Description: "Multidisorder: fake overlap before every segment with reverse order",
+			Family:      FamilyCombo,
+			Phase:       PhaseBaseline,
+			Priority:    14,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   50,
+				},
+				UDP: udp,
+				Fragmentation: config.FragmentationConfig{
+					Strategy:          "combo",
+					ReverseOrder:      true,
+					MiddleSNI:         true,
+					SNIPosition:       1,
+					SeqOverlapPattern: []string{"0x16", "0x03", "0x03", "0x00", "0x00"},
+					Combo: config.ComboFragConfig{
+						FirstByteSplit:  true,
+						ExtensionSplit:  true,
+						ShuffleMode:     "reverse",
+						FirstDelayMs:    30,
+						JitterMaxUs:     1000,
+						FakePerSegment:  true,
+						FakePerSegCount: 3,
+					},
+				},
+				Faking: config.FakingConfig{
+					SNI:          true,
+					Strategy:     "pastseq",
+					SeqOffset:    10000,
+					SNISeqLength: 11,
+					SNIType:      config.FakePayloadDefault1,
+					TLSMod:       []string{"rnd", "dupsid"},
+					TCPMD5:       true,
+				},
+			},
+		},
+
+		// 15. Multidisorder disorder - fake per segment with inverted payload
+		{
+			Name:        "multidisorder-inverted",
+			Description: "Multidisorder with inverted original payload for aggressive DPI",
+			Family:      FamilyDisorder,
+			Phase:       PhaseBaseline,
+			Priority:    15,
+			Config: config.SetConfig{
+				TCP: config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+					Seg2DelayMax:   50,
+					DropSACK:       true,
+					Desync: config.DesyncConfig{
+						Mode:  "rst",
+						TTL:   5,
+						Count: 10,
+					},
+				},
+				UDP: udp,
+				Fragmentation: config.FragmentationConfig{
+					Strategy:          "disorder",
+					ReverseOrder:      true,
+					MiddleSNI:         true,
+					SNIPosition:       1,
+					SeqOverlapPattern: []string{"0x16", "0x03", "0x03", "0x00", "0x00"},
+					Disorder: config.DisorderFragConfig{
+						ShuffleMode:     "reverse",
+						MinJitterUs:     500,
+						MaxJitterUs:     2100,
+						FakePerSegment:  true,
+						FakePerSegCount: 3,
+					},
+				},
+				Faking: config.FakingConfig{
+					SNI:          true,
+					Strategy:     "pastseq",
+					SeqOffset:    10000,
+					SNISeqLength: 11,
+					SNIType:      config.FakePayloadInverted,
+					TLSMod:       []string{"rnd", "dupsid"},
+				},
+			},
+		},
+
 		// 13. Full bypass - kitchen sink (all techniques combined)
 		{
 			Name:        "full-bypass",
@@ -594,6 +681,37 @@ func GetPhase2Presets(family StrategyFamily) []ConfigPreset {
 			}
 		}
 
+		// Fake per segment (multidisorder) variations
+		for _, count := range []int{1, 3, 5} {
+			for _, mode := range []string{"reverse", "full"} {
+				presets = append(presets, ConfigPreset{
+					Name:     formatName("combo-fakeperseg%d-%s", count, mode),
+					Family:   FamilyCombo,
+					Phase:    PhaseOptimize,
+					Priority: 200 + count,
+					Config: withTCP(withFragmentation(base, config.FragmentationConfig{
+						Strategy:          "combo",
+						ReverseOrder:      true,
+						MiddleSNI:         true,
+						SNIPosition:       1,
+						SeqOverlapPattern: []string{"0x16", "0x03", "0x03", "0x00", "0x00"},
+						Combo: config.ComboFragConfig{
+							FirstByteSplit:  true,
+							ExtensionSplit:  true,
+							ShuffleMode:     mode,
+							FirstDelayMs:    30,
+							JitterMaxUs:     1000,
+							FakePerSegment:  true,
+							FakePerSegCount: count,
+						},
+					}), config.TCPConfig{
+						ConnBytesLimit: 19,
+						Seg2Delay:      20,
+					}),
+				})
+			}
+		}
+
 	case FamilyTCPFrag:
 		positions := []int{1, 2, 3, 5, 10}
 		for _, pos := range positions {
@@ -668,6 +786,35 @@ func GetPhase2Presets(family StrategyFamily) []ConfigPreset {
 					},
 				}),
 			})
+		}
+
+		// Fake per segment (multidisorder) variations
+		for _, count := range []int{1, 3, 5} {
+			for _, mode := range []string{"reverse", "full"} {
+				presets = append(presets, ConfigPreset{
+					Name:     formatName("disorder-fakeperseg%d-%s", count, mode),
+					Family:   FamilyDisorder,
+					Phase:    PhaseOptimize,
+					Priority: 200 + count,
+					Config: withTCP(withFragmentation(base, config.FragmentationConfig{
+						Strategy:          "disorder",
+						ReverseOrder:      true,
+						MiddleSNI:         true,
+						SeqOverlapPattern: []string{"0x16", "0x03", "0x03", "0x00", "0x00"},
+						Disorder: config.DisorderFragConfig{
+							ShuffleMode:     mode,
+							MinJitterUs:     500,
+							MaxJitterUs:     2100,
+							FakePerSegment:  true,
+							FakePerSegCount: count,
+						},
+					}), config.TCPConfig{
+						ConnBytesLimit: 19,
+						Seg2Delay:      20,
+						DropSACK:       true,
+					}),
+				})
+			}
 		}
 
 		// TLS header overlap pattern
@@ -866,6 +1013,8 @@ func GetPhase2Presets(family StrategyFamily) []ConfigPreset {
 			{"payload1", config.FakePayloadDefault1},
 			{"payload2", config.FakePayloadDefault2},
 			{"payloadRand", config.FakePayloadRandom},
+			{"payloadZero", config.FakePayloadZero},
+			{"payloadInverted", config.FakePayloadInverted},
 		}
 		for _, pt := range payloadTypes {
 			presets = append(presets, ConfigPreset{

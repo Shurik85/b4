@@ -8,7 +8,7 @@ interface ComboSettingsProps {
   config: B4SetConfig;
   onChange: (
     field: string,
-    value: string | boolean | number | string[]
+    value: string | boolean | number | string[],
   ) => void;
 }
 
@@ -288,7 +288,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           onChange={(e) =>
             onChange(
               "fragmentation.combo.shuffle_mode",
-              e.target.value as string
+              e.target.value as string,
             )
           }
           helperText="How to reorder segments before sending"
@@ -335,6 +335,42 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           helperText="Max random delay between other segments (μs)"
         />
       </Grid>
+
+      <B4FormHeader label="Fake Per Segment (multidisorder)" />
+
+      <Grid size={{ xs: 12 }}>
+        <B4Alert severity="info">
+          sends fake overlap packets before each real segment, not just the
+          first. Floods DPI reassembly with garbage.
+        </B4Alert>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 6 }}>
+        <B4Switch
+          label="Fake Per Segment"
+          checked={combo.fake_per_segment}
+          onChange={(checked: boolean) =>
+            onChange("fragmentation.combo.fake_per_segment", checked)
+          }
+          description="Send fake overlap before every segment"
+        />
+      </Grid>
+
+      {combo.fake_per_segment && (
+        <Grid size={{ xs: 12, md: 6 }}>
+          <B4Slider
+            label="Fakes Per Segment"
+            value={combo.fake_per_seg_count || 1}
+            onChange={(value: number) =>
+              onChange("fragmentation.combo.fake_per_seg_count", value)
+            }
+            min={1}
+            max={11}
+            step={1}
+            helperText="Number of fake packets before each segment"
+          />
+        </Grid>
+      )}
 
       {!combo.first_byte_split && !combo.extension_split && !middleSni && (
         <B4Alert severity="warning">

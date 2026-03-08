@@ -165,6 +165,7 @@ type DiscoverySuite struct {
 	customPayloads []CustomPayload
 
 	dnsResults      map[string]*DNSDiscoveryResult
+	discoveredDNS   config.DNSConfig
 	skipDNS         bool
 	skipCache       bool
 	validationTries int

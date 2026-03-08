@@ -116,18 +116,15 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	c.MainSet = nil
-	for _, set := range c.Sets {
-		if set.Id == MAIN_SET_ID {
-			c.MainSet = set
-			break
-		}
+	if c.Queue.TCPConnBytesLimit < DefaultConfig.Queue.TCPConnBytesLimit {
+		c.Queue.TCPConnBytesLimit = DefaultConfig.Queue.TCPConnBytesLimit
+	} else if c.Queue.TCPConnBytesLimit > 100 {
+		c.Queue.TCPConnBytesLimit = 100
 	}
-
-	if c.MainSet == nil {
-		defaultCopy := NewSetConfig()
-		c.MainSet = &defaultCopy
-		c.Sets = append(c.Sets, c.MainSet)
+	if c.Queue.UDPConnBytesLimit < DefaultConfig.Queue.UDPConnBytesLimit {
+		c.Queue.UDPConnBytesLimit = DefaultConfig.Queue.UDPConnBytesLimit
+	} else if c.Queue.UDPConnBytesLimit > 30 {
+		c.Queue.UDPConnBytesLimit = 30
 	}
 
 	for _, set := range c.Sets {
@@ -153,24 +150,20 @@ func (c *Config) Validate() error {
 			}
 		}
 
-		if set.Id == MAIN_SET_ID {
-			continue
+		if set.TCP.ConnBytesLimit > c.Queue.TCPConnBytesLimit {
+			set.TCP.ConnBytesLimit = c.Queue.TCPConnBytesLimit
 		}
-		if set.TCP.ConnBytesLimit > c.MainSet.TCP.ConnBytesLimit {
-			set.TCP.ConnBytesLimit = c.MainSet.TCP.ConnBytesLimit
-		}
-		if set.UDP.ConnBytesLimit > c.MainSet.UDP.ConnBytesLimit {
-			set.UDP.ConnBytesLimit = c.MainSet.UDP.ConnBytesLimit
+		if set.UDP.ConnBytesLimit > c.Queue.UDPConnBytesLimit {
+			set.UDP.ConnBytesLimit = c.Queue.UDPConnBytesLimit
 		}
 
-	}
+		if len(set.Targets.GeoSiteCategories) > 0 && c.System.Geo.GeoSitePath == "" {
+			return fmt.Errorf("--geosite must be specified when using --geo-categories")
+		}
 
-	if len(c.MainSet.Targets.GeoSiteCategories) > 0 && c.System.Geo.GeoSitePath == "" {
-		return fmt.Errorf("--geosite must be specified when using --geo-categories")
-	}
-
-	if len(c.MainSet.Targets.GeoIpCategories) > 0 && c.System.Geo.GeoIpPath == "" {
-		return fmt.Errorf("--geoip must be specified when using --geoip-categories")
+		if len(set.Targets.GeoIpCategories) > 0 && c.System.Geo.GeoIpPath == "" {
+			return fmt.Errorf("--geoip must be specified when using --geoip-categories")
+		}
 	}
 
 	// Validate global MSS clamp
@@ -203,25 +196,18 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("queue-num must be between 0 and 65535")
 	}
 
-	if len(c.Sets) >= 1 {
-		for _, set := range c.Sets {
-			if set.Id == "" {
-				return fmt.Errorf("each set must have a unique non-empty ID")
-			}
-
-			if set.Id == MAIN_SET_ID {
-				set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
-				set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
-				continue
-			}
-
-			set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
-			set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
+	for _, set := range c.Sets {
+		if set.Id == "" {
+			return fmt.Errorf("each set must have a unique non-empty ID")
 		}
+
+		set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
+		set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
 	}
 
 	c.LoadCapturePayloads()
 	c.BuildTCPPortMap()
+	c.BuildSetPortRanges()
 
 	return nil
 }
@@ -475,6 +461,84 @@ func (cfg *Config) BuildTCPPortMap() {
 			}
 		}
 	}
+}
+
+type PortRange struct {
+	Min uint16
+	Max uint16
+}
+
+func (set *SetConfig) HasIPOrDomainTargets() bool {
+	return len(set.Targets.IpsToMatch) > 0 || len(set.Targets.DomainsToMatch) > 0
+}
+
+func (set *SetConfig) MatchesTCPDPort(port uint16) bool {
+	if len(set.TCPPortRanges) == 0 {
+		return true
+	}
+	for _, r := range set.TCPPortRanges {
+		if port >= r.Min && port <= r.Max {
+			return true
+		}
+	}
+	return false
+}
+
+func (set *SetConfig) MatchesUDPDPort(port uint16) bool {
+	if len(set.UDPPortRanges) == 0 {
+		return true
+	}
+	for _, r := range set.UDPPortRanges {
+		if port >= r.Min && port <= r.Max {
+			return true
+		}
+	}
+	return false
+}
+
+func (cfg *Config) BuildSetPortRanges() {
+	for _, set := range cfg.Sets {
+		set.TCPPortRanges = nil
+		set.UDPPortRanges = nil
+
+		if set.TCP.DPortFilter != "" {
+			for _, part := range strings.Split(set.TCP.DPortFilter, ",") {
+				if pr, ok := parsePortRangeStr(part); ok {
+					set.TCPPortRanges = append(set.TCPPortRanges, pr)
+				}
+			}
+		}
+		if set.UDP.DPortFilter != "" {
+			for _, part := range strings.Split(set.UDP.DPortFilter, ",") {
+				if pr, ok := parsePortRangeStr(part); ok {
+					set.UDPPortRanges = append(set.UDPPortRanges, pr)
+				}
+			}
+		}
+	}
+}
+
+func parsePortRangeStr(part string) (PortRange, bool) {
+	part = strings.TrimSpace(part)
+	if part == "" {
+		return PortRange{}, false
+	}
+	if strings.Contains(part, "-") {
+		bounds := strings.SplitN(part, "-", 2)
+		if len(bounds) == 2 {
+			min, err1 := strconv.Atoi(bounds[0])
+			max, err2 := strconv.Atoi(bounds[1])
+			if err1 == nil && err2 == nil && min >= 1 && max >= 1 && min <= max && min <= 65535 && max <= 65535 {
+				return PortRange{Min: uint16(min), Max: uint16(max)}, true
+			}
+		}
+	} else {
+		port, err := strconv.Atoi(part)
+		if err == nil && port >= 1 && port <= 65535 {
+			return PortRange{Min: uint16(port), Max: uint16(port)}, true
+		}
+	}
+	return PortRange{}, false
 }
 
 // IsTCPPort checks if a port is in the configured TCP port set.

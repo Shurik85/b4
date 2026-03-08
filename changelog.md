@@ -1,5 +1,17 @@
 # B4 - Bye Bye Big Bro
 
+## [1.40.0] - 2026-03-08
+
+- ADDED: **Mass delete sets** — you can now select multiple sets at once and delete them all together. Click the "Select" button in the toolbar, check the sets you want to remove, then click "Delete". Includes "Select All" for quick bulk cleanup.
+- ADDED: **Multidisorder mode** — sends fake overlap packets before every real segment (not just the first one), flooding DPI with garbage data so it can't reassemble your traffic correctly. Enable "Fake Per Segment" in Combo or Disorder fragmentation settings and choose how many fakes to send per segment.
+- ADDED: **New fake payload types** — two new options in Faking settings: "All Zeros" (sends empty-looking data) and "Inverted Original" (sends a flipped copy of the real data). Some networks respond better to these than the default payloads.
+- ADDED: New Discovery presets for multidisorder mode — Discovery can now automatically test these new techniques when searching for the best bypass configuration.
+- ADDED: **Upload GeoIP/GeoSite files** — you can now upload `.dat` files directly from your computer using the "Upload" button in `Settings > Geo Databases`.
+- CHANGED: **Main Set removed** — there is no longer a special "main" set. All sets are now equal and independent. Your existing main set will be converted into a regular set automatically.
+- CHANGED: **Connection Bytes Limits moved to Settings** — TCP and UDP connection bytes limits are now in `Settings > Core > Queue Settings` instead of being tied to a specific set.
+- IMPROVED: **Device list sorting** — devices are now sorted alphabetically by name, with selected devices always shown at the top for easier access.
+- FIXED: **Set Import not working on Android** — pasting a set configuration from the clipboard was not possible on Android devices.
+
 ## [1.39.2] - 2026-03-03
 
 - ADDED: **TCP Port Filter** — B4 no longer only captures TCP port 443. You can now configure custom TCP ports per set (e.g., `80,5222,8000-9000`) in the TCP settings tab, just like UDP. Port 443 is always included. Firewall rules, packet processing, and the monitor all update automatically — no restart needed. Useful for services like Telegram (port 5222), WhatsApp (5222-5223), Signal (4433), XMPP, and others that use non-443 TCP ports.

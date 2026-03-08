@@ -1,5 +1,5 @@
 import { Grid, FormControlLabel, Switch, Typography, Box } from "@mui/material";
-import { B4SetConfig } from "@models/config";
+import { B4SetConfig, QueueConfig } from "@models/config";
 import {
   B4Slider,
   B4RangeSlider,
@@ -10,14 +10,14 @@ import {
 
 interface TcpGeneralProps {
   config: B4SetConfig;
-  main: B4SetConfig;
+  queue: QueueConfig;
   onChange: (
     field: string,
     value: string | number | boolean | number[],
   ) => void;
 }
 
-export const TcpGeneral = ({ config, main, onChange }: TcpGeneralProps) => {
+export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
   const dup = config.tcp.duplicate ?? { enabled: false, count: 3 };
 
   return (
@@ -27,19 +27,15 @@ export const TcpGeneral = ({ config, main, onChange }: TcpGeneralProps) => {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Slider
-            label="Connection Bytes Limit"
+            label="Connection Packets Limit"
             value={config.tcp.conn_bytes_limit}
             onChange={(value: number) =>
               onChange("tcp.conn_bytes_limit", value)
             }
             min={1}
-            max={main.id === config.id ? 100 : main.tcp.conn_bytes_limit}
+            max={queue.tcp_conn_bytes_limit}
             step={1}
-            helperText={
-              main.id === config.id
-                ? "Main set limit (changing requires service restart to take effect)"
-                : `Max: ${main.tcp.conn_bytes_limit} (limited by main set)`
-            }
+            helperText={`Max: ${queue.tcp_conn_bytes_limit} (system limit)`}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>

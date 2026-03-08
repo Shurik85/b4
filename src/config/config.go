@@ -5,25 +5,23 @@ import (
 )
 
 var (
-	MAIN_SET_ID = "11111111-1111-1111-1111-111111111111"
-	NEW_SET_ID  = "00000000-0000-0000-0000-000000000000"
+	NEW_SET_ID = "00000000-0000-0000-0000-000000000000"
 )
 
 type Config struct {
 	Version    int    `json:"version" bson:"version"`
 	ConfigPath string `json:"-" bson:"-"`
 
-	Queue   QueueConfig  `json:"queue" bson:"queue"`
-	MainSet *SetConfig   `json:"-" bson:"-"`
-	System  SystemConfig `json:"system" bson:"system"`
-	Sets    []*SetConfig `json:"sets" bson:"sets"`
+	Queue  QueueConfig  `json:"queue" bson:"queue"`
+	System SystemConfig `json:"system" bson:"system"`
+	Sets   []*SetConfig `json:"sets" bson:"sets"`
 
 	tcpPortMap map[uint16]bool // pre-computed TCP port set for fast lookup in packet handler
 }
 
 var DefaultSetConfig = SetConfig{
-	Id:      MAIN_SET_ID,
-	Name:    "default",
+	Id:      NEW_SET_ID,
+	Name:    "new set",
 	Enabled: true,
 
 	UDP: UDPConfig{
@@ -149,9 +147,11 @@ var DefaultConfig = Config{
 		StartNum:    537,
 		Mark:        1 << 15,
 		Threads:     4,
-		IPv4Enabled: true,
-		IPv6Enabled: false,
-		Interfaces:  []string{},
+		IPv4Enabled:       true,
+		IPv6Enabled:       false,
+		TCPConnBytesLimit: 19,
+		UDPConnBytesLimit: 8,
+		Interfaces:        []string{},
 		Devices: DevicesConfig{
 			Enabled:      false,
 			VendorLookup: false,
@@ -166,8 +166,6 @@ var DefaultConfig = Config{
 	},
 
 	Sets: []*SetConfig{},
-
-	MainSet: nil,
 
 	System: SystemConfig{
 		Geo: GeoDatConfig{
@@ -236,9 +234,6 @@ func NewSetConfig() SetConfig {
 
 func NewConfig() Config {
 	cfg := DefaultConfig
-
-	mainSet := NewSetConfig()
-	cfg.MainSet = &mainSet
 
 	cfg.Sets = []*SetConfig{}
 

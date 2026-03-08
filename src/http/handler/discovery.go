@@ -194,10 +194,6 @@ func (api *API) handleAddPresetAsSet(w http.ResponseWriter, r *http.Request) {
 
 	api.cfg.Sets = append([]*config.SetConfig{&set}, api.cfg.Sets...)
 
-	if api.cfg.MainSet == nil {
-		api.cfg.MainSet = &set
-	}
-
 	// Save configuration
 	if err := api.saveAndPushConfig(api.cfg); err != nil {
 		log.Errorf("Failed to save config: %v", err)

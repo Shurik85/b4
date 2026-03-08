@@ -31,6 +31,7 @@ import {
   B4InlineEdit,
 } from "@b4.elements";
 import { useDevices, DeviceInfo, DevicesSettingsProps } from "@b4.devices";
+import { sortDevices } from "@utils";
 
 const DeviceNameCell = ({
   device,
@@ -289,7 +290,8 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        devices.map((device) => (
+                        sortDevices(devices, isSelected)
+                          .map((device) => (
                           <TableRow
                             key={device.mac}
                             hover

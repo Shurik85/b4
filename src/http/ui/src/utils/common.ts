@@ -1,3 +1,19 @@
+import type { DeviceInfo } from "@models/devices";
+
+export function sortDevices(
+  devices: DeviceInfo[],
+  isSelected: (mac: string) => boolean,
+): DeviceInfo[] {
+  return [...devices].sort((a, b) => {
+    const aSelected = isSelected(a.mac);
+    const bSelected = isSelected(b.mac);
+    if (aSelected !== bSelected) return aSelected ? -1 : 1;
+    const aName = (a.alias || a.vendor || a.hostname || "").toLowerCase();
+    const bName = (b.alias || b.vendor || b.hostname || "").toLowerCase();
+    return aName.localeCompare(bName);
+  });
+}
+
 export const formatBytes = (
   bytes: number | string | null | undefined,
 ): string => {

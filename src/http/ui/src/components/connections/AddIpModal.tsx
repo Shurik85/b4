@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { AddIcon, DomainIcon } from "@b4.icons";
 import { colors } from "@design";
-import { B4SetConfig, MAIN_SET_ID } from "@models/config";
+import { B4SetConfig } from "@models/config";
 import { SetSelector } from "@common/SetSelector";
 import { asnStorage } from "@utils";
 import { clearAsnLookupCache } from "@hooks/useDomainActions";
@@ -79,7 +79,8 @@ export const AddIpModal = ({
       setNewSetName("");
       setVariants(initialVariants);
       if (sets.length > 0) {
-        setSelectedSetId(MAIN_SET_ID);
+        const firstEnabled = sets.find((s) => s.enabled);
+        setSelectedSetId(firstEnabled?.id ?? sets[0]?.id ?? "");
       }
     }
   }, [open, sets, initialVariants, ip]);

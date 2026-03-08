@@ -29,6 +29,14 @@ func GetPayload(faking *config.FakingConfig) []byte {
 	case config.FakePayloadCapture:
 		fakePayload = make([]byte, len(faking.PayloadData))
 		copy(fakePayload, faking.PayloadData)
+	case config.FakePayloadZero:
+		fakePayload = make([]byte, 1200)
+		// all zeros by default from make()
+	case config.FakePayloadInverted:
+		// Inverted payload is handled in BuildFakeSNIPacketV4 where the original is available.
+		// Return default payload as fallback; it will be replaced.
+		fakePayload = make([]byte, len(FakeSNI1))
+		copy(fakePayload, FakeSNI1)
 	default:
 		fakePayload = make([]byte, len(FakeSNI1))
 		copy(fakePayload, FakeSNI1)

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiFetch } from "./apiClient";
+import { apiGet, apiPost, apiFetch, apiUpload } from "./apiClient";
 import { B4Config } from "@models/config";
 import {
   GeoFileInfo,
@@ -33,6 +33,16 @@ export const geodatApi = {
       geoip_url: geoipUrl ?? "",
       destination_path: destPath,
     }),
+  upload: (file: File, type: "geosite" | "geoip", destPath: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+    formData.append("destination_path", destPath);
+    return apiUpload<{ success: boolean; message: string; path: string; size: number }>(
+      "/api/geodat/upload",
+      formData,
+    );
+  },
 };
 
 // System API

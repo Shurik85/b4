@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/daniellavrushin/b4/log"
+	"github.com/google/uuid"
 )
 
 type MigrationFunc func(*Config, map[string]interface{}) error
@@ -39,6 +40,46 @@ var migrationRegistry = map[int]MigrationFunc{
 	20: migrateV20to21, // Add SOCKS5 proxy server config
 	21: migrateV21to22, // Add NAT masquerade config
 	22: migrateV22to23, // Add TCP MSS clamping config
+	23: migrateV23to24, // Add multidisorder (fake per segment) and new payload types
+	24: migrateV24to25, // Remove main set, move ConnBytesLimit to queue config
+}
+
+// Migration: v24 -> v25 (remove main set, move ConnBytesLimit to queue config)
+func migrateV24to25(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v24->v25: Removing main set, moving ConnBytesLimit to queue config")
+
+	oldMainSetID := "11111111-1111-1111-1111-111111111111"
+
+	// Move ConnBytesLimit from main set to queue config, and give it a new ID
+	for _, set := range c.Sets {
+		if set.Id == oldMainSetID {
+			c.Queue.TCPConnBytesLimit = set.TCP.ConnBytesLimit
+			c.Queue.UDPConnBytesLimit = set.UDP.ConnBytesLimit
+			set.Id = uuid.New().String()
+			break
+		}
+	}
+
+	// Ensure defaults if main set wasn't found
+	if c.Queue.TCPConnBytesLimit == 0 {
+		c.Queue.TCPConnBytesLimit = DefaultConfig.Queue.TCPConnBytesLimit
+	}
+	if c.Queue.UDPConnBytesLimit == 0 {
+		c.Queue.UDPConnBytesLimit = DefaultConfig.Queue.UDPConnBytesLimit
+	}
+
+	return nil
+}
+
+func migrateV23to24(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v23->v24: Adding multidisorder (fake per segment) to combo/disorder configs")
+	for _, set := range c.Sets {
+		set.Fragmentation.Combo.FakePerSegment = DefaultSetConfig.Fragmentation.Combo.FakePerSegment
+		set.Fragmentation.Combo.FakePerSegCount = DefaultSetConfig.Fragmentation.Combo.FakePerSegCount
+		set.Fragmentation.Disorder.FakePerSegment = DefaultSetConfig.Fragmentation.Disorder.FakePerSegment
+		set.Fragmentation.Disorder.FakePerSegCount = DefaultSetConfig.Fragmentation.Disorder.FakePerSegCount
+	}
+	return nil
 }
 
 func migrateV22to23(c *Config, _ map[string]interface{}) error {
@@ -254,10 +295,6 @@ func migrateV0to1(c *Config, _ map[string]interface{}) error {
 
 	for _, set := range c.Sets {
 		set.Enabled = true
-	}
-
-	if c.MainSet != nil {
-		c.MainSet.Enabled = true
 	}
 
 	return nil

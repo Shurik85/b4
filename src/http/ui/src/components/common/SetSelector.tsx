@@ -9,7 +9,7 @@ import {
 import { AddIcon } from "@b4.icons";
 import { B4TextField } from "@b4.fields";
 import { colors } from "@design";
-import { B4SetConfig, MAIN_SET_ID, NEW_SET_ID } from "@models/config";
+import { B4SetConfig, NEW_SET_ID } from "@models/config";
 
 interface SetSelectorProps {
   sets: B4SetConfig[];
@@ -58,7 +58,8 @@ export const SetSelector = ({
               <Button
                 size="small"
                 onClick={() => {
-                  onChange(value || MAIN_SET_ID);
+                  const firstEnabled = sets.find((s) => s.enabled);
+                  onChange(value || firstEnabled?.id || sets[0]?.id || "");
                   handleCancelCreate();
                 }}
                 sx={{ minWidth: "auto" }}

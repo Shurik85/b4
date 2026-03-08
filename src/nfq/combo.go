@@ -69,15 +69,26 @@ func (w *Worker) sendComboFragments(cfg *config.SetConfig, packet []byte, dst ne
 		jitterMaxUs = 2000
 	}
 
+	fakePerSeg := combo.FakePerSegment
+	fakePerSegCount := combo.FakePerSegCount
+	if fakePerSegCount <= 0 {
+		fakePerSegCount = 1
+	} else if fakePerSegCount > 11 {
+		fakePerSegCount = 11
+	}
+
 	for i, seg := range segments {
-		if i == 0 && seqovlLen > 0 {
+		sendFake := (fakePerSeg || i == 0) && seqovlLen > 0
+		if sendFake {
 			payloadLen := len(seg.Data) - pi.PayloadStart
 			if seqovlLen <= payloadLen {
 				seqOffset := seg.Seq - pi.Seq0
-				fakeSeg := BuildFakeOverlapSegmentV4(packet, pi, payloadLen, seqOffset, 0, seqovlPattern, cfg.Faking.TTL, true)
-				if fakeSeg != nil {
-					_ = w.sock.SendIPv4(fakeSeg, dst)
-					time.Sleep(50 * time.Microsecond)
+				for f := 0; f < fakePerSegCount; f++ {
+					fakeSeg := BuildFakeOverlapSegmentV4(packet, pi, payloadLen, seqOffset, 0, seqovlPattern, cfg.Faking.TTL, true)
+					if fakeSeg != nil {
+						_ = w.sock.SendIPv4(fakeSeg, dst)
+						time.Sleep(50 * time.Microsecond)
+					}
 				}
 			}
 		}
@@ -125,7 +136,6 @@ func (w *Worker) sendDecoyPacket(cfg *config.SetConfig, packet []byte, pi Packet
 	sock.FixIPv4Checksum(fakePacket[:pi.IPHdrLen])
 	sock.FixTCPChecksum(fakePacket)
 
-	// Split at position 2 (like zapret2)
 	splitPos := 2
 
 	// Segment 1: first 2 bytes, WITH MD5

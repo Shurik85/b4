@@ -113,7 +113,7 @@ func (ds *DiscoverySuite) applyBestDNSConfig() {
 	}
 
 	if bestServer != "" || needsFragment {
-		ds.cfg.MainSet.DNS = config.DNSConfig{
+		ds.discoveredDNS = config.DNSConfig{
 			Enabled:       true,
 			TargetDNS:     bestServer,
 			FragmentQuery: needsFragment,
@@ -517,14 +517,13 @@ func (p *DNSProber) testDNSWithFragment(server string, expectedIP string) DNSPro
 }
 
 func (p *DNSProber) buildDNSTestConfig(targetDNS string, fragment bool) *config.Config {
-	mainSet := config.NewSetConfig()
-	mainSet.Id = p.cfg.MainSet.Id
-	mainSet.Name = "dns-test"
-	mainSet.Enabled = true
-	mainSet.Targets.SNIDomains = []string{p.domain}
-	mainSet.Targets.DomainsToMatch = []string{p.domain}
+	testSet := config.NewSetConfig()
+	testSet.Name = "dns-test"
+	testSet.Enabled = true
+	testSet.Targets.SNIDomains = []string{p.domain}
+	testSet.Targets.DomainsToMatch = []string{p.domain}
 
-	mainSet.DNS = config.DNSConfig{
+	testSet.DNS = config.DNSConfig{
 		Enabled:       true,
 		TargetDNS:     targetDNS,
 		FragmentQuery: fragment,
@@ -534,7 +533,6 @@ func (p *DNSProber) buildDNSTestConfig(targetDNS string, fragment bool) *config.
 		ConfigPath: p.cfg.ConfigPath,
 		Queue:      p.cfg.Queue,
 		System:     p.cfg.System,
-		MainSet:    &mainSet,
-		Sets:       []*config.SetConfig{&mainSet},
+		Sets:       []*config.SetConfig{&testSet},
 	}
 }

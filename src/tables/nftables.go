@@ -240,8 +240,8 @@ func (n *NFTablesManager) Apply() error {
 		}
 	}
 
-	tcpLimit := fmt.Sprintf("%d", cfg.MainSet.TCP.ConnBytesLimit+1)
-	udpLimit := fmt.Sprintf("%d", cfg.MainSet.UDP.ConnBytesLimit+1)
+	tcpLimit := fmt.Sprintf("%d", cfg.Queue.TCPConnBytesLimit+1)
+	udpLimit := fmt.Sprintf("%d", cfg.Queue.UDPConnBytesLimit+1)
 
 	if err := n.addQueueRule(nftChainName, "tcp", "dport", tcpPortExpr, "ct", "original", "packets", "<", tcpLimit, "counter"); err != nil {
 		return err

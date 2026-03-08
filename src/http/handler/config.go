@@ -369,11 +369,11 @@ func (a *API) PerformSoftRestart(newCfg *config.Config, oldCfg *config.Config) b
 		shouldUpdate = true
 	}
 
-	if oldCfg.MainSet.TCP.ConnBytesLimit != newCfg.MainSet.TCP.ConnBytesLimit {
+	if oldCfg.Queue.TCPConnBytesLimit != newCfg.Queue.TCPConnBytesLimit {
 		shouldUpdate = true
 	}
 
-	if oldCfg.MainSet.UDP.ConnBytesLimit != newCfg.MainSet.UDP.ConnBytesLimit {
+	if oldCfg.Queue.UDPConnBytesLimit != newCfg.Queue.UDPConnBytesLimit {
 		shouldUpdate = true
 	}
 

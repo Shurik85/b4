@@ -18,7 +18,14 @@ import {
   MutationMode,
   WindowMode,
 } from "@models/config";
-import { Box, FormControlLabel, Grid, Stack, Switch, Typography } from "@mui/material";
+import {
+  Box,
+  FormControlLabel,
+  Grid,
+  Stack,
+  Switch,
+  Typography,
+} from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
@@ -45,6 +52,8 @@ const FAKE_PAYLOAD_TYPES = [
   { value: 2, label: "Preset: Google (classic)" },
   { value: 3, label: "Preset: DuckDuckGo" },
   { value: 4, label: "My own Payload File" },
+  { value: 5, label: "All Zeros" },
+  { value: 6, label: "Inverted Original" },
 ];
 
 const MUTATION_MODES: { value: MutationMode; label: string }[] = [
@@ -163,25 +172,31 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
 
   // Status summaries for accordion headers
   const fakeSniStatus = config.faking.sni
-    ? FAKE_STRATEGIES.find((s) => s.value === config.faking.strategy)?.label || "Enabled"
+    ? FAKE_STRATEGIES.find((s) => s.value === config.faking.strategy)?.label ||
+      "Enabled"
     : "Disabled";
 
-  const synFakeStatus = [
-    config.tcp.syn_fake && "SYN",
-    config.faking.tcp_md5 && "MD5",
-  ].filter(Boolean).join(" + ") || "Disabled";
+  const synFakeStatus =
+    [config.tcp.syn_fake && "SYN", config.faking.tcp_md5 && "MD5"]
+      .filter(Boolean)
+      .join(" + ") || "Disabled";
 
   const desyncStatus = isDesyncEnabled
-    ? desyncModeOptions.find((o) => o.value === config.tcp.desync.mode)?.label || "Enabled"
+    ? desyncModeOptions.find((o) => o.value === config.tcp.desync.mode)
+        ?.label || "Enabled"
     : "Disabled";
 
-  const windowStatus = config.tcp.win.mode !== "off"
-    ? windowModeOptions.find((o) => o.value === config.tcp.win.mode)?.label || "Enabled"
-    : "Disabled";
+  const windowStatus =
+    config.tcp.win.mode === "off"
+      ? "Disabled"
+      : windowModeOptions.find((o) => o.value === config.tcp.win.mode)?.label ||
+        "Enabled";
 
-  const incomingStatus = (config.tcp.incoming?.mode || "off") !== "off"
-    ? incomingModeOptions.find((o) => o.value === config.tcp.incoming?.mode)?.label || "Enabled"
-    : "Disabled";
+  const incomingStatus =
+    (config.tcp.incoming?.mode || "off") === "off"
+      ? "Disabled"
+      : incomingModeOptions.find((o) => o.value === config.tcp.incoming?.mode)
+          ?.label || "Enabled";
 
   const mutationStatus = isMutationEnabled
     ? MUTATION_MODES.find((m) => m.value === mutation.mode)?.label || "Enabled"
@@ -455,7 +470,8 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
                     SYN Fake Packets
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Send fake SYN packets during handshake (aggressive technique)
+                    Send fake SYN packets during handshake (aggressive
+                    technique)
                   </Typography>
                 </Box>
               }
@@ -618,7 +634,9 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               label="Window Mode"
               value={config.tcp.win.mode}
               options={windowModeOptions}
-              onChange={(e) => onChange("tcp.win.mode", e.target.value as string)}
+              onChange={(e) =>
+                onChange("tcp.win.mode", e.target.value as string)
+              }
               helperText={windowModeDescriptions[config.tcp.win.mode]}
             />
           </Grid>

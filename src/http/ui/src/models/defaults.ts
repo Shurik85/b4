@@ -64,11 +64,15 @@ export function createDefaultSet(setCount: number): B4SetConfig {
         first_delay_ms: 100,
         jitter_max_us: 2000,
         decoy_enabled: false,
+        fake_per_segment: false,
+        fake_per_seg_count: 1,
       },
       disorder: {
         shuffle_mode: "full",
         min_jitter_us: 1000,
         max_jitter_us: 3000,
+        fake_per_segment: false,
+        fake_per_seg_count: 1,
       },
     } as B4SetConfig["fragmentation"],
     faking: {

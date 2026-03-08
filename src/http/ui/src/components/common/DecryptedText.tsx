@@ -5,6 +5,7 @@ const styles = {
   wrapper: {
     display: "inline-block",
     whiteSpace: "pre-wrap",
+    cursor: "none",
   },
   srOnly: {
     position: "absolute" as const,
@@ -30,6 +31,7 @@ interface DecryptedTextProps extends HTMLMotionProps<"span"> {
   parentClassName?: string;
   encryptedClassName?: string;
   animateOn?: "view" | "hover" | "both";
+  externalHover?: boolean;
 }
 
 export default function DecryptedText({
@@ -44,10 +46,12 @@ export default function DecryptedText({
   parentClassName = "",
   encryptedClassName = "",
   animateOn = "hover",
+  externalHover,
   ...props
 }: Readonly<DecryptedTextProps>) {
   const [displayText, setDisplayText] = useState<string>(text);
-  const [isHovering, setIsHovering] = useState<boolean>(false);
+  const [internalHover, setInternalHover] = useState<boolean>(false);
+  const isHovering = externalHover ?? internalHover;
   const [isScrambling, setIsScrambling] = useState<boolean>(false);
   const [revealedIndices, setRevealedIndices] = useState<Set<number>>(
     new Set()
@@ -57,8 +61,6 @@ export default function DecryptedText({
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
-    let currentIteration = 0;
-
     const getNextIndex = (revealedSet: Set<number>): number => {
       const textLength = text.length;
       switch (revealDirection) {
@@ -158,12 +160,6 @@ export default function DecryptedText({
             }
           } else {
             setDisplayText(shuffleText(text, prevRevealed));
-            currentIteration++;
-            if (currentIteration >= maxIterations) {
-              clearInterval(interval);
-              setIsScrambling(false);
-              setDisplayText(text);
-            }
             return prevRevealed;
           }
         });
@@ -194,7 +190,7 @@ export default function DecryptedText({
     const observerCallback = (entries: IntersectionObserverEntry[]) => {
       for (const entry of entries) {
         if (entry.isIntersecting && !hasAnimated) {
-          setIsHovering(true);
+          setInternalHover(true);
           setHasAnimated(true);
         }
       }
@@ -225,8 +221,8 @@ export default function DecryptedText({
   const hoverProps =
     animateOn === "hover" || animateOn === "both"
       ? {
-          onMouseEnter: () => setIsHovering(true),
-          onMouseLeave: () => setIsHovering(false),
+          onMouseEnter: () => setInternalHover(true),
+          onMouseLeave: () => setInternalHover(false),
         }
       : {};
 

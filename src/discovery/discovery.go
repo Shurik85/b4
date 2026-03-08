@@ -816,7 +816,9 @@ func (ds *DiscoverySuite) testPresetInternal(preset ConfigPreset) CheckResult {
 
 	for i := 0; i < ds.validationTries; i++ {
 		result := ds.fetchForDomain(di, time.Duration(ds.cfg.System.Checker.DiscoveryTimeoutSec)*time.Second)
-		result.Set = testConfig.MainSet
+		if len(testConfig.Sets) > 0 {
+			result.Set = testConfig.Sets[0]
+		}
 		lastResult = result
 
 		if result.Status == CheckStatusComplete {
@@ -903,7 +905,9 @@ func (ds *DiscoverySuite) testPresetAllDomains(preset ConfigPreset) map[string]C
 
 		for i := 0; i < ds.validationTries; i++ {
 			result := ds.fetchForDomain(di, timeout)
-			result.Set = testConfig.MainSet
+			if len(testConfig.Sets) > 0 {
+				result.Set = testConfig.Sets[0]
+			}
 			lastResult = result
 
 			if result.Status == CheckStatusComplete {
@@ -1302,57 +1306,56 @@ func (ds *DiscoverySuite) determineBest(baselineSpeed float64) {
 }
 
 func (ds *DiscoverySuite) buildTestConfig(preset ConfigPreset) *config.Config {
-	mainSet := config.NewSetConfig()
-	mainSet.Id = ds.cfg.MainSet.Id
-	mainSet.Name = preset.Name
-	mainSet.TCP = preset.Config.TCP
-	mainSet.UDP = preset.Config.UDP
-	mainSet.Fragmentation = preset.Config.Fragmentation
-	mainSet.Faking = preset.Config.Faking
-	mainSet.DNS = ds.cfg.MainSet.DNS
+	testSet := config.NewSetConfig()
+	testSet.Name = preset.Name
+	testSet.TCP = preset.Config.TCP
+	testSet.UDP = preset.Config.UDP
+	testSet.Fragmentation = preset.Config.Fragmentation
+	testSet.Faking = preset.Config.Faking
+	testSet.DNS = ds.discoveredDNS
 
-	config.ApplySetDefaults(&mainSet)
+	config.ApplySetDefaults(&testSet)
 
-	if mainSet.TCP.Win.Mode == "" {
-		mainSet.TCP.Win.Mode = config.ConfigOff
+	if testSet.TCP.Win.Mode == "" {
+		testSet.TCP.Win.Mode = config.ConfigOff
 	}
-	if mainSet.TCP.Desync.Mode == "" {
-		mainSet.TCP.Desync.Mode = config.ConfigOff
+	if testSet.TCP.Desync.Mode == "" {
+		testSet.TCP.Desync.Mode = config.ConfigOff
 	}
 
-	if mainSet.Faking.SNIMutation.Mode == "" {
-		mainSet.Faking.SNIMutation.Mode = config.ConfigOff
+	if testSet.Faking.SNIMutation.Mode == "" {
+		testSet.Faking.SNIMutation.Mode = config.ConfigOff
 	}
-	if mainSet.Faking.SNIMutation.FakeSNIs == nil {
-		mainSet.Faking.SNIMutation.FakeSNIs = []string{}
+	if testSet.Faking.SNIMutation.FakeSNIs == nil {
+		testSet.Faking.SNIMutation.FakeSNIs = []string{}
 	}
 
 	if preset.Name == "no-bypass" {
-		mainSet.Enabled = false
-		mainSet.DNS = config.DNSConfig{}
+		testSet.Enabled = false
+		testSet.DNS = config.DNSConfig{}
 	} else {
-		mainSet.Enabled = true
-		mainSet.Targets.SNIDomains = []string{ds.Domain}
-		mainSet.Targets.DomainsToMatch = []string{ds.Domain}
+		testSet.Enabled = true
+		testSet.Targets.SNIDomains = []string{ds.Domain}
+		testSet.Targets.DomainsToMatch = []string{ds.Domain}
 
 		geoip, geosite := GetCDNCategories(ds.Domain)
 		if len(geoip) > 0 || len(geosite) > 0 {
 			if len(geoip) > 0 {
-				mainSet.Targets.GeoIpCategories = geoip
+				testSet.Targets.GeoIpCategories = geoip
 			}
 			if len(geosite) > 0 {
-				mainSet.Targets.GeoSiteCategories = geosite
+				testSet.Targets.GeoSiteCategories = geosite
 			}
 
 			if !ds.skipDNS {
 				if len(ds.cfg.System.Checker.ReferenceDNS) > 0 {
-					mainSet.DNS = config.DNSConfig{
+					testSet.DNS = config.DNSConfig{
 						Enabled:       true,
 						TargetDNS:     ds.cfg.System.Checker.ReferenceDNS[0],
 						FragmentQuery: true,
 					}
 				} else {
-					mainSet.DNS = config.DNSConfig{
+					testSet.DNS = config.DNSConfig{
 						Enabled:       true,
 						TargetDNS:     "9.9.9.9",
 						FragmentQuery: true,
@@ -1360,7 +1363,7 @@ func (ds *DiscoverySuite) buildTestConfig(preset ConfigPreset) *config.Config {
 				}
 			}
 			tempCfg := &config.Config{System: ds.cfg.System}
-			domains, ips, err := tempCfg.GetTargetsForSet(&mainSet)
+			domains, ips, err := tempCfg.GetTargetsForSet(&testSet)
 			if err != nil {
 				log.DiscoveryLogf("Discovery: failed to load CDN categories: %v", err)
 			} else {
@@ -1398,8 +1401,8 @@ func (ds *DiscoverySuite) buildTestConfig(preset ConfigPreset) *config.Config {
 						cidrIPs[i] = ip + "/32"
 					}
 				}
-				mainSet.Targets.IPs = cidrIPs
-				mainSet.Targets.IpsToMatch = cidrIPs
+				testSet.Targets.IPs = cidrIPs
+				testSet.Targets.IpsToMatch = cidrIPs
 				log.Tracef("Discovery: added %d IPs to test config: %v", len(cidrIPs), cidrIPs)
 			}
 		}
@@ -1409,43 +1412,41 @@ func (ds *DiscoverySuite) buildTestConfig(preset ConfigPreset) *config.Config {
 		ConfigPath: ds.cfg.ConfigPath,
 		Queue:      ds.cfg.Queue,
 		System:     ds.cfg.System,
-		MainSet:    &mainSet,
-		Sets:       []*config.SetConfig{&mainSet},
+		Sets:       []*config.SetConfig{&testSet},
 	}
 }
 
 // buildTestConfigMulti creates a test config targeting ALL domains simultaneously.
 func (ds *DiscoverySuite) buildTestConfigMulti(preset ConfigPreset) *config.Config {
-	mainSet := config.NewSetConfig()
-	mainSet.Id = ds.cfg.MainSet.Id
-	mainSet.Name = preset.Name
-	mainSet.TCP = preset.Config.TCP
-	mainSet.UDP = preset.Config.UDP
-	mainSet.Fragmentation = preset.Config.Fragmentation
-	mainSet.Faking = preset.Config.Faking
-	mainSet.DNS = ds.cfg.MainSet.DNS
+	testSet := config.NewSetConfig()
+	testSet.Name = preset.Name
+	testSet.TCP = preset.Config.TCP
+	testSet.UDP = preset.Config.UDP
+	testSet.Fragmentation = preset.Config.Fragmentation
+	testSet.Faking = preset.Config.Faking
+	testSet.DNS = ds.discoveredDNS
 
-	config.ApplySetDefaults(&mainSet)
+	config.ApplySetDefaults(&testSet)
 
-	if mainSet.TCP.Win.Mode == "" {
-		mainSet.TCP.Win.Mode = config.ConfigOff
+	if testSet.TCP.Win.Mode == "" {
+		testSet.TCP.Win.Mode = config.ConfigOff
 	}
-	if mainSet.TCP.Desync.Mode == "" {
-		mainSet.TCP.Desync.Mode = config.ConfigOff
+	if testSet.TCP.Desync.Mode == "" {
+		testSet.TCP.Desync.Mode = config.ConfigOff
 	}
 
-	if mainSet.Faking.SNIMutation.Mode == "" {
-		mainSet.Faking.SNIMutation.Mode = config.ConfigOff
+	if testSet.Faking.SNIMutation.Mode == "" {
+		testSet.Faking.SNIMutation.Mode = config.ConfigOff
 	}
-	if mainSet.Faking.SNIMutation.FakeSNIs == nil {
-		mainSet.Faking.SNIMutation.FakeSNIs = []string{}
+	if testSet.Faking.SNIMutation.FakeSNIs == nil {
+		testSet.Faking.SNIMutation.FakeSNIs = []string{}
 	}
 
 	if preset.Name == "no-bypass" {
-		mainSet.Enabled = false
-		mainSet.DNS = config.DNSConfig{}
+		testSet.Enabled = false
+		testSet.DNS = config.DNSConfig{}
 	} else {
-		mainSet.Enabled = true
+		testSet.Enabled = true
 
 		var allDomains []string
 		var allIPs []string
@@ -1457,8 +1458,8 @@ func (ds *DiscoverySuite) buildTestConfigMulti(preset ConfigPreset) *config.Conf
 			geoip, geosite := GetCDNCategories(di.Domain)
 			if len(geoip) > 0 || len(geosite) > 0 {
 				hasCDN = true
-				mainSet.Targets.GeoIpCategories = appendUnique(mainSet.Targets.GeoIpCategories, geoip...)
-				mainSet.Targets.GeoSiteCategories = appendUnique(mainSet.Targets.GeoSiteCategories, geosite...)
+				testSet.Targets.GeoIpCategories = appendUnique(testSet.Targets.GeoIpCategories, geoip...)
+				testSet.Targets.GeoSiteCategories = appendUnique(testSet.Targets.GeoSiteCategories, geosite...)
 			}
 
 			// Collect IPs from per-domain DNS results
@@ -1474,8 +1475,8 @@ func (ds *DiscoverySuite) buildTestConfigMulti(preset ConfigPreset) *config.Conf
 			}
 		}
 
-		mainSet.Targets.SNIDomains = allDomains
-		mainSet.Targets.DomainsToMatch = allDomains
+		testSet.Targets.SNIDomains = allDomains
+		testSet.Targets.DomainsToMatch = allDomains
 
 		if len(allIPs) > 0 {
 			cidrIPs := make([]string, 0, len(allIPs))
@@ -1488,19 +1489,19 @@ func (ds *DiscoverySuite) buildTestConfigMulti(preset ConfigPreset) *config.Conf
 					cidrIPs = append(cidrIPs, ip+"/32")
 				}
 			}
-			mainSet.Targets.IPs = cidrIPs
-			mainSet.Targets.IpsToMatch = cidrIPs
+			testSet.Targets.IPs = cidrIPs
+			testSet.Targets.IpsToMatch = cidrIPs
 		}
 
 		if hasCDN && !ds.skipDNS {
 			if len(ds.cfg.System.Checker.ReferenceDNS) > 0 {
-				mainSet.DNS = config.DNSConfig{
+				testSet.DNS = config.DNSConfig{
 					Enabled:       true,
 					TargetDNS:     ds.cfg.System.Checker.ReferenceDNS[0],
 					FragmentQuery: true,
 				}
 			} else {
-				mainSet.DNS = config.DNSConfig{
+				testSet.DNS = config.DNSConfig{
 					Enabled:       true,
 					TargetDNS:     "9.9.9.9",
 					FragmentQuery: true,
@@ -1508,9 +1509,9 @@ func (ds *DiscoverySuite) buildTestConfigMulti(preset ConfigPreset) *config.Conf
 			}
 		}
 
-		if len(mainSet.Targets.GeoIpCategories) > 0 || len(mainSet.Targets.GeoSiteCategories) > 0 {
+		if len(testSet.Targets.GeoIpCategories) > 0 || len(testSet.Targets.GeoSiteCategories) > 0 {
 			tempCfg := &config.Config{System: ds.cfg.System}
-			domains, ips, err := tempCfg.GetTargetsForSet(&mainSet)
+			domains, ips, err := tempCfg.GetTargetsForSet(&testSet)
 			if err != nil {
 				log.DiscoveryLogf("Discovery: failed to load CDN categories: %v", err)
 			} else {
@@ -1523,8 +1524,7 @@ func (ds *DiscoverySuite) buildTestConfigMulti(preset ConfigPreset) *config.Conf
 		ConfigPath: ds.cfg.ConfigPath,
 		Queue:      ds.cfg.Queue,
 		System:     ds.cfg.System,
-		MainSet:    &mainSet,
-		Sets:       []*config.SetConfig{&mainSet},
+		Sets:       []*config.SetConfig{&testSet},
 	}
 }
 

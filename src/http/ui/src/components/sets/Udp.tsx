@@ -10,11 +10,11 @@ import {
   B4Alert,
   B4FormHeader,
 } from "@b4.elements";
-import { B4SetConfig } from "@models/config";
+import { B4SetConfig, QueueConfig } from "@models/config";
 
 interface UdpSettingsProps {
   config: B4SetConfig;
-  main: B4SetConfig;
+  queue: QueueConfig;
   onChange: (field: string, value: string | boolean | number) => void;
 }
 
@@ -59,7 +59,7 @@ const UDP_FAKING_STRATEGIES = [
   { value: "checksum", label: "Checksum", description: "Corrupt UDP checksum" },
 ];
 
-export const UdpSettings = ({ config, main, onChange }: UdpSettingsProps) => {
+export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
   const isQuicEnabled = config.udp.filter_quic !== "disabled";
   const hasPortFilter =
     config.udp.dport_filter && config.udp.dport_filter.trim() !== "";
@@ -166,13 +166,9 @@ export const UdpSettings = ({ config, main, onChange }: UdpSettingsProps) => {
                 value={config.udp.conn_bytes_limit}
                 onChange={(value) => onChange("udp.conn_bytes_limit", value)}
                 min={1}
-                max={main.id === config.id ? 30 : main.udp.conn_bytes_limit}
+                max={queue.udp_conn_bytes_limit}
                 step={1}
-                helperText={
-                  main.id === config.id
-                    ? "Main set limit (changing requires service restart to take effect)"
-                    : `Max: ${main.udp.conn_bytes_limit} (limited by main set)`
-                }
+                helperText={`Max: ${queue.udp_conn_bytes_limit} (system limit)`}
               />
             </Grid>
 

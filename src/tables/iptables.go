@@ -240,8 +240,8 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		ch := Chain{manager: manager, IPT: ipt, Table: "mangle", Name: chainName}
 		chains = append(chains, ch)
 
-		tcpConnbytesRange := fmt.Sprintf("0:%d", cfg.MainSet.TCP.ConnBytesLimit)
-		udpConnbytesRange := fmt.Sprintf("0:%d", cfg.MainSet.UDP.ConnBytesLimit)
+		tcpConnbytesRange := fmt.Sprintf("0:%d", cfg.Queue.TCPConnBytesLimit)
+		udpConnbytesRange := fmt.Sprintf("0:%d", cfg.Queue.UDPConnBytesLimit)
 
 		dnsSpec := append(
 			[]string{"-p", "udp", "--dport", "53"},

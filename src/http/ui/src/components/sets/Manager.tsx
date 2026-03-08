@@ -17,6 +17,7 @@ import { useNavigate } from "react-router";
 import {
   AddIcon,
   CheckIcon,
+  ClearIcon,
   CompareIcon,
   DomainIcon,
   SetsIcon,
@@ -108,9 +109,12 @@ const SortableCardWrapper = ({ id, children }: SortableCardWrapperProps) => {
 export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
   const { showSuccess, showError } = useSnackbar();
   const navigate = useNavigate();
-  const { deleteSet, duplicateSet, reorderSets, updateSet } = useSets();
+  const { deleteSet, deleteSets, duplicateSet, reorderSets, updateSet } =
+    useSets();
 
   const [filterText, setFilterText] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     setId: string | null;
@@ -118,6 +122,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
     open: false,
     setId: null,
   });
+  const [batchDeleteDialog, setBatchDeleteDialog] = useState(false);
   const [compareDialog, setCompareDialog] = useState<{
     open: boolean;
     setA: B4SetConfig | null;
@@ -234,6 +239,46 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
     })();
   };
 
+  const handleToggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(filteredSets.map((s) => s.id)));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleExitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedIds.size === 0) return;
+    void (async () => {
+      const result = await deleteSets(Array.from(selectedIds));
+      if (result.success) {
+        showSuccess(`${selectedIds.size} set${selectedIds.size > 1 ? "s" : ""} deleted`);
+        setBatchDeleteDialog(false);
+        handleExitSelectionMode();
+        onRefresh();
+      } else {
+        showError(result.error || "Failed to delete sets");
+      }
+    })();
+  };
+
   const handleToggleEnabled = (set: B4SetConfig, enabled: boolean) => {
     void (async () => {
       const updatedSet = { ...set, enabled };
@@ -291,7 +336,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
               />
             </Stack>
 
-            <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2} alignItems="center">
               <TextField
                 size="small"
                 placeholder="Search sets..."
@@ -315,13 +360,61 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                   },
                 }}
               />
-              <Button
-                startIcon={<AddIcon />}
-                onClick={handleAddSet}
-                variant="contained"
-              >
-                Create Set
-              </Button>
+              {selectionMode ? (
+                <>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: colors.text.secondary, whiteSpace: "nowrap" }}
+                  >
+                    {selectedIds.size} selected
+                  </Typography>
+                  <Button
+                    size="small"
+                    onClick={
+                      selectedIds.size === filteredSets.length
+                        ? handleDeselectAll
+                        : handleSelectAll
+                    }
+                  >
+                    {selectedIds.size === filteredSets.length
+                      ? "Deselect All"
+                      : "Select All"}
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="error"
+                    startIcon={<ClearIcon />}
+                    disabled={selectedIds.size === 0}
+                    onClick={() => setBatchDeleteDialog(true)}
+                  >
+                    Delete ({selectedIds.size})
+                  </Button>
+                  <Button size="small" onClick={handleExitSelectionMode}>
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {sets.length > 0 && (
+                    <Button
+                      startIcon={<CheckIcon />}
+                      onClick={() => setSelectionMode(true)}
+                      variant="outlined"
+                      size="small"
+                    >
+                      Select
+                    </Button>
+                  )}
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={handleAddSet}
+                    variant="contained"
+                  >
+                    Create Set
+                  </Button>
+                </>
+              )}
             </Stack>
           </Stack>
         </Paper>
@@ -367,6 +460,9 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                             handleToggleEnabled(set, enabled)
                           }
                           dragHandleProps={dragHandleProps}
+                          selectionMode={selectionMode}
+                          selected={selectedIds.has(set.id)}
+                          onSelect={() => handleToggleSelection(set.id)}
                         />
                       )}
                     </SortableCardWrapper>
@@ -441,6 +537,45 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
           <strong>{sets.find((s) => s.id === deleteDialog.setId)?.name}</strong>{" "}
           ?
         </Typography>
+      </B4Dialog>
+
+      <B4Dialog
+        open={batchDeleteDialog}
+        title={`Delete ${selectedIds.size} Configuration Set${selectedIds.size > 1 ? "s" : ""}`}
+        subtitle="This action cannot be undone"
+        icon={<WarningIcon />}
+        onClose={() => setBatchDeleteDialog(false)}
+        actions={
+          <>
+            <Button onClick={() => setBatchDeleteDialog(false)}>Cancel</Button>
+            <Box sx={{ flex: 1 }} />
+            <Button
+              onClick={handleBatchDelete}
+              variant="contained"
+              color="error"
+            >
+              Delete {selectedIds.size} Set{selectedIds.size > 1 ? "s" : ""}
+            </Button>
+          </>
+        }
+      >
+        <Typography sx={{ mb: 1 }}>
+          Are you sure you want to delete the following sets?
+        </Typography>
+        <Box
+          component="ul"
+          sx={{ m: 0, pl: 2, maxHeight: 200, overflow: "auto" }}
+        >
+          {sets
+            .filter((s) => selectedIds.has(s.id))
+            .map((s) => (
+              <li key={s.id}>
+                <Typography variant="body2">
+                  <strong>{s.name}</strong>
+                </Typography>
+              </li>
+            ))}
+        </Box>
       </B4Dialog>
 
       <B4Dialog

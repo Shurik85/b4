@@ -26,7 +26,6 @@ import { colors } from "@design";
 import {
   B4Config,
   B4SetConfig,
-  MAIN_SET_ID,
   SystemConfig,
 } from "@models/config";
 
@@ -96,8 +95,6 @@ export const SetEditorPage = ({
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TABS>(TABS.TARGETS);
   const [editedSet, setEditedSet] = useState<B4SetConfig | null>(initialSet);
-
-  const mainSet = config.sets.find((s) => s.id === MAIN_SET_ID) ?? initialSet;
 
   const prevSetId = useRef(initialSet.id);
   useEffect(() => {
@@ -264,7 +261,7 @@ export const SetEditorPage = ({
         <TabPanel value={activeTab} index={TABS.TCP}>
           <TcpTabContainer
             config={editedSet}
-            main={mainSet}
+            queue={config.queue}
             onChange={handleChange}
           />
         </TabPanel>
@@ -272,7 +269,7 @@ export const SetEditorPage = ({
         <TabPanel value={activeTab} index={TABS.UDP}>
           <UdpSettings
             config={editedSet}
-            main={mainSet}
+            queue={config.queue}
             onChange={handleChange}
           />
         </TabPanel>

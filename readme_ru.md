@@ -259,8 +259,6 @@ wget https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/ge
 # RUNET Freedom
 wget https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat
 
-# Nidelon
-wget https://github.com/Nidelon/ru-block-v2ray-rules/releases/latest/download/geosite.dat
 ```
 
 Поместите файл в `/etc/b4/geosite.dat` и настройте категории:

@@ -63,6 +63,25 @@ export function useSets() {
     []
   );
 
+  const deleteSets = useCallback(
+    async (ids: string[]): Promise<ApiResponse<void>> => {
+      setLoading(true);
+      try {
+        await setsApi.deleteSets(ids);
+        return { success: true };
+      } catch (e) {
+        if (e instanceof ApiError) {
+          const msg = JSON.stringify(e.body ?? e.message);
+          return { success: false, error: msg };
+        }
+        return { success: false, error: String(e) };
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   const duplicateSet = useCallback(
     async (set: B4SetConfig): Promise<ApiResponse<B4SetConfig>> => {
       const { id: _, ...rest } = structuredClone(set);
@@ -112,6 +131,7 @@ export function useSets() {
     createSet,
     updateSet,
     deleteSet,
+    deleteSets,
     duplicateSet,
     reorderSets,
     addDomainToSet,

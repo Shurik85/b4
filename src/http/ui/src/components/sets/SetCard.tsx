@@ -4,6 +4,7 @@ import {
   Card,
   CardContent,
   CardActionArea,
+  Checkbox,
   Typography,
   Stack,
   IconButton,
@@ -32,7 +33,7 @@ import {
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { B4Badge } from "@b4.elements";
 import { colors, radius } from "@design";
-import { B4SetConfig, MAIN_SET_ID } from "@models/config";
+import { B4SetConfig } from "@models/config";
 import { SetStats } from "./Manager";
 
 interface SetCardProps {
@@ -45,6 +46,9 @@ interface SetCardProps {
   onDelete: () => void;
   onToggleEnabled: (enabled: boolean) => void;
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }
 
 interface TargetBadgeProps {
@@ -109,9 +113,11 @@ export const SetCard = ({
   onDelete,
   onToggleEnabled,
   dragHandleProps,
+  selectionMode,
+  selected,
+  onSelect,
 }: SetCardProps) => {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-  const isMain = set.id === MAIN_SET_ID;
   const strategy = set.fragmentation.strategy;
 
   const domainCount = stats?.total_domains ?? set.targets.sni_domains.length;
@@ -131,18 +137,16 @@ export const SetCard = ({
 
   return (
     <Card
-      elevation={isMain ? 3 : 1}
+      elevation={1}
       sx={{
         position: "relative",
         opacity: set.enabled ? 1 : 0.5,
         transition: "all 0.2s ease",
-        border: `1px solid ${
-          isMain ? colors.accent.primaryHover : colors.border.default
-        }`,
+        border: `1px solid ${selectionMode && selected ? colors.secondary : colors.border.default}`,
         borderRadius: radius.md,
         bgcolor: set.enabled ? colors.background.paper : colors.background.dark,
         "&:hover": {
-          borderColor: isMain ? colors.primary : colors.secondary,
+          borderColor: colors.secondary,
           transform: "translateY(-2px)",
           boxShadow: `0 8px 24px ${colors.accent.primary}`,
         },
@@ -152,7 +156,7 @@ export const SetCard = ({
       <Box
         sx={{
           height: 4,
-          bgcolor: isMain ? colors.primary : colors.secondary,
+          bgcolor: colors.secondary,
           borderRadius: `${radius.md}px ${radius.md}px 0 0`,
         }}
       />
@@ -169,17 +173,34 @@ export const SetCard = ({
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1}>
-          <Box
-            {...dragHandleProps}
-            sx={{
-              cursor: "grab",
-              color: colors.text.secondary,
-              display: "flex",
-              "&:hover": { color: colors.secondary },
-            }}
-          >
-            <DragIcon fontSize="small" />
-          </Box>
+          {selectionMode ? (
+            <Checkbox
+              size="small"
+              checked={selected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onSelect?.();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              sx={{
+                color: colors.text.secondary,
+                "&.Mui-checked": { color: colors.secondary },
+                p: 0.5,
+              }}
+            />
+          ) : (
+            <Box
+              {...dragHandleProps}
+              sx={{
+                cursor: "grab",
+                color: colors.text.secondary,
+                display: "flex",
+                "&:hover": { color: colors.secondary },
+              }}
+            >
+              <DragIcon fontSize="small" />
+            </Box>
+          )}
 
           <Tooltip title={set.enabled ? "Disable" : "Enable"}>
             <Switch
@@ -201,12 +222,13 @@ export const SetCard = ({
             />
           </Tooltip>
 
-          {isMain && <B4Badge label="MAIN" size="small" color="secondary" />}
         </Stack>
 
-        <IconButton size="small" onClick={handleMenuOpen}>
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
+        {!selectionMode && (
+          <IconButton size="small" onClick={handleMenuOpen}>
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+        )}
 
         <Menu
           anchorEl={menuAnchor}
@@ -233,23 +255,21 @@ export const SetCard = ({
             </ListItemIcon>
             <ListItemText>Compare</ListItemText>
           </MenuItem>
-          {!isMain && <Divider />}
-          {!isMain && (
-            <MenuItem
-              onClick={() => handleAction(onDelete)}
-              sx={{ color: colors.secondary }}
-            >
-              <ListItemIcon>
-                <ClearIcon fontSize="small" sx={{ color: colors.secondary }} />
-              </ListItemIcon>
-              <ListItemText>Delete</ListItemText>
-            </MenuItem>
-          )}
+          <Divider />
+          <MenuItem
+            onClick={() => handleAction(onDelete)}
+            sx={{ color: colors.secondary }}
+          >
+            <ListItemIcon>
+              <ClearIcon fontSize="small" sx={{ color: colors.secondary }} />
+            </ListItemIcon>
+            <ListItemText>Delete</ListItemText>
+          </MenuItem>
         </Menu>
       </Box>
 
       {/* Clickable content area */}
-      <CardActionArea onClick={onEdit} sx={{ borderRadius: 0 }}>
+      <CardActionArea onClick={selectionMode ? onSelect : onEdit} sx={{ borderRadius: 0 }}>
         <CardContent sx={{ pt: 0, pb: 2 }}>
           {/* Name */}
           <Typography

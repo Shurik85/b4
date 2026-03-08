@@ -47,6 +47,7 @@ import { B4SetConfig, GeoConfig } from "@models/config";
 import { useDevices } from "@b4.devices";
 import { colors } from "@design";
 import { SetStats } from "./Manager";
+import { sortDevices } from "@utils";
 
 interface TargetSettingsProps {
   config: B4SetConfig;
@@ -690,7 +691,8 @@ export const TargetSettings = ({
                             </TableCell>
                           </TableRow>
                         ) : (
-                          devices.map((device) => (
+                          sortDevices(devices, isSourceDeviceSelected)
+                            .map((device) => (
                             <TableRow
                               key={device.mac}
                               hover

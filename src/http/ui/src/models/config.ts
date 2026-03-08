@@ -12,6 +12,8 @@ export enum FakingPayloadType {
   DEFAULT = 2,
   DEFAULT2 = 3,
   CAPTURE = 4,
+  ZERO = 5,
+  INVERTED = 6,
 }
 
 export type MutationMode =
@@ -130,6 +132,8 @@ export interface QueueConfig {
   mark: number;
   ipv4: boolean;
   ipv6: boolean;
+  tcp_conn_bytes_limit: number;
+  udp_conn_bytes_limit: number;
   interfaces: string[];
   devices: DevicesConfig;
   mss_clamp: MSSClampConfig;
@@ -270,6 +274,8 @@ export interface ComboFragConfig {
   first_delay_ms: number;
   jitter_max_us: number;
   decoy_enabled: boolean;
+  fake_per_segment: boolean;
+  fake_per_seg_count: number;
 }
 
 export type DisorderShuffleMode = "full" | "reverse";
@@ -277,6 +283,8 @@ export interface DisorderFragConfig {
   shuffle_mode: DisorderShuffleMode;
   min_jitter_us: number;
   max_jitter_us: number;
+  fake_per_segment: boolean;
+  fake_per_seg_count: number;
 }
 
 export interface DNSConfig {
@@ -295,5 +303,4 @@ export interface MSSClampConfig {
   size: number;
 }
 
-export const MAIN_SET_ID = "11111111-1111-1111-1111-111111111111";
 export const NEW_SET_ID = "00000000-0000-0000-0000-000000000000";
