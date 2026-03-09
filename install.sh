@@ -95,7 +95,7 @@ check_root() {
 
 get_avail_kb() {
     _path="$1"
-    df -k "$_path" 2>/dev/null | tail -1 | awk '{print $4}'
+    df -Pk "$_path" 2>/dev/null | awk 'NR==2 {print $4}'
 }
 
 TEMP_MIN_KB=20000
@@ -112,12 +112,14 @@ setup_temp() {
                 _fallback="$B4_BIN_DIR"
             fi
         fi
-        if [ -z "$_fallback" ] && [ -d "/opt" ] && [ -w "/opt" ]; then
-            _opt_avail=$(get_avail_kb /opt)
-            if [ -n "$_opt_avail" ] && [ "$_opt_avail" -gt "$TEMP_MIN_KB" ] 2>/dev/null; then
-                _fallback="/opt"
+        for _fb_dir in /opt /var/tmp /root "$HOME"; do
+            [ -z "$_fallback" ] || break
+            [ -d "$_fb_dir" ] && [ -w "$_fb_dir" ] || continue
+            _fb_avail=$(get_avail_kb "$_fb_dir")
+            if [ -n "$_fb_avail" ] && [ "$_fb_avail" -gt "$TEMP_MIN_KB" ] 2>/dev/null; then
+                _fallback="$_fb_dir"
             fi
-        fi
+        done
         if [ -z "$_fallback" ]; then
             log_err "Not enough disk space — /tmp has ${_tmp_avail:-?}KB free (need ${TEMP_MIN_KB}KB)"
             log_err "No writable fallback directory found."
