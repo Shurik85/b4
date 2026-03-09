@@ -169,6 +169,8 @@ export const TargetSettings = ({
               .map((m) => `"${domain}" is in ${m.set_name} (${m.via})`)
               .join("; ");
             setDomainDuplicateWarning(msg);
+          } else {
+            setDomainDuplicateWarning("");
           }
         })
         .catch(() => {});
@@ -192,6 +194,8 @@ export const TargetSettings = ({
       }
       if (found.length > 0) {
         setDomainDuplicateWarning(found.join("; "));
+      } else {
+        setDomainDuplicateWarning("");
       }
     }
     // Always run debounced backend check (catches geosite matches too)

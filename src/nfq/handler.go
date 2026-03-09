@@ -48,6 +48,16 @@ func accept(q *nfqueue.Nfqueue, id uint32) int {
 func (w *Worker) handlePacket(q *nfqueue.Nfqueue, a nfqueue.Attribute, mark uint) int {
 	cfg := w.getConfig()
 	matcher := w.getMatcher()
+
+	if a.PacketID == nil || a.Payload == nil || len(*a.Payload) == 0 {
+		if a.PacketID != nil && q != nil {
+			if err := q.SetVerdict(*a.PacketID, nfqueue.NfAccept); err != nil {
+				log.Tracef("failed to set verdict on invalid packet %d: %v", *a.PacketID, err)
+			}
+		}
+		return 0
+	}
+
 	id := *a.PacketID
 
 	if a.Mark != nil && *a.Mark == uint32(mark) {
@@ -65,15 +75,6 @@ func (w *Worker) handlePacket(q *nfqueue.Nfqueue, a nfqueue.Attribute, mark uint
 	}
 
 	atomic.AddUint64(&w.packetsProcessed, 1)
-
-	if a.PacketID == nil || a.Payload == nil || len(*a.Payload) == 0 {
-		if a.PacketID != nil && q != nil {
-			if err := q.SetVerdict(*a.PacketID, nfqueue.NfAccept); err != nil {
-				log.Tracef("failed to set verdict on invalid packet %d: %v", *a.PacketID, err)
-			}
-		}
-		return 0
-	}
 
 	pkt, ok := w.parseIPHeaders(*a.Payload)
 	if !ok {

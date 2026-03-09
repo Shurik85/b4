@@ -22,6 +22,10 @@ func (s *DetectorSuite) Run(configPath string) {
 	for _, test := range s.Tests {
 		if s.isCanceled() {
 			log.DiscoveryLogf("[Detector] Suite %s canceled", s.Id)
+			s.mu.Lock()
+			s.EndTime = time.Now()
+			s.CurrentTest = ""
+			s.mu.Unlock()
 			SaveToHistory(s, configPath)
 			s.scheduleCleanup()
 			return

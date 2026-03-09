@@ -287,7 +287,9 @@ func (s *SuffixSet) MatchIP(ip net.IP) (bool, *config.SetConfig) {
 
 	// Sort by prefix length descending so most specific match wins
 	// (e.g., /32 beats /16 when IP falls in both ranges)
-	sortEntriesBySpecificity(entries)
+	if len(entries) > 1 {
+		sortEntriesBySpecificity(entries)
+	}
 
 	matchedEntry := entries[0].(*ipRange)
 	s.cacheIPResult(ipStr, true, matchedEntry.set)
