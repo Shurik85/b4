@@ -106,7 +106,7 @@ platform_openwrt_check_deps() {
 }
 
 _openwrt_load_kmods() {
-    for mod in nf_conntrack xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
+    for mod in nfnetlink nf_conntrack nf_conntrack_netlink xt_connbytes xt_NFQUEUE nfnetlink_queue xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         _kmod_available "$mod" && continue
         modprobe "$mod" 2>/dev/null && continue
         kver=$(uname -r)
@@ -120,7 +120,7 @@ _openwrt_load_kmods() {
         if [ "$B4_PKG_MANAGER" = "apk" ]; then
             log_info "Try: apk add kmod-nft-queue kmod-nft-nat kmod-nft-compat"
         else
-            log_info "Try: opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue"
+            log_info "Try: opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue iptables-mod-nfqueue kmod-ipt-conntrack-extra iptables-mod-conntrack-extra"
         fi
     fi
 }

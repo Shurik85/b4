@@ -104,8 +104,11 @@ func hasBinary(name string) bool {
 
 func loadKernelModules() {
 	modulesLoaded.Do(func() {
+		_, _ = run("sh", "-c", "modprobe -q nfnetlink 2>/dev/null || true")
 		_, _ = run("sh", "-c", "modprobe -q nf_conntrack 2>/dev/null || true")
+		_, _ = run("sh", "-c", "modprobe -q nf_conntrack_netlink 2>/dev/null || true")
 		_, _ = run("sh", "-c", "modprobe -q xt_connbytes 2>/dev/null || true")
+		_, _ = run("sh", "-c", "modprobe -q nfnetlink_queue 2>/dev/null || true")
 		_, _ = run("sh", "-c", "modprobe -q xt_NFQUEUE 2>/dev/null || true")
 		_, _ = run("sh", "-c", "modprobe -q xt_multiport 2>/dev/null || true")
 		_, _ = run("sh", "-c", "modprobe -q nf_tables 2>/dev/null || true")
