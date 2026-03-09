@@ -236,18 +236,28 @@ convert_to_proxy_url() {
     esac
 }
 
+_wget_supports() {
+    wget --help 2>&1 | grep -q "$1"
+}
+
 _do_fetch() {
     _fetch_url="$1"
     _fetch_out="$2"
     if [ -t 2 ] && [ "$QUIET_MODE" -ne 1 ]; then
         if command_exists curl && curl -fL --progress-bar --max-time 120 -o "$_fetch_out" "$_fetch_url" 2>&1; then return 0; fi
         if command_exists wget; then
-            if wget --show-progress -q $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>&1; then return 0; fi
-            wget $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>&1 && return 0
+            _wget_args="$WGET_INSECURE"
+            _wget_supports "--show-progress" && _wget_args="$_wget_args --show-progress -q"
+            _wget_supports "--timeout" && _wget_args="$_wget_args --timeout=120"
+            wget $_wget_args -O "$_fetch_out" "$_fetch_url" 2>&1 && return 0
         fi
     else
         if command_exists curl && curl -sfL --max-time 120 -o "$_fetch_out" "$_fetch_url" 2>/dev/null; then return 0; fi
-        if command_exists wget && wget -q $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>/dev/null; then return 0; fi
+        if command_exists wget; then
+            _wget_args="-q $WGET_INSECURE"
+            _wget_supports "--timeout" && _wget_args="$_wget_args --timeout=120"
+            wget $_wget_args -O "$_fetch_out" "$_fetch_url" 2>/dev/null && return 0
+        fi
     fi
     return 1
 }
