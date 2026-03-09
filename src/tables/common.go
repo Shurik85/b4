@@ -2,6 +2,7 @@ package tables
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"strings"
 	"sync"
@@ -57,7 +58,15 @@ func run(args ...string) (string, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	err := cmd.Run()
-	return out.String(), err
+	if err != nil {
+		output := strings.TrimSpace(out.String())
+		cmdStr := strings.Join(args, " ")
+		if output != "" {
+			return output, fmt.Errorf("command [%s] failed: %w (%s)", cmdStr, err, output)
+		}
+		return output, fmt.Errorf("command [%s] failed: %w", cmdStr, err)
+	}
+	return out.String(), nil
 }
 
 func setSysctlOrProc(name, val string) {

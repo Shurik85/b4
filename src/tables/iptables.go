@@ -95,7 +95,10 @@ func (r Rule) Apply() error {
 		op = "-I"
 	}
 	_, err := run(append([]string{r.IPT, "-w", "-t", r.Table, op, r.Chain}, r.Spec...)...)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to apply rule [%s %s %s %s]: %w", r.IPT, r.Table, r.Chain, strings.Join(r.Spec, " "), err)
+	}
+	return nil
 }
 
 func (r Rule) Remove() {

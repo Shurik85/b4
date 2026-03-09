@@ -1,5 +1,9 @@
 # B4 - Bye Bye Big Bro
 
+## [1.40.1] - 2026-03-09
+
+- IMPROVED: **Better firewall error messages** — errors now show which rule failed and why, instead of just "exit status x".
+
 ## [1.40.0] - 2026-03-08
 
 - ADDED: **Mass delete sets** — you can now select multiple sets at once and delete them all together. Click the "Select" button in the toolbar, check the sets you want to remove, then click "Delete". Includes "Select All" for quick bulk cleanup.
