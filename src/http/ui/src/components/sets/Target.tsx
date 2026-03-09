@@ -43,7 +43,7 @@ import {
   B4TooltipButton,
 } from "@b4.elements";
 import SettingAutocomplete from "@common/B4Autocomplete";
-import { B4SetConfig, GeoConfig } from "@models/config";
+import { B4SetConfig, GeoConfig, TargetsConfig } from "@models/config";
 
 export type OtherSetsTargets = Map<string, string[]>;
 import { useDevices } from "@b4.devices";
@@ -124,10 +124,10 @@ export const TargetSettings = ({
 
   useEffect(() => {
     if (geo.sitedat_path) {
-      void loadAvailableSiteCategories();
+      void loadCategories("/api/geosite", setAvailableCategories, setLoadingCategories);
     }
     if (geo.ipdat_path) {
-      void loadAvailableGeoIPCategories();
+      void loadCategories("/api/geoip", setAvailableGeoIPCategories, setLoadingGeoIPCategories);
     }
   }, [geo.sitedat_path, geo.ipdat_path]);
 
@@ -135,33 +135,22 @@ export const TargetSettings = ({
     loadDevices().catch(() => {});
   }, [loadDevices]);
 
-  const loadAvailableSiteCategories = async () => {
-    setLoadingCategories(true);
+  const loadCategories = async (
+    endpoint: string,
+    setItems: (items: string[]) => void,
+    setLoading: (loading: boolean) => void,
+  ) => {
+    setLoading(true);
     try {
-      const response = await fetch("/api/geosite");
+      const response = await fetch(endpoint);
       if (response.ok) {
         const data = (await response.json()) as { tags: string[] };
-        setAvailableCategories(data.tags || []);
+        setItems(data.tags || []);
       }
     } catch (error) {
-      console.error("Failed to load geosite categories:", error);
+      console.error(`Failed to load categories from ${endpoint}:`, error);
     } finally {
-      setLoadingCategories(false);
-    }
-  };
-
-  const loadAvailableGeoIPCategories = async () => {
-    setLoadingGeoIPCategories(true);
-    try {
-      const response = await fetch("/api/geoip");
-      if (response.ok) {
-        const data = (await response.json()) as { tags: string[] };
-        setAvailableGeoIPCategories(data.tags || []);
-      }
-    } catch (error) {
-      console.error("Failed to load geoip categories:", error);
-    } finally {
-      setLoadingGeoIPCategories(false);
+      setLoading(false);
     }
   };
 
@@ -276,11 +265,9 @@ export const TargetSettings = ({
     onChange(field, []);
   };
 
-  const handleRemoveBypassIP = (ip: string) => {
-    onChange(
-      "targets.ip",
-      config.targets.ip.filter((d) => d !== ip),
-    );
+  const handleRemove = (field: keyof TargetsConfig, value: string) => {
+    const items = config.targets[field] ?? [];
+    onChange(`targets.${String(field)}`, items.filter((item) => item !== value));
   };
 
   const handleAddBypassGeoIPCategory = (category: string) => {
@@ -293,20 +280,6 @@ export const TargetSettings = ({
     }
   };
 
-  const handleRemoveBypassGeoIPCategory = (category: string) => {
-    onChange(
-      "targets.geoip_categories",
-      config.targets.geoip_categories.filter((c) => c !== category),
-    );
-  };
-
-  const handleRemoveBypassDomain = (domain: string) => {
-    onChange(
-      "targets.sni_domains",
-      config.targets.sni_domains.filter((d) => d !== domain),
-    );
-  };
-
   const handleAddBypassCategory = (category: string) => {
     if (category && !config.targets.geosite_categories.includes(category)) {
       onChange("targets.geosite_categories", [
@@ -315,13 +288,6 @@ export const TargetSettings = ({
       ]);
       setNewBypassCategory("");
     }
-  };
-
-  const handleRemoveBypassCategory = (category: string) => {
-    onChange(
-      "targets.geosite_categories",
-      config.targets.geosite_categories.filter((c) => c !== category),
-    );
   };
 
   const previewCategory = async (category: string) => {
@@ -468,18 +434,18 @@ export const TargetSettings = ({
                     </B4Alert>
                   )}
                   <Box sx={{ mt: 2 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle2">
-                        Active manually added domains ({config.targets.sni_domains.length})
-                      </Typography>
-                      {config.targets.sni_domains.length > 0 && (
+                    {config.targets.sni_domains.length > 0 && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="subtitle2">
+                          Active manually added domains
+                        </Typography>
                         <Button
                           size="small"
                           onClick={() => handleClearAll("targets.sni_domains")}
@@ -487,13 +453,13 @@ export const TargetSettings = ({
                         >
                           Clear All
                         </Button>
-                      )}
-                    </Box>
+                      </Box>
+                    )}
                     <B4ChipList
                       items={config.targets.sni_domains}
                       getKey={(d) => d}
                       getLabel={(d) => d}
-                      onDelete={handleRemoveBypassDomain}
+                      onDelete={(d) => handleRemove("sni_domains", d)}
                       emptyMessage="No bypass domains added"
                       showEmpty
                     />
@@ -532,8 +498,28 @@ export const TargetSettings = ({
                     />
 
                     <Box sx={{ mt: 2 }}>
+                      {config.targets.geosite_categories.length > 0 && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography variant="subtitle2">
+                            Active Bypass Categories
+                          </Typography>
+                          <Button
+                            size="small"
+                            onClick={() => handleClearAll("targets.geosite_categories")}
+                            startIcon={<ClearIcon />}
+                          >
+                            Clear All
+                          </Button>
+                        </Box>
+                      )}
                       <B4ChipList
-                        title="Active Bypass Categories"
                         items={config.targets.geosite_categories}
                         getKey={(c) => c}
                         getLabel={(c) =>
@@ -542,7 +528,7 @@ export const TargetSettings = ({
                             stats?.geosite_category_breakdown,
                           )
                         }
-                        onDelete={handleRemoveBypassCategory}
+                        onDelete={(c) => handleRemove("geosite_categories", c)}
                         onClick={(c) => void previewCategory(c)}
                       />
                     </Box>
@@ -572,7 +558,7 @@ export const TargetSettings = ({
                       mb: 2,
                     }}
                   >
-                    <DomainIcon /> Manual Bypass IPs
+                    <IpIcon /> Manual Bypass IPs
                     <Tooltip title="Add specific ip/cidr to bypass DPI.">
                       <InfoIcon fontSize="small" color="action" />
                     </Tooltip>
@@ -611,18 +597,18 @@ export const TargetSettings = ({
                     </B4Alert>
                   )}
                   <Box sx={{ mt: 2 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle2">
-                        Active manually added IPs ({config.targets.ip.length})
-                      </Typography>
-                      {config.targets.ip.length > 0 && (
+                    {config.targets.ip.length > 0 && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="subtitle2">
+                          Active manually added IPs
+                        </Typography>
                         <Button
                           size="small"
                           onClick={() => handleClearAll("targets.ip")}
@@ -630,13 +616,13 @@ export const TargetSettings = ({
                         >
                           Clear All
                         </Button>
-                      )}
-                    </Box>
+                      </Box>
+                    )}
                     <B4ChipList
                       items={config.targets.ip}
                       getKey={(ip) => ip}
                       getLabel={(ip) => ip}
-                      onDelete={handleRemoveBypassIP}
+                      onDelete={(ip) => handleRemove("ip", ip)}
                       emptyMessage="No bypass ip added"
                       showEmpty
                       maxHeight={200}
@@ -676,6 +662,27 @@ export const TargetSettings = ({
                     />
 
                     <Box sx={{ mt: 2 }}>
+                      {config.targets.geoip_categories.length > 0 && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography variant="subtitle2">
+                            Active Bypass GeoIP Categories
+                          </Typography>
+                          <Button
+                            size="small"
+                            onClick={() => handleClearAll("targets.geoip_categories")}
+                            startIcon={<ClearIcon />}
+                          >
+                            Clear All
+                          </Button>
+                        </Box>
+                      )}
                       <B4ChipList
                         items={config.targets.geoip_categories}
                         getKey={(c) => c}
@@ -685,8 +692,7 @@ export const TargetSettings = ({
                             stats?.geoip_category_breakdown,
                           )
                         }
-                        onDelete={handleRemoveBypassGeoIPCategory}
-                        title="Active Bypass GeoIP Categories"
+                        onDelete={(c) => handleRemove("geoip_categories", c)}
                       />
                     </Box>
                   </Box>
@@ -863,7 +869,7 @@ export const TargetSettings = ({
                     <Box sx={{ mt: 2 }}>
                       <Button
                         size="small"
-                        onClick={() => onChange("targets.source_devices", [])}
+                        onClick={() => handleClearAll("targets.source_devices")}
                         startIcon={<ClearIcon />}
                       >
                         Clear All
