@@ -44,8 +44,8 @@ check_root() {
 # --- Filesystem helpers ---
 get_avail_kb() {
     _path="$1"
-    # Return available space in KB for the filesystem containing _path
-    df "$_path" 2>/dev/null | tail -1 | awk '{print $4}'
+    # Return available space in KB (-k forces 1K blocks for consistent output)
+    df -k "$_path" 2>/dev/null | tail -1 | awk '{print $4}'
 }
 
 # --- Temp directory management ---
@@ -58,22 +58,23 @@ setup_temp() {
         TEMP_DIR="/tmp/b4_install_$$"
     else
         _fallback=""
-        if [ -n "$B4_BIN_DIR" ] && [ -d "$B4_BIN_DIR" ]; then
+        if [ -n "$B4_BIN_DIR" ] && [ -d "$B4_BIN_DIR" ] && [ -w "$B4_BIN_DIR" ]; then
             _fb_avail=$(get_avail_kb "$B4_BIN_DIR")
             if [ -n "$_fb_avail" ] && [ "$_fb_avail" -gt "$TEMP_MIN_KB" ] 2>/dev/null; then
                 _fallback="$B4_BIN_DIR"
             fi
         fi
-        if [ -z "$_fallback" ] && [ -d "/opt" ]; then
+        if [ -z "$_fallback" ] && [ -d "/opt" ] && [ -w "/opt" ]; then
             _opt_avail=$(get_avail_kb /opt)
             if [ -n "$_opt_avail" ] && [ "$_opt_avail" -gt "$TEMP_MIN_KB" ] 2>/dev/null; then
                 _fallback="/opt"
             fi
         fi
         if [ -z "$_fallback" ]; then
-            log_warn "Low disk space — /tmp has ${_tmp_avail:-?}KB free (need ${TEMP_MIN_KB}KB)"
-            log_warn "Installation may fail. Consider freeing space or using --bin-dir on external storage."
-            TEMP_DIR="/tmp/b4_install_$$"
+            log_err "Not enough disk space — /tmp has ${_tmp_avail:-?}KB free (need ${TEMP_MIN_KB}KB)"
+            log_err "No writable fallback directory found."
+            log_info "Free space or re-run with --bin-dir on external storage."
+            exit 1
         else
             TEMP_DIR="${_fallback}/.b4_install_$$"
             log_info "Using ${_fallback} for temp files (/tmp too small)"
