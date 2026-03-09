@@ -1984,7 +1984,6 @@ depend() {
 start_pre() {
     checkpath --file --owner root:root /var/log/b4.log
     # Load kernel modules
-    local mod
     for mod in nfnetlink nf_conntrack nf_conntrack_netlink xt_connbytes xt_NFQUEUE nfnetlink_queue xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         modprobe "\$mod" >/dev/null 2>&1 || true
     done
