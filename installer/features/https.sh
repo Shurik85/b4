@@ -18,8 +18,10 @@ feature_https_default_enabled() {
 feature_https_run() {
     cert_info=$(_https_detect_certs) || true
     if [ -z "$cert_info" ]; then
-        log_info "No TLS certificates found on this system"
+        log_info "No compatible TLS certificates found on this system"
         log_info "You can configure HTTPS later in B4 Web UI > Settings > Web Server"
+        # Remove any stale TLS config from previous installs
+        _https_remove_config
         return 0
     fi
 
@@ -32,6 +34,8 @@ feature_https_run() {
     log_detail "Key" "$key_path"
 
     if ! confirm "Enable HTTPS with this certificate?"; then
+        # Remove any existing TLS config from previous installs
+        _https_remove_config
         return 0
     fi
 
@@ -67,19 +71,38 @@ feature_https_run() {
 
 _https_detect_certs() {
     # Common certificate locations on various systems
-    if [ -f "/etc/uhttpd.crt" ] && [ -f "/etc/uhttpd.key" ]; then
-        echo "/etc/uhttpd.crt|/etc/uhttpd.key|OpenWrt uhttpd"
-        return 0
-    fi
-    if [ -f "/etc/cert.pem" ] && [ -f "/etc/key.pem" ]; then
-        echo "/etc/cert.pem|/etc/key.pem|System default"
-        return 0
-    fi
-    if [ -f "/etc/ssl/certs/server.crt" ] && [ -f "/etc/ssl/private/server.key" ]; then
-        echo "/etc/ssl/certs/server.crt|/etc/ssl/private/server.key|System SSL"
-        return 0
-    fi
+    _https_check_pair "/etc/uhttpd.crt" "/etc/uhttpd.key" "OpenWrt uhttpd" && return 0
+    _https_check_pair "/etc/cert.pem" "/etc/key.pem" "System default" && return 0
+    _https_check_pair "/etc/ssl/certs/server.crt" "/etc/ssl/private/server.key" "System SSL" && return 0
     return 1
+}
+
+_https_check_pair() {
+    cert="$1" key="$2" label="$3"
+    [ -f "$cert" ] && [ -f "$key" ] || return 1
+    # Verify both files contain PEM data (DER-encoded certs will fail with Go's TLS loader)
+    grep -q "BEGIN" "$cert" 2>/dev/null && grep -q "BEGIN" "$key" 2>/dev/null || {
+        log_warn "Skipping ${label} certificate — not in PEM format (possibly DER-encoded)"
+        return 1
+    }
+    echo "${cert}|${key}|${label}"
+    return 0
+}
+
+_https_remove_config() {
+    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+        tls=$(jq -r '.system.web_server.tls_cert // ""' "$B4_CONFIG_FILE" 2>/dev/null) || true
+        if [ -n "$tls" ]; then
+            tmp="${B4_CONFIG_FILE}.tmp"
+            if jq 'del(.system.web_server.tls_cert, .system.web_server.tls_key)' \
+                "$B4_CONFIG_FILE" >"$tmp" 2>/dev/null; then
+                mv "$tmp" "$B4_CONFIG_FILE"
+                log_info "Removed previous HTTPS configuration"
+            else
+                rm -f "$tmp"
+            fi
+        fi
+    fi
 }
 
 feature_https_remove() {
