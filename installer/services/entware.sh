@@ -36,10 +36,10 @@ PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:
 
 kernel_mod_load() {
     KERNEL=\$(uname -r)
-    for mod in xt_connbytes xt_NFQUEUE xt_multiport; do
+    for mod in nf_conntrack xt_connbytes xt_NFQUEUE xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
+        modprobe "\$mod" >/dev/null 2>&1 && continue
         mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
-        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1
-        modprobe "\$mod" >/dev/null 2>&1 || true
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1 || true
     done
 }
 
@@ -60,10 +60,10 @@ PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:
 
 kernel_mod_load() {
     KERNEL=\$(uname -r)
-    for mod in xt_connbytes xt_NFQUEUE xt_multiport; do
+    for mod in nf_conntrack xt_connbytes xt_NFQUEUE xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
+        modprobe "\$mod" >/dev/null 2>&1 && continue
         mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
-        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1
-        modprobe "\$mod" >/dev/null 2>&1 || true
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1 || true
     done
 }
 

@@ -113,6 +113,38 @@ _geo_update_config() {
     fi
 }
 
+# Find the path of a geodata file without removing it
+# Usage: _geo_find_file_path "geoip" or _geo_find_file_path "geosite"
+_geo_find_file_path() {
+    _feat="$1"
+    case "$_feat" in
+    geoip)   _cfg_key="ipdat_path";   _fname="geoip.dat" ;;
+    geosite) _cfg_key="sitedat_path"; _fname="geosite.dat" ;;
+    *) return 1 ;;
+    esac
+
+    # Try reading path from config
+    for cfg in "$B4_CONFIG_FILE" /etc/b4/b4.json /opt/etc/b4/b4.json; do
+        [ -f "$cfg" ] || continue
+        if command_exists jq; then
+            fpath=$(jq -r ".system.geo.${_cfg_key} // empty" "$cfg" 2>/dev/null) || true
+            if [ -n "$fpath" ] && [ -f "$fpath" ]; then
+                echo "$fpath"
+                return 0
+            fi
+        fi
+    done
+
+    # Fallback: check default locations
+    for dir in /etc/b4 /opt/etc/b4 "$B4_DATA_DIR"; do
+        [ -z "$dir" ] && continue
+        if [ -f "${dir}/${_fname}" ]; then
+            echo "${dir}/${_fname}"
+            return 0
+        fi
+    done
+}
+
 _geo_remove_file() {
     config_key="$1"
     filename="$2"

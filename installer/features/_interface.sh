@@ -43,7 +43,33 @@ features_run() {
 
 # Remove all registered features
 features_remove() {
+    # Collect geodata files first for a combined prompt
+    _geo_files_to_remove=""
+    _geo_files_display=""
     for f in $REGISTERED_FEATURES; do
-        feature_dispatch "$f" remove || true
+        case "$f" in
+        geoip|geosite)
+            _gpath=$(_geo_find_file_path "$f")
+            if [ -n "$_gpath" ]; then
+                _geo_files_to_remove="${_geo_files_to_remove} ${_gpath}"
+                _geo_files_display="${_geo_files_display}\n    ${_gpath}"
+            fi
+            ;;
+        *)
+            feature_dispatch "$f" remove || true
+            ;;
+        esac
     done
+
+    # Ask once for all geodata files
+    if [ -n "$_geo_files_to_remove" ]; then
+        log_info "Found geodata files:${_geo_files_display}"
+        if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove geodata files?" "y"; then
+            for _gf in $_geo_files_to_remove; do
+                rm -f "$_gf" && log_info "Removed: $_gf"
+            done
+        else
+            log_info "Keeping geodata files"
+        fi
+    fi
 }

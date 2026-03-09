@@ -92,7 +92,7 @@ platform_keenetic_check_deps() {
 }
 
 _keenetic_load_kmods() {
-    for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
+    for mod in nf_conntrack xt_NFQUEUE xt_connbytes xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         _kmod_available "$mod" && continue
         modprobe "$mod" 2>/dev/null && continue
         kver=$(uname -r)
@@ -100,8 +100,8 @@ _keenetic_load_kmods() {
         [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
     done
 
-    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE not available — b4 may not work"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue" && ! _kmod_available "nft_queue"; then
+        log_warn "No netfilter queue module available — b4 may not work"
         log_info "Check that your Keenetic firmware supports Netfilter Queue"
         log_info "You may need to enable 'Kernel modules for Netfilter' in the package manager"
     fi

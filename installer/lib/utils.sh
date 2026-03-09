@@ -236,6 +236,22 @@ convert_to_proxy_url() {
     esac
 }
 
+_do_fetch() {
+    _fetch_url="$1"
+    _fetch_out="$2"
+    if [ -t 2 ] && [ "$QUIET_MODE" -ne 1 ]; then
+        if command_exists curl && curl -fL --progress-bar --max-time 120 -o "$_fetch_out" "$_fetch_url" 2>&1; then return 0; fi
+        if command_exists wget; then
+            if wget --show-progress -q $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>&1; then return 0; fi
+            wget $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>&1 && return 0
+        fi
+    else
+        if command_exists curl && curl -sfL --max-time 120 -o "$_fetch_out" "$_fetch_url" 2>/dev/null; then return 0; fi
+        if command_exists wget && wget -q $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>/dev/null; then return 0; fi
+    fi
+    return 1
+}
+
 fetch_file() {
     url="$1"
     output="$2"
@@ -246,15 +262,13 @@ fetch_file() {
     fi
 
     # Try direct
-    if command_exists curl && curl -sfL --max-time 30 -o "$output" "$url" 2>/dev/null; then return 0; fi
-    if command_exists wget && wget -q $WGET_INSECURE --timeout=30 -O "$output" "$url" 2>/dev/null; then return 0; fi
+    if _do_fetch "$url" "$output"; then return 0; fi
 
     # Try proxy fallback
     proxy_url=$(convert_to_proxy_url "$url")
     if [ "$proxy_url" != "$url" ]; then
         log_warn "Direct download failed, trying proxy..."
-        if command_exists curl && curl -sfL --max-time 30 -o "$output" "$proxy_url" 2>/dev/null; then return 0; fi
-        if command_exists wget && wget -q $WGET_INSECURE --timeout=30 -O "$output" "$proxy_url" 2>/dev/null; then return 0; fi
+        if _do_fetch "$proxy_url" "$output"; then return 0; fi
     fi
 
     log_err "Failed to download: $url"
@@ -329,7 +343,7 @@ verify_checksum() {
 is_lxc_container() {
     # Check /proc/1/environ for container=lxc
     if [ -f /proc/1/environ ]; then
-        tr '\0' '\n' < /proc/1/environ 2>/dev/null | grep -q '^container=lxc' && return 0
+        tr '\0' '\n' </proc/1/environ 2>/dev/null | grep -q '^container=lxc' && return 0
     fi
     # Fallback: check systemd container detection
     [ -f /run/systemd/container ] && grep -q "lxc" /run/systemd/container 2>/dev/null && return 0

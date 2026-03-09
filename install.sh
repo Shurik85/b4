@@ -277,6 +277,22 @@ convert_to_proxy_url() {
     esac
 }
 
+_do_fetch() {
+    _fetch_url="$1"
+    _fetch_out="$2"
+    if [ -t 2 ] && [ "$QUIET_MODE" -ne 1 ]; then
+        if command_exists curl && curl -fL --progress-bar --max-time 120 -o "$_fetch_out" "$_fetch_url" 2>&1; then return 0; fi
+        if command_exists wget; then
+            if wget --show-progress -q $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>&1; then return 0; fi
+            wget $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>&1 && return 0
+        fi
+    else
+        if command_exists curl && curl -sfL --max-time 120 -o "$_fetch_out" "$_fetch_url" 2>/dev/null; then return 0; fi
+        if command_exists wget && wget -q $WGET_INSECURE --timeout=120 -O "$_fetch_out" "$_fetch_url" 2>/dev/null; then return 0; fi
+    fi
+    return 1
+}
+
 fetch_file() {
     url="$1"
     output="$2"
@@ -286,14 +302,12 @@ fetch_file() {
         return 1
     fi
 
-    if command_exists curl && curl -sfL --max-time 30 -o "$output" "$url" 2>/dev/null; then return 0; fi
-    if command_exists wget && wget -q $WGET_INSECURE --timeout=30 -O "$output" "$url" 2>/dev/null; then return 0; fi
+    if _do_fetch "$url" "$output"; then return 0; fi
 
     proxy_url=$(convert_to_proxy_url "$url")
     if [ "$proxy_url" != "$url" ]; then
         log_warn "Direct download failed, trying proxy..."
-        if command_exists curl && curl -sfL --max-time 30 -o "$output" "$proxy_url" 2>/dev/null; then return 0; fi
-        if command_exists wget && wget -q $WGET_INSECURE --timeout=30 -O "$output" "$proxy_url" 2>/dev/null; then return 0; fi
+        if _do_fetch "$proxy_url" "$output"; then return 0; fi
     fi
 
     log_err "Failed to download: $url"
@@ -364,7 +378,7 @@ verify_checksum() {
 
 is_lxc_container() {
     if [ -f /proc/1/environ ]; then
-        tr '\0' '\n' < /proc/1/environ 2>/dev/null | grep -q '^container=lxc' && return 0
+        tr '\0' '\n' </proc/1/environ 2>/dev/null | grep -q '^container=lxc' && return 0
     fi
     [ -f /run/systemd/container ] && grep -q "lxc" /run/systemd/container 2>/dev/null && return 0
     return 1
@@ -859,17 +873,18 @@ _generic_linux_check_lxc() {
 }
 
 _generic_linux_check_kmods() {
-    for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
+    for mod in nf_conntrack xt_NFQUEUE xt_connbytes xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         _kmod_available "$mod" && continue
         modprobe "$mod" 2>/dev/null || true
     done
 
-    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE kernel module not available"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue" && ! _kmod_available "nft_queue"; then
+        log_warn "No netfilter queue module available"
         case "$B4_PKG_MANAGER" in
         apt) log_info "Try: apt install xtables-addons-common" ;;
         dnf | yum) log_info "Try: dnf install xtables-addons" ;;
         pacman) log_info "Try: pacman -S xtables-addons" ;;
+        apk) log_info "Try: apk add iptables-nft" ;;
         esac
     fi
 }
@@ -968,7 +983,7 @@ platform_keenetic_check_deps() {
 }
 
 _keenetic_load_kmods() {
-    for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
+    for mod in nf_conntrack xt_NFQUEUE xt_connbytes xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         _kmod_available "$mod" && continue
         modprobe "$mod" 2>/dev/null && continue
         kver=$(uname -r)
@@ -976,8 +991,8 @@ _keenetic_load_kmods() {
         [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
     done
 
-    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE not available — b4 may not work"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue" && ! _kmod_available "nft_queue"; then
+        log_warn "No netfilter queue module available — b4 may not work"
         log_info "Check that your Keenetic firmware supports Netfilter Queue"
         log_info "You may need to enable 'Kernel modules for Netfilter' in the package manager"
     fi
@@ -1101,7 +1116,7 @@ platform_merlinwrt_check_deps() {
 }
 
 _merlinwrt_load_kmods() {
-    for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
+    for mod in nf_conntrack xt_NFQUEUE xt_connbytes xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         _kmod_available "$mod" && continue
         modprobe "$mod" 2>/dev/null && continue
         kver=$(uname -r)
@@ -1109,8 +1124,8 @@ _merlinwrt_load_kmods() {
         [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
     done
 
-    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE not available — b4 may not work"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue" && ! _kmod_available "nft_queue"; then
+        log_warn "No netfilter queue module available — b4 may not work"
         log_info "Check your firmware version supports NFQUEUE"
     fi
 }
@@ -1182,7 +1197,11 @@ platform_openwrt_info() {
     B4_BIN_DIR="/usr/bin"
     B4_DATA_DIR="/etc/b4"
     B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
-    B4_PKG_MANAGER="opkg"
+    if command_exists apk; then
+        B4_PKG_MANAGER="apk"
+    else
+        B4_PKG_MANAGER="opkg"
+    fi
 
     if [ -f /sbin/procd ] || command_exists procd; then
         B4_SERVICE_TYPE="procd"
@@ -1241,7 +1260,7 @@ platform_openwrt_check_deps() {
 }
 
 _openwrt_load_kmods() {
-    for mod in xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_conntrack; do
+    for mod in nf_conntrack xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         _kmod_available "$mod" && continue
         modprobe "$mod" 2>/dev/null && continue
         kver=$(uname -r)
@@ -1249,34 +1268,65 @@ _openwrt_load_kmods() {
         [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
     done
 
-    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE not available — b4 may not work"
-        log_info "Try: opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue" && ! _kmod_available "nft_queue"; then
+        log_warn "No netfilter queue module available — b4 may not work"
+        if [ "$B4_PKG_MANAGER" = "apk" ]; then
+            log_info "Try: apk add kmod-nft-queue kmod-nft-nat kmod-nft-compat"
+        else
+            log_info "Try: opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue"
+        fi
     fi
 }
 
 _openwrt_check_recommended() {
     rec_missing=""
     command_exists jq || rec_missing="${rec_missing} jq"
-    command_exists iptables || rec_missing="${rec_missing} iptables"
+    if ! command_exists iptables && ! command_exists nft; then
+        if [ "$B4_PKG_MANAGER" = "apk" ]; then
+            rec_missing="${rec_missing} nftables"
+        else
+            rec_missing="${rec_missing} iptables"
+        fi
+    fi
+
+    if [ "$B4_PKG_MANAGER" = "apk" ]; then
+        if ! _kmod_available "nft_queue"; then
+            rec_missing="${rec_missing} kmod-nft-queue"
+        fi
+        if ! _kmod_available "nf_nat"; then
+            rec_missing="${rec_missing} kmod-nft-nat"
+        fi
+    fi
 
     if ! command_exists curl || ! curl -sI --max-time 3 "https://github.com" >/dev/null 2>&1; then
-        if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
-            rec_missing="${rec_missing} ca-certificates"
-        fi
-        if ! opkg list-installed 2>/dev/null | grep -q "^wget-ssl "; then
-            rec_missing="${rec_missing} wget-ssl"
+        if [ "$B4_PKG_MANAGER" = "apk" ]; then
+            command_exists wget || rec_missing="${rec_missing} wget"
+            [ -d /etc/ssl/certs ] && [ -n "$(ls /etc/ssl/certs/ 2>/dev/null)" ] || rec_missing="${rec_missing} ca-certificates"
+        else
+            if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
+                rec_missing="${rec_missing} ca-certificates"
+            fi
+            if ! opkg list-installed 2>/dev/null | grep -q "^wget-ssl "; then
+                rec_missing="${rec_missing} wget-ssl"
+            fi
         fi
     fi
 
     if [ -n "$rec_missing" ]; then
         log_warn "Recommended but missing:${rec_missing}"
         if confirm "Install recommended packages?"; then
-            opkg update >/dev/null 2>&1 || true
-            for pkg in $rec_missing; do
-                log_info "Installing ${pkg}..."
-                opkg install "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
-            done
+            if [ "$B4_PKG_MANAGER" = "apk" ]; then
+                for pkg in $rec_missing; do
+                    log_info "Installing ${pkg}..."
+                    apk add "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
+                done
+            else
+                opkg update >/dev/null 2>&1 || true
+                for pkg in $rec_missing; do
+                    log_info "Installing ${pkg}..."
+                    opkg install "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
+                done
+            fi
         fi
     fi
 }
@@ -1337,9 +1387,33 @@ features_run() {
 }
 
 features_remove() {
+    _geo_files_to_remove=""
+    _geo_files_display=""
     for f in $REGISTERED_FEATURES; do
-        feature_dispatch "$f" remove || true
+        case "$f" in
+        geoip|geosite)
+            _gpath=$(_geo_find_file_path "$f")
+            if [ -n "$_gpath" ]; then
+                _geo_files_to_remove="${_geo_files_to_remove} ${_gpath}"
+                _geo_files_display="${_geo_files_display}\n    ${_gpath}"
+            fi
+            ;;
+        *)
+            feature_dispatch "$f" remove || true
+            ;;
+        esac
     done
+
+    if [ -n "$_geo_files_to_remove" ]; then
+        log_info "Found geodata files:${_geo_files_display}"
+        if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove geodata files?" "y"; then
+            for _gf in $_geo_files_to_remove; do
+                rm -f "$_gf" && log_info "Removed: $_gf"
+            done
+        else
+            log_info "Keeping geodata files"
+        fi
+    fi
 }
 GEOIP_SOURCES="1|Loyalsoldier|https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download
 2|RUNET Freedom|https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release
@@ -1506,6 +1580,34 @@ _geo_update_config() {
         rm -f "$tmp"
         log_warn "Failed to update config, please set ${path_key} manually"
     fi
+}
+
+_geo_find_file_path() {
+    _feat="$1"
+    case "$_feat" in
+    geoip)   _cfg_key="ipdat_path";   _fname="geoip.dat" ;;
+    geosite) _cfg_key="sitedat_path"; _fname="geosite.dat" ;;
+    *) return 1 ;;
+    esac
+
+    for cfg in "$B4_CONFIG_FILE" /etc/b4/b4.json /opt/etc/b4/b4.json; do
+        [ -f "$cfg" ] || continue
+        if command_exists jq; then
+            fpath=$(jq -r ".system.geo.${_cfg_key} // empty" "$cfg" 2>/dev/null) || true
+            if [ -n "$fpath" ] && [ -f "$fpath" ]; then
+                echo "$fpath"
+                return 0
+            fi
+        fi
+    done
+
+    for dir in /etc/b4 /opt/etc/b4 "$B4_DATA_DIR"; do
+        [ -z "$dir" ] && continue
+        if [ -f "${dir}/${_fname}" ]; then
+            echo "${dir}/${_fname}"
+            return 0
+        fi
+    done
 }
 
 _geo_remove_file() {
@@ -1680,10 +1782,10 @@ PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:
 
 kernel_mod_load() {
     KERNEL=\$(uname -r)
-    for mod in xt_connbytes xt_NFQUEUE xt_multiport; do
+    for mod in nf_conntrack xt_connbytes xt_NFQUEUE xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
+        modprobe "\$mod" >/dev/null 2>&1 && continue
         mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
-        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1
-        modprobe "\$mod" >/dev/null 2>&1 || true
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1 || true
     done
 }
 
@@ -1704,10 +1806,10 @@ PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:
 
 kernel_mod_load() {
     KERNEL=\$(uname -r)
-    for mod in xt_connbytes xt_NFQUEUE xt_multiport; do
+    for mod in nf_conntrack xt_connbytes xt_NFQUEUE xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
+        modprobe "\$mod" >/dev/null 2>&1 && continue
         mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
-        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1
-        modprobe "\$mod" >/dev/null 2>&1 || true
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1 || true
     done
 }
 
@@ -1825,7 +1927,7 @@ CONFIG="${B4_CONFIG_FILE}"
 
 kernel_mod_load() {
     KERNEL=\$(uname -r)
-    for mod in xt_connbytes xt_NFQUEUE nfnetlink_queue xt_multiport nf_conntrack; do
+    for mod in nf_conntrack xt_connbytes xt_NFQUEUE nfnetlink_queue xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         modprobe "\$mod" >/dev/null 2>&1 && continue
         mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
         [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1 || true
@@ -1976,10 +2078,10 @@ PIDFILE="/var/run/b4.pid"
 
 kernel_mod_load() {
     KERNEL=\$(uname -r)
-    for mod in xt_connbytes xt_NFQUEUE xt_multiport; do
+    for mod in nf_conntrack xt_connbytes xt_NFQUEUE xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
+        modprobe "\$mod" >/dev/null 2>&1 && continue
         mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
-        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1
-        modprobe "\$mod" >/dev/null 2>&1 || true
+        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1 || true
     done
 }
 
@@ -2281,6 +2383,7 @@ action_remove() {
 
     rm -f /var/run/b4.pid 2>/dev/null || true
     rm -f /var/log/b4.log 2>/dev/null || true
+    rm -rf /var/log/b4 2>/dev/null || true
 
     echo ""
     log_ok "B4 has been removed"

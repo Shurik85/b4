@@ -35,7 +35,12 @@ platform_openwrt_info() {
     B4_BIN_DIR="/usr/bin"
     B4_DATA_DIR="/etc/b4"
     B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
-    B4_PKG_MANAGER="opkg"
+    # Modern OpenWrt (24.x+) uses apk instead of opkg
+    if command_exists apk; then
+        B4_PKG_MANAGER="apk"
+    else
+        B4_PKG_MANAGER="opkg"
+    fi
 
     # Init system: procd on modern OpenWrt, sysv fallback
     if [ -f /sbin/procd ] || command_exists procd; then
@@ -101,7 +106,7 @@ platform_openwrt_check_deps() {
 }
 
 _openwrt_load_kmods() {
-    for mod in xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_conntrack; do
+    for mod in nf_conntrack xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         _kmod_available "$mod" && continue
         modprobe "$mod" 2>/dev/null && continue
         kver=$(uname -r)
@@ -109,35 +114,68 @@ _openwrt_load_kmods() {
         [ -n "$mod_path" ] && insmod "$mod_path" 2>/dev/null || true
     done
 
-    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE not available — b4 may not work"
-        log_info "Try: opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue"
+    # Check if at least one queue mechanism is available
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue" && ! _kmod_available "nft_queue"; then
+        log_warn "No netfilter queue module available — b4 may not work"
+        if [ "$B4_PKG_MANAGER" = "apk" ]; then
+            log_info "Try: apk add kmod-nft-queue kmod-nft-nat kmod-nft-compat"
+        else
+            log_info "Try: opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue"
+        fi
     fi
 }
 
 _openwrt_check_recommended() {
     rec_missing=""
     command_exists jq || rec_missing="${rec_missing} jq"
-    command_exists iptables || rec_missing="${rec_missing} iptables"
+    if ! command_exists iptables && ! command_exists nft; then
+        if [ "$B4_PKG_MANAGER" = "apk" ]; then
+            rec_missing="${rec_missing} nftables"
+        else
+            rec_missing="${rec_missing} iptables"
+        fi
+    fi
+
+    # Queue kernel modules for nftables-based OpenWrt
+    if [ "$B4_PKG_MANAGER" = "apk" ]; then
+        if ! _kmod_available "nft_queue"; then
+            rec_missing="${rec_missing} kmod-nft-queue"
+        fi
+        if ! _kmod_available "nf_nat"; then
+            rec_missing="${rec_missing} kmod-nft-nat"
+        fi
+    fi
 
     # SSL support
     if ! command_exists curl || ! curl -sI --max-time 3 "https://github.com" >/dev/null 2>&1; then
-        if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
-            rec_missing="${rec_missing} ca-certificates"
-        fi
-        if ! opkg list-installed 2>/dev/null | grep -q "^wget-ssl "; then
-            rec_missing="${rec_missing} wget-ssl"
+        if [ "$B4_PKG_MANAGER" = "apk" ]; then
+            command_exists wget || rec_missing="${rec_missing} wget"
+            [ -d /etc/ssl/certs ] && [ -n "$(ls /etc/ssl/certs/ 2>/dev/null)" ] || rec_missing="${rec_missing} ca-certificates"
+        else
+            if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
+                rec_missing="${rec_missing} ca-certificates"
+            fi
+            if ! opkg list-installed 2>/dev/null | grep -q "^wget-ssl "; then
+                rec_missing="${rec_missing} wget-ssl"
+            fi
         fi
     fi
 
     if [ -n "$rec_missing" ]; then
         log_warn "Recommended but missing:${rec_missing}"
         if confirm "Install recommended packages?"; then
-            opkg update >/dev/null 2>&1 || true
-            for pkg in $rec_missing; do
-                log_info "Installing ${pkg}..."
-                opkg install "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
-            done
+            if [ "$B4_PKG_MANAGER" = "apk" ]; then
+                for pkg in $rec_missing; do
+                    log_info "Installing ${pkg}..."
+                    apk add "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
+                done
+            else
+                opkg update >/dev/null 2>&1 || true
+                for pkg in $rec_missing; do
+                    log_info "Installing ${pkg}..."
+                    opkg install "$pkg" >/dev/null 2>&1 && log_ok "Installed ${pkg}" || log_warn "Failed: ${pkg}"
+                done
+            fi
         fi
     fi
 }

@@ -102,17 +102,18 @@ _generic_linux_check_lxc() {
 }
 
 _generic_linux_check_kmods() {
-    for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
+    for mod in nf_conntrack xt_NFQUEUE xt_connbytes xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         _kmod_available "$mod" && continue
         modprobe "$mod" 2>/dev/null || true
     done
 
-    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue"; then
-        log_warn "xt_NFQUEUE kernel module not available"
+    if ! _kmod_available "xt_NFQUEUE" && ! _kmod_available "nfnetlink_queue" && ! _kmod_available "nft_queue"; then
+        log_warn "No netfilter queue module available"
         case "$B4_PKG_MANAGER" in
         apt) log_info "Try: apt install xtables-addons-common" ;;
         dnf | yum) log_info "Try: dnf install xtables-addons" ;;
         pacman) log_info "Try: pacman -S xtables-addons" ;;
+        apk) log_info "Try: apk add iptables-nft" ;;
         esac
     fi
 }
