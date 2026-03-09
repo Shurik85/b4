@@ -70,6 +70,7 @@ export interface SetEditorPageProps {
   set: B4SetConfig;
   config: B4Config;
   stats?: SetStats;
+  otherSetsTargets?: Map<string, string[]>;
   isNew: boolean;
   saving: boolean;
   onSave: (set: B4SetConfig) => void;
@@ -81,6 +82,7 @@ export const SetEditorPage = ({
   isNew,
   settings,
   stats,
+  otherSetsTargets,
   saving,
   onSave,
 }: SetEditorPageProps) => {
@@ -254,6 +256,7 @@ export const SetEditorPage = ({
             geo={settings.geo}
             config={editedSet}
             stats={stats}
+            otherSetsTargets={otherSetsTargets}
             onChange={handleChange}
           />
         </TabPanel>

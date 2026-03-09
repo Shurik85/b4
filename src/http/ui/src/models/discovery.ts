@@ -40,6 +40,14 @@ export interface DomainPresetResult {
   set?: B4SetConfig;
 }
 
+export interface DNSDiscoveryResult {
+  is_poisoned: boolean;
+  transport_blocked?: boolean;
+  expected_ips?: string[];
+  best_server?: string;
+  needs_fragment: boolean;
+}
+
 export interface DiscoveryResult {
   domain: string;
   best_preset: string;
@@ -48,6 +56,7 @@ export interface DiscoveryResult {
   results: Record<string, DomainPresetResult>;
   baseline_speed?: number;
   improvement?: number;
+  dns_result?: DNSDiscoveryResult;
 }
 
 export interface DiscoverySuite {
@@ -70,4 +79,20 @@ export interface DiscoveryResponse {
   domain: string;
   domains?: string[];
   check_url: string;
+}
+
+export interface HistoryEntry {
+  domain: string;
+  url: string;
+  best_preset: string;
+  best_speed: number;
+  best_success: boolean;
+  best_family?: StrategyFamily;
+  status: "complete" | "failed" | "canceled";
+  start_time: string;
+  end_time: string;
+  results?: Record<string, DomainPresetResult>;
+  dns_result?: DNSDiscoveryResult;
+  baseline_speed?: number;
+  improvement?: number;
 }

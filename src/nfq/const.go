@@ -10,4 +10,6 @@ const (
 	TLSHandshakeType = 0x16
 	TLSClientHello   = 0x01
 	HTTPSPort        = 443
+
+	connKeyFormat = "%s:%d->%s:%d"
 )

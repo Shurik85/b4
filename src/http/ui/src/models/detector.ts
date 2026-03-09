@@ -136,3 +136,15 @@ export interface DetectorResponse {
   estimated_tests: number;
   message: string;
 }
+
+export interface DetectorHistoryEntry {
+  id: string;
+  status: SuiteStatus;
+  tests: DetectorTestType[];
+  start_time: string;
+  end_time: string;
+  dns_result?: DNSResult;
+  domains_result?: DomainsResult;
+  tcp_result?: TCPResult;
+  sni_result?: SNIResult;
+}

@@ -22,6 +22,9 @@ import {
   CollapseIcon,
   ImprovementIcon,
   DiscoveryIcon,
+  HistoryIcon,
+  DeleteIcon,
+  ClearIcon,
 } from "@b4.icons";
 import { colors } from "@design";
 import { B4SetConfig } from "@models/config";
@@ -34,6 +37,7 @@ import {
   StrategyFamily,
   DiscoveryPhase,
   DomainPresetResult,
+  HistoryEntry,
 } from "@models/discovery";
 import { useSets } from "@hooks/useSets";
 import { useCaptures } from "@b4.capture";
@@ -69,6 +73,18 @@ const phaseNames: Record<DiscoveryPhase, string> = {
   dns_detection: "DNS Detection",
 };
 
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
 export const DiscoveryRunner = () => {
   const {
     startDiscovery,
@@ -76,16 +92,22 @@ export const DiscoveryRunner = () => {
     resetDiscovery,
     addPresetAsSet,
     clearCache,
+    clearHistory,
+    deleteHistoryDomain,
     discoveryRunning: running,
     suiteId,
     suite,
     error,
+    history,
   } = useDiscovery();
   const { showSuccess, showError } = useSnackbar();
 
   const { addDomainToSet } = useSets();
 
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(
+    new Set()
+  );
+  const [expandedHistoryDomains, setExpandedHistoryDomains] = useState<Set<string>>(
     new Set()
   );
 
@@ -266,6 +288,19 @@ export const DiscoveryRunner = () => {
     resetDiscovery();
     setExpandedDomains(new Set());
   }, [resetDiscovery]);
+
+  const getDomainStatusBadge = (domainResult: { best_success: boolean; dns_result?: { transport_blocked?: boolean } }) => {
+    if (domainResult.best_success) {
+      return <B4Badge label="Success" size="small" variant="filled" color="primary" />;
+    }
+    if (running) {
+      return <B4Badge label="Testing..." size="small" variant="outlined" color="primary" />;
+    }
+    if (domainResult.dns_result?.transport_blocked) {
+      return <B4Badge label="Blocked" size="small" color="info" />;
+    }
+    return <B4Badge label="Failed" size="small" color="error" />;
+  };
 
   const groupResultsByPhase = (results: Record<string, DomainPresetResult>) => {
     const grouped: Record<DiscoveryPhase, DomainPresetResult[]> = {
@@ -512,23 +547,7 @@ export const DiscoveryRunner = () => {
                         >
                           {domainResult.domain}
                         </Typography>
-                        {domainResult.best_success ? (
-                          <B4Badge
-                            label="Success"
-                            size="small"
-                            variant="filled"
-                            color="primary"
-                          />
-                        ) : running ? (
-                          <B4Badge
-                            label="Testing..."
-                            size="small"
-                            variant="outlined"
-                            color="primary"
-                          />
-                        ) : (
-                          <B4Badge label="Failed" size="small" color="error" />
-                        )}
+                        {getDomainStatusBadge(domainResult)}
                         <B4Badge
                           label={`${successCount}/${totalCount} configs`}
                           size="small"
@@ -784,11 +803,21 @@ export const DiscoveryRunner = () => {
                     {/* Failed state */}
                     {!domainResult.best_success && !running && (
                       <Box sx={{ p: 3 }}>
-                        <B4Alert severity="error">
-                          All {Object.keys(domainResult.results).length} tested
-                          configurations failed for this domain. Check your
-                          network connection and domain accessibility.
-                        </B4Alert>
+                        {domainResult.dns_result?.transport_blocked ? (
+                          <B4Alert severity="warning">
+                            <strong>Transport blocked:</strong> This domain is
+                            blocked at the IP/network level — TCP connections
+                            cannot be established to any known IP address. DPI
+                            bypass strategies cannot help with IP-level blocking.
+                            A VPN or proxy is required for this domain.
+                          </B4Alert>
+                        ) : (
+                          <B4Alert severity="error">
+                            All {Object.keys(domainResult.results).length} tested
+                            configurations failed for this domain. Check your
+                            network connection and domain accessibility.
+                          </B4Alert>
+                        )}
                       </Box>
                     )}
                     {!domainResult.best_success && running && (
@@ -819,6 +848,316 @@ export const DiscoveryRunner = () => {
               })}
           </Stack>
         )}
+
+      {/* Discovery History */}
+      {history.length > 0 && (
+        <B4Section
+          title="Previous Results"
+          description={`${history.length} domain${history.length !== 1 ? "s" : ""} tested`}
+          icon={<HistoryIcon />}
+        >
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: -1 }}>
+            <Button
+              size="small"
+              startIcon={<ClearIcon />}
+              onClick={() => {
+                void (async () => {
+                  const res = await clearHistory();
+                  if (res.success) showSuccess("History cleared");
+                  else showError("Failed to clear history");
+                })();
+              }}
+              sx={{ color: colors.text.secondary, textTransform: "none" }}
+            >
+              Clear History
+            </Button>
+          </Box>
+          <Stack spacing={1}>
+            {[...history]
+              .sort((a: HistoryEntry, b: HistoryEntry) => new Date(b.end_time).getTime() - new Date(a.end_time).getTime())
+              .map((entry: HistoryEntry) => {
+                const isExpanded = expandedHistoryDomains.has(entry.domain);
+                const toggleExpand = () => {
+                  setExpandedHistoryDomains((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(entry.domain)) next.delete(entry.domain);
+                    else next.add(entry.domain);
+                    return next;
+                  });
+                };
+                const groupedResults = entry.results
+                  ? groupResultsByPhase(entry.results)
+                  : null;
+
+                return (
+                  <Paper
+                    key={entry.domain}
+                    elevation={0}
+                    sx={{
+                      bgcolor: colors.background.paper,
+                      border: `1px solid ${colors.border.default}`,
+                      borderRadius: 2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* History Domain Header */}
+                    <Box
+                      sx={{
+                        px: 2,
+                        py: 1.5,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        cursor: "pointer",
+                        "&:hover": { bgcolor: colors.accent.primary },
+                      }}
+                      onClick={toggleExpand}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                        <IconButton size="small" sx={{ p: 0 }}>
+                          {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
+                        </IconButton>
+                        <Typography
+                          variant="body1"
+                          sx={{ color: colors.text.primary, fontWeight: 600 }}
+                        >
+                          {entry.domain}
+                        </Typography>
+                        {entry.best_success ? (
+                          <B4Badge label="Success" size="small" variant="filled" color="primary" />
+                        ) : entry.dns_result?.transport_blocked ? (
+                          <B4Badge label="Blocked" size="small" color="info" />
+                        ) : (
+                          <B4Badge label="Failed" size="small" color="error" />
+                        )}
+                        {entry.best_family && entry.best_success && (
+                          <B4Badge
+                            label={familyNames[entry.best_family] ?? entry.best_family}
+                            size="small"
+                            color="primary"
+                          />
+                        )}
+                      </Box>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: entry.best_success ? colors.secondary : colors.text.secondary,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {entry.best_success
+                            ? `${(entry.best_speed / 1024 / 1024).toFixed(2)} MB/s`
+                            : "No working config"}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: colors.text.secondary }}>
+                          {formatTimeAgo(entry.end_time)}
+                        </Typography>
+                        <Tooltip title="Remove from history">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void (async () => {
+                                const res = await deleteHistoryDomain(entry.domain);
+                                if (res.success) showSuccess(`Removed ${entry.domain} from history`);
+                              })();
+                            }}
+                            sx={{
+                              p: 0.5,
+                              color: colors.text.secondary,
+                              "&:hover": { color: colors.text.primary },
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </Box>
+
+                    {/* Expanded History Details */}
+                    <Collapse in={isExpanded}>
+                      <Box sx={{ px: 2, pb: 2, pt: 1 }}>
+                        {/* Best config summary */}
+                        {entry.best_success && entry.best_preset && (
+                          <Box
+                            sx={{
+                              p: 1.5,
+                              mb: 2,
+                              bgcolor: colors.background.default,
+                              borderRadius: 1,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                              <SpeedIcon sx={{ color: colors.secondary }} />
+                              <Box>
+                                <Typography variant="caption" sx={{ color: colors.text.secondary }}>
+                                  Best Configuration
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: colors.text.primary, fontWeight: 600 }}>
+                                  {entry.best_preset}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            {entry.results?.[entry.best_preset]?.set && (
+                              <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<AddIcon />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const bestResult = entry.results![entry.best_preset];
+                                  void handleAddStrategy(entry.domain, bestResult);
+                                }}
+                                disabled={addingPreset}
+                                sx={{
+                                  bgcolor: colors.secondary,
+                                  color: colors.background.default,
+                                  "&:hover": { bgcolor: colors.primary },
+                                }}
+                              >
+                                Use This Strategy
+                              </Button>
+                            )}
+                          </Box>
+                        )}
+
+                        {/* DNS info */}
+                        {entry.dns_result?.is_poisoned && (
+                          <B4Alert severity="warning" sx={{ mb: 1 }}>
+                            DNS poisoning detected
+                            {entry.dns_result.best_server && ` — best server: ${entry.dns_result.best_server}`}
+                          </B4Alert>
+                        )}
+                        {entry.dns_result?.transport_blocked && (
+                          <B4Alert severity="error" sx={{ mb: 1 }}>
+                            Transport blocked — IP-level blocking detected. A VPN or proxy is required.
+                          </B4Alert>
+                        )}
+
+                        {/* Improvement badge */}
+                        {entry.improvement && entry.improvement > 0 && (
+                          <Typography variant="body2" sx={{ color: colors.text.secondary, mb: 1 }}>
+                            Baseline: {(entry.baseline_speed! / 1024 / 1024).toFixed(2)} MB/s
+                            {" → "}
+                            Best: {(entry.best_speed / 1024 / 1024).toFixed(2)} MB/s
+                            {" "}
+                            (+{entry.improvement.toFixed(0)}% improvement)
+                          </Typography>
+                        )}
+
+                        {/* Results by phase */}
+                        {groupedResults && (
+                          <>
+                            <Divider sx={{ my: 1.5, borderColor: colors.border.default }} />
+                            {(
+                              [
+                                "cached",
+                                "baseline",
+                                "strategy_detection",
+                                "optimization",
+                                "combination",
+                              ] as DiscoveryPhase[]
+                            )
+                              .filter((phase) => groupedResults[phase].length > 0)
+                              .map((phase) => (
+                                <Box key={phase} sx={{ mb: 2 }}>
+                                  <Typography
+                                    variant="subtitle2"
+                                    sx={{
+                                      color: colors.text.secondary,
+                                      mb: 1,
+                                      textTransform: "uppercase",
+                                      fontSize: "0.7rem",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 1,
+                                    }}
+                                  >
+                                    {phaseNames[phase]}
+                                    <B4Badge
+                                      label={groupedResults[phase].length}
+                                      size="small"
+                                      color="primary"
+                                    />
+                                  </Typography>
+                                  <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                                    {groupedResults[phase]
+                                      .sort((a, b) => b.speed - a.speed)
+                                      .map((result) => (
+                                        <Box
+                                          key={result.preset_name}
+                                          sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                                        >
+                                          <B4Badge
+                                            label={`${result.preset_name}: ${
+                                              result.status === "complete"
+                                                ? `${(result.speed / 1024 / 1024).toFixed(2)} MB/s`
+                                                : "Failed"
+                                            }`}
+                                            size="small"
+                                            color={result.status === "complete" ? "primary" : "error"}
+                                          />
+                                          {result.status === "complete" &&
+                                            result.preset_name !== entry.best_preset &&
+                                            result.set && (
+                                              <Tooltip title="Use this configuration">
+                                                <IconButton
+                                                  size="small"
+                                                  onClick={() => {
+                                                    void handleAddStrategy(entry.domain, result);
+                                                  }}
+                                                  disabled={addingPreset}
+                                                  sx={{
+                                                    p: 0.5,
+                                                    bgcolor: colors.background.dark,
+                                                    border: `1px solid ${colors.border.light}`,
+                                                    "&:hover": {
+                                                      bgcolor: colors.accent.secondary,
+                                                      borderColor: colors.secondary,
+                                                    },
+                                                  }}
+                                                >
+                                                  <AddIcon fontSize="small" />
+                                                </IconButton>
+                                              </Tooltip>
+                                            )}
+                                        </Box>
+                                      ))}
+                                  </Stack>
+                                </Box>
+                              ))}
+                          </>
+                        )}
+
+                        {/* Re-test button */}
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<RefreshIcon />}
+                            disabled={running}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCheckUrls([entry.url]);
+                              resetDiscovery();
+                            }}
+                            sx={{ textTransform: "none" }}
+                          >
+                            Re-test
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Collapse>
+                  </Paper>
+                );
+              })}
+          </Stack>
+        </B4Section>
+      )}
 
       <DiscoveryAddDialog
         open={addDialog.open}

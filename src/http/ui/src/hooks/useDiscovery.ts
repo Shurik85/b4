@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { ApiError, ApiResponse } from "@api/apiClient";
-import { discoveryApi, DiscoverySuite } from "@b4.discovery";
+import { discoveryApi, DiscoverySuite, HistoryEntry } from "@b4.discovery";
 import { B4SetConfig } from "@b4.sets";
 
 export function useDiscovery() {
@@ -8,22 +8,49 @@ export function useDiscovery() {
   const [suiteId, setSuiteId] = useState<string | null>(null);
   const [suite, setSuite] = useState<DiscoverySuite | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const initRef = useRef(false);
 
+  // On mount: check for current running discovery and load history
   useEffect(() => {
-    const saved = localStorage.getItem("discovery_suiteId");
-    if (saved) {
-      setSuiteId(saved);
-      setDiscoveryRunning(true);
+    if (initRef.current) return;
+    initRef.current = true;
+
+    const init = async () => {
+      // Check for currently running discovery
+      try {
+        const current = await discoveryApi.current();
+        if (current && (current.status === "running" || current.status === "pending")) {
+          setSuiteId(current.id);
+          setSuite(current);
+          setDiscoveryRunning(true);
+        }
+      } catch {
+        // No current discovery, that's fine
+      }
+
+      // Load history
+      await loadHistory();
+    };
+
+    void init();
+  }, []);
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const entries = await discoveryApi.history();
+      setHistory(entries ?? []);
+    } catch {
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    if (suiteId) {
-      localStorage.setItem("discovery_suiteId", suiteId);
-    }
-  }, [suiteId]);
-
+  // Poll for status when running
   useEffect(() => {
     if (!suiteId || !discoveryRunning) return;
 
@@ -33,13 +60,15 @@ export function useDiscovery() {
         setSuite(data);
         if (["complete", "failed", "canceled"].includes(data.status)) {
           setDiscoveryRunning(false);
-          localStorage.removeItem("discovery_suiteId");
+          // Refresh history when discovery finishes
+          void loadHistory();
         }
       } catch (e) {
         if (e instanceof ApiError && e.status === 404) {
           setDiscoveryRunning(false);
-          localStorage.removeItem("discovery_suiteId");
           setSuiteId(null);
+          // Discovery gone from server — refresh history in case it completed
+          void loadHistory();
           return;
         }
         setError(e instanceof Error ? e.message : "Unknown error");
@@ -47,11 +76,13 @@ export function useDiscovery() {
       }
     };
 
+    // Immediate first fetch
+    void fetchStatus();
     pollRef.current = setInterval(() => void fetchStatus(), 1500);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [suiteId, discoveryRunning]);
+  }, [suiteId, discoveryRunning, loadHistory]);
 
   const startDiscovery = useCallback(
     async (
@@ -77,7 +108,6 @@ export function useDiscovery() {
         if (normalized.length === 0) {
           setDiscoveryRunning(false);
           setSuiteId(null);
-          localStorage.removeItem("discovery_suiteId");
           return { success: false, error: "No URLs provided" };
         }
         const res = await discoveryApi.start(
@@ -106,13 +136,14 @@ export function useDiscovery() {
     try {
       await discoveryApi.cancel(suiteId);
       setDiscoveryRunning(false);
+      // Refresh history after cancel
+      void loadHistory();
     } catch (e) {
       console.error("Failed to cancel discovery:", e);
     }
-  }, [suiteId]);
+  }, [suiteId, loadHistory]);
 
   const resetDiscovery = useCallback(() => {
-    localStorage.removeItem("discovery_suiteId");
     setSuiteId(null);
     setSuite(null);
     setError(null);
@@ -146,16 +177,50 @@ export function useDiscovery() {
     }
   }, []);
 
+  const clearHistory = useCallback(async (): Promise<ApiResponse<void>> => {
+    try {
+      await discoveryApi.clearHistory();
+      setHistory([]);
+      return { success: true };
+    } catch (e) {
+      if (e instanceof ApiError) {
+        return { success: false, error: JSON.stringify(e.body ?? e.message) };
+      }
+      return { success: false, error: String(e) };
+    }
+  }, []);
+
+  const deleteHistoryDomain = useCallback(
+    async (domain: string): Promise<ApiResponse<void>> => {
+      try {
+        await discoveryApi.deleteHistoryDomain(domain);
+        setHistory((prev) => prev.filter((e) => e.domain !== domain));
+        return { success: true };
+      } catch (e) {
+        if (e instanceof ApiError) {
+          return { success: false, error: JSON.stringify(e.body ?? e.message) };
+        }
+        return { success: false, error: String(e) };
+      }
+    },
+    [],
+  );
+
   return {
     discoveryRunning,
     suiteId,
     suite,
     error,
+    history,
+    historyLoading,
     startDiscovery,
     cancelDiscovery,
     resetDiscovery,
     addPresetAsSet,
     clearCache,
+    clearHistory,
+    deleteHistoryDomain,
+    loadHistory,
   };
 }
 

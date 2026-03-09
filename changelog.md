@@ -1,7 +1,21 @@
 # B4 - Bye Bye Big Bro
 
-## [1.40.1] - 2026-03-09
+## [1.40.2] - 2026-03-09
 
+- ADDED: **DPI Detector results are now saved** — after running detection tests, your results are saved and shown in a "Previous Results" section. You can expand any past run to see full details, or delete individual entries.
+- ADDED: **DPI Detector remembers your test selection** — the test toggles (DNS, Domains, TCP, SNI) are now remembered between visits.
+- ADDED: **Discovery results are now saved** — when Discovery finishes testing a domain, the results are kept on the server. Refreshing the page or coming back later will show your previous results in a "Previous Results" section at the bottom.
+- ADDED: **Auto-reconnect to running Discovery** — if you refresh the page while Discovery is running, it automatically reconnects and shows progress. No more lost sessions.
+- ADDED: **Use strategies from past results** — you can apply a working strategy from a previous Discovery run without re-testing. Just expand the domain and click "Use This Strategy".
+- ADDED: **Re-test and manage history** — each past result has a "Re-test" button to quickly run Discovery again for that domain. You can also delete individual results or clear all history.
+- ADDED: **Duplicate domain warning** — when adding a domain or IP to a set, B4 now warns you if it already exists in another set (including domains inside GeoSite categories). This helps avoid accidental overlaps between sets.
+- FIXED: **Wrong set assigned to traffic** — in rare cases, traffic could be matched to the wrong set when multiple sets had overlapping IP ranges (e.g., a set with specific IPs and another with broad geo-IP categories like "cloudflare"). The most specific match now always wins. Also, subsequent TCP packets now correctly use the set that was previously identified by domain name, instead of falling back to a less accurate IP-only match.
+- FIXED: **DNS check no longer gives false "poisoned" results** — if your router uses DoH, DNSCrypt, or another encrypted DNS, Discovery would incorrectly report DNS as poisoned (because IPs didn't match exactly). Now it actually checks whether the IPs work, not just whether they match.
+- FIXED: **ISP block pages no longer count as "success"** — previously, if the ISP returned a block page (with valid HTML), Discovery could mistakenly think the bypass worked. Now it detects Russian ISP block pages and correctly marks them as failed.
+- FIXED: **Discovery hangs after detecting DNS poisoning** — when DNS bypass strategies (fragmented queries, alternative servers) got no response, the lookup had no timeout and would wait forever. Now properly times out after 10 seconds per attempt.
+- IMPROVED: **Discovery is much faster** — removed unnecessary DNS lookups on every test, added early exit when a strategy clearly doesn't work, and limited IP fallback retries. Failed presets now take ~5s instead of ~35s.
+- IMPROVED: **IP-blocked domains detected and skipped** — when a domain is completely blocked at the network level (like Instagram in some regions), Discovery now detects this early, shows a "Blocked" badge, and skips the extended search instead of wasting time testing 100+ strategies that can't work.
+- IMPROVED: **Clearer error messages** — instead of raw technical errors like "context deadline exceeded", you now see human-readable messages like "connection timed out" or "connection reset by DPI/firewall".
 - IMPROVED: **Better firewall error messages** — errors now show which rule failed and why, instead of just "exit status x".
 
 ## [1.40.0] - 2026-03-08

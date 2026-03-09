@@ -69,4 +69,6 @@ export {
   FilterAlt as FilterIcon,
   OpenInFull as FullscreenIcon,
   VpnKey as SniIcon,
+  History as HistoryIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";

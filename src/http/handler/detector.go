@@ -14,6 +14,9 @@ func (api *API) RegisterDetectorApi() {
 	api.mux.HandleFunc("/api/detector/start", api.handleStartDetector)
 	api.mux.HandleFunc("/api/detector/status/{id}", api.handleDetectorStatus)
 	api.mux.HandleFunc("/api/detector/cancel/{id}", api.handleCancelDetector)
+	api.mux.HandleFunc("/api/detector/history", api.handleDetectorHistory)
+	api.mux.HandleFunc("/api/detector/history/clear", api.handleClearDetectorHistory)
+	api.mux.HandleFunc("/api/detector/history/{id}", api.handleDeleteDetectorHistoryEntry)
 }
 
 func (api *API) handleStartDetector(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +67,7 @@ func (api *API) handleStartDetector(w http.ResponseWriter, r *http.Request) {
 	suite := detector.NewDetectorSuite(tests)
 
 	go func() {
-		suite.Run()
+		suite.Run(api.cfg.ConfigPath)
 		log.Infof("Detector suite %s complete", suite.Id)
 	}()
 
@@ -125,5 +128,64 @@ func (api *API) handleCancelDetector(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Detector suite canceled",
+	})
+}
+
+func (api *API) handleDetectorHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	history := detector.GetHistory(api.cfg.ConfigPath)
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(history.Entries)
+}
+
+func (api *API) handleClearDetectorHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	history := detector.LoadDetectorHistory(api.cfg.ConfigPath)
+	history.Clear()
+	if err := history.Save(api.cfg.ConfigPath); err != nil {
+		log.Errorf("Failed to clear detector history: %v", err)
+		http.Error(w, "Failed to clear detector history", http.StatusInternalServerError)
+		return
+	}
+
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Detector history cleared",
+	})
+}
+
+func (api *API) handleDeleteDetectorHistoryEntry(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Entry ID required", http.StatusBadRequest)
+		return
+	}
+
+	history := detector.LoadDetectorHistory(api.cfg.ConfigPath)
+	history.RemoveEntry(id)
+	if err := history.Save(api.cfg.ConfigPath); err != nil {
+		log.Errorf("Failed to save detector history: %v", err)
+		http.Error(w, "Failed to save detector history", http.StatusInternalServerError)
+		return
+	}
+
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Removed history entry %s", id),
 	})
 }

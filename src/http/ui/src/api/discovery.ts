@@ -1,6 +1,6 @@
 import { apiDelete, apiPost, apiGet } from "./apiClient";
 import { B4SetConfig } from "@b4.sets";
-import { DiscoveryResponse, DiscoverySuite } from "@b4.discovery";
+import { DiscoveryResponse, DiscoverySuite, HistoryEntry } from "@b4.discovery";
 
 export const discoveryApi = {
   start: (
@@ -24,4 +24,9 @@ export const discoveryApi = {
   addPresetAsSet: (preset: B4SetConfig) =>
     apiPost<B4SetConfig>("/api/discovery/add", preset),
   clearCache: () => apiPost("/api/discovery/cache/clear", {}),
+  current: () => apiGet<DiscoverySuite | null>("/api/discovery/current"),
+  history: () => apiGet<HistoryEntry[]>("/api/discovery/history"),
+  clearHistory: () => apiPost("/api/discovery/history/clear", {}),
+  deleteHistoryDomain: (domain: string) =>
+    apiDelete(`/api/discovery/history/${encodeURIComponent(domain)}`),
 };

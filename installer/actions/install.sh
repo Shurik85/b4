@@ -116,14 +116,50 @@ action_install() {
     }
     chmod +x "${B4_BIN_DIR}/${BINARY_NAME}"
 
-    # Verify
-    if "${B4_BIN_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
+    # Verify — detect architecture mismatch (SIGILL on MIPS = wrong float ABI)
+    _ver_exit=0
+    sh -c "\"${B4_BIN_DIR}/${BINARY_NAME}\" --version" >/dev/null 2>&1 || _ver_exit=$?
+
+    if [ "$_ver_exit" -eq 0 ]; then
         installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
         log_ok "Binary installed: ${installed_ver}"
-        # Clean old backups
         rm -f "${B4_BIN_DIR}/${BINARY_NAME}".backup.* 2>/dev/null || true
+    elif [ "$_ver_exit" -gt 128 ] && echo "$B4_ARCH" | grep -q "^mips" && ! echo "$B4_ARCH" | grep -q "softfloat"; then
+        # Binary crashed (SIGILL/segfault) on MIPS hardfloat — retry with softfloat
+        _sf_arch="${B4_ARCH}_softfloat"
+        log_warn "Binary crashed (exit code $_ver_exit) — likely hardfloat/softfloat mismatch"
+        log_info "Retrying with ${_sf_arch}..."
+
+        _sf_file="${BINARY_NAME}-linux-${_sf_arch}.tar.gz"
+        _sf_url="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${version}/${_sf_file}"
+        _sf_archive="${TEMP_DIR}/${_sf_file}"
+
+        if fetch_file "$_sf_url" "$_sf_archive"; then
+            cd "$TEMP_DIR"
+            rm -f "${BINARY_NAME}" 2>/dev/null
+            tar -xzf "$_sf_archive" 2>/dev/null && rm -f "$_sf_archive"
+            if [ -f "${BINARY_NAME}" ]; then
+                mv "${BINARY_NAME}" "${B4_BIN_DIR}/" 2>/dev/null || cp "${BINARY_NAME}" "${B4_BIN_DIR}/"
+                chmod +x "${B4_BIN_DIR}/${BINARY_NAME}"
+                if "${B4_BIN_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
+                    installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
+                    log_ok "Softfloat binary works: ${installed_ver}"
+                    log_info "Tip: use --arch=${_sf_arch} for future installs"
+                    B4_ARCH="$_sf_arch"
+                    rm -f "${B4_BIN_DIR}/${BINARY_NAME}".backup.* 2>/dev/null || true
+                else
+                    log_err "Softfloat binary also failed — manual troubleshooting needed"
+                    log_info "Run with --sysinfo for diagnostics, or try --arch=<arch> manually"
+                fi
+            else
+                log_err "Failed to extract softfloat binary"
+            fi
+        else
+            log_err "Could not download softfloat variant"
+            log_info "Try reinstalling with: --arch=${_sf_arch}"
+        fi
     else
-        log_warn "Binary installed but version check failed"
+        log_warn "Binary installed but version check failed (exit code: $_ver_exit)"
     fi
 
     # --- Install service ---

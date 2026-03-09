@@ -29,6 +29,100 @@ const (
 	validationRetryDelay = 100 * time.Millisecond
 )
 
+// ISP block page detection markers (shared with detector module).
+var blockPageRedirectMarkers = []string{
+	"lawfilter", "warning.rt.ru", "blocked", "access-denied",
+	"eais", "zapret-info", "rkn.gov.ru", "mvd.ru",
+}
+
+var blockPageBodyMarkers = []string{
+	"заблокирован", "запрещён", "запрещен", "ограничен",
+	"единый реестр", "роскомнадзор", "rkn.gov.ru", "nap.gov.ru",
+	"eais.rkn.gov.ru", "warning.rt.ru", "решению суда",
+}
+
+// detectBlockPage checks response body for ISP block page markers.
+// Returns error description if block page detected, empty string otherwise.
+func detectBlockPage(body []byte) string {
+	if len(body) == 0 {
+		return ""
+	}
+	bodyLower := strings.ToLower(string(body))
+	for _, marker := range blockPageBodyMarkers {
+		if strings.Contains(bodyLower, marker) {
+			return "ISP block page detected in response"
+		}
+	}
+	return ""
+}
+
+// humanizeError converts raw Go error strings into user-friendly descriptions.
+// Uses the same DPI/MITM classification patterns as the detector module.
+func humanizeError(raw string) string {
+	lower := strings.ToLower(raw)
+
+	// DPI interference patterns (from detector/classify.go)
+	dpiPatterns := []struct {
+		pattern, desc string
+	}{
+		{"unexpected eof", "connection closed by DPI (unexpected EOF)"},
+		{"eof occurred in violation", "connection closed by DPI (EOF violation)"},
+		{"connection reset", "connection reset by DPI/firewall"},
+		{"bad record mac", "TLS record corrupted by DPI"},
+		{"decryption failed", "TLS decryption failed (DPI tampering)"},
+		{"illegal parameter", "TLS blocked (DPI injection)"},
+		{"decode error", "TLS blocked (DPI injection)"},
+		{"record overflow", "TLS record overflow (DPI injection)"},
+		{"unrecognized name", "blocked by SNI filtering"},
+		{"handshake failure", "TLS handshake blocked by DPI"},
+		{"close notify", "connection closed by DPI (alert injection)"},
+		{"wrong version number", "non-TLS response received (DPI replacement)"},
+	}
+	for _, p := range dpiPatterns {
+		if strings.Contains(lower, p.pattern) {
+			return p.desc
+		}
+	}
+
+	// MITM patterns
+	mitmPatterns := []struct {
+		pattern, desc string
+	}{
+		{"self-signed", "fake certificate detected (possible MITM)"},
+		{"self signed", "fake certificate detected (possible MITM)"},
+		{"unknown authority", "unknown CA (possible MITM)"},
+		{"certificate has expired", "expired certificate (possible MITM)"},
+		{"x509", "certificate error (possible MITM)"},
+	}
+	for _, p := range mitmPatterns {
+		if strings.Contains(lower, p.pattern) {
+			return p.desc
+		}
+	}
+
+	// Network-level errors
+	switch {
+	case strings.Contains(lower, "context deadline exceeded") || strings.Contains(lower, "i/o timeout"):
+		return "connection timed out (no response)"
+	case strings.Contains(lower, "connection refused"):
+		return "connection refused (port closed)"
+	case strings.Contains(lower, "no route to host"):
+		return "no route to host (IP unreachable)"
+	case strings.Contains(lower, "network is unreachable"):
+		return "network unreachable"
+	case strings.Contains(lower, "eof"):
+		return "connection closed unexpectedly"
+	}
+
+	// Already human-readable
+	if strings.Contains(lower, "stalled") || strings.Contains(lower, "truncated") ||
+		strings.Contains(lower, "ips failed") || strings.Contains(lower, "isp block") {
+		return raw
+	}
+
+	return raw
+}
+
 func NewDiscoverySuite(inputs []string, pool *nfq.Pool, skipDNS bool, skipCache bool, payloadFiles []string, validationTries int, tlsVersion string) *DiscoverySuite {
 	domainInputs := parseDiscoveryInputs(inputs)
 	if len(domainInputs) == 0 {
@@ -248,6 +342,17 @@ func (ds *DiscoverySuite) RunDiscovery() {
 	}
 
 	if len(workingFamilies) == 0 {
+		// Skip extended search if all domains have transport-level blocking.
+		// When neither system nor reference IPs can even establish a TCP connection,
+		// no packet manipulation strategy will help — the blocking is at IP level.
+		if ds.allDomainsTransportBlocked() {
+			log.Warnf("All domains have transport-level blocking (IP blocked) — extended search skipped")
+			ds.restoreConfig()
+			ds.finalize()
+			ds.logDiscoverySummary()
+			return
+		}
+
 		log.Warnf("Phase 1 found no working families, trying extended search")
 
 		ds.setPhase(PhaseOptimize)
@@ -810,28 +915,29 @@ func (ds *DiscoverySuite) testPresetInternal(preset ConfigPreset) CheckResult {
 
 	time.Sleep(time.Duration(ds.cfg.System.Checker.ConfigPropagateMs) * time.Millisecond)
 
-	// Run validation tries
+	// Run validation tries with early exit on first failure.
+	timeout := time.Duration(ds.cfg.System.Checker.DiscoveryTimeoutSec) * time.Second
 	successCount := 0
 	var lastResult CheckResult
 
 	for i := 0; i < ds.validationTries; i++ {
-		result := ds.fetchForDomain(di, time.Duration(ds.cfg.System.Checker.DiscoveryTimeoutSec)*time.Second)
+		result := ds.fetchForDomain(di, timeout)
 		if len(testConfig.Sets) > 0 {
 			result.Set = testConfig.Sets[0]
 		}
 		lastResult = result
 
-		if result.Status == CheckStatusComplete {
-			successCount++
+		if result.Status != CheckStatusComplete {
+			// Early exit: no point continuing if a try failed.
+			break
 		}
+		successCount++
 
-		// If we have multiple tries, add a small delay between attempts
 		if i < ds.validationTries-1 {
 			time.Sleep(validationRetryDelay)
 		}
 	}
 
-	// Consider the preset valid only if all tries succeeded
 	if successCount == ds.validationTries {
 		if ds.validationTries > 1 {
 			log.DiscoveryLogf("    → OK (%.2f KB/s, %d bytes) - %d/%d tries succeeded",
@@ -840,16 +946,16 @@ func (ds *DiscoverySuite) testPresetInternal(preset ConfigPreset) CheckResult {
 			log.DiscoveryLogf("    → OK (%.2f KB/s, %d bytes)", lastResult.Speed/1024, lastResult.BytesRead)
 		}
 		return lastResult
-	} else {
-		if ds.validationTries > 1 {
-			log.DiscoveryLogf("    → FAILED (%d/%d tries succeeded)", successCount, ds.validationTries)
-			lastResult.Status = CheckStatusFailed
-			lastResult.Error = fmt.Sprintf("validation failed: %d/%d tries succeeded", successCount, ds.validationTries)
-		} else {
-			log.DiscoveryLogf("    → FAILED (%s)", lastResult.Error)
-		}
-		return lastResult
 	}
+
+	lastResult.Status = CheckStatusFailed
+	if ds.validationTries > 1 {
+		log.DiscoveryLogf("    → FAILED (%d/%d tries succeeded: %s)", successCount, ds.validationTries, lastResult.Error)
+		lastResult.Error = fmt.Sprintf("%s (%d/%d tries)", lastResult.Error, successCount, ds.validationTries)
+	} else {
+		log.DiscoveryLogf("    → FAILED (%s)", lastResult.Error)
+	}
+	return lastResult
 }
 
 func (ds *DiscoverySuite) testPreset(preset ConfigPreset) CheckResult {
@@ -899,7 +1005,7 @@ func (ds *DiscoverySuite) testPresetAllDomains(preset ConfigPreset) map[string]C
 
 		ds.setCurrentDomain(di.Domain)
 
-		// Run validation tries for this domain
+		// Run validation tries with early exit on first failure.
 		successCount := 0
 		var lastResult CheckResult
 
@@ -910,9 +1016,10 @@ func (ds *DiscoverySuite) testPresetAllDomains(preset ConfigPreset) map[string]C
 			}
 			lastResult = result
 
-			if result.Status == CheckStatusComplete {
-				successCount++
+			if result.Status != CheckStatusComplete {
+				break
 			}
+			successCount++
 
 			if i < ds.validationTries-1 {
 				time.Sleep(validationRetryDelay)
@@ -925,7 +1032,7 @@ func (ds *DiscoverySuite) testPresetAllDomains(preset ConfigPreset) map[string]C
 		} else {
 			lastResult.Status = CheckStatusFailed
 			if ds.validationTries > 1 {
-				lastResult.Error = fmt.Sprintf("validation failed: %d/%d tries succeeded", successCount, ds.validationTries)
+				lastResult.Error = fmt.Sprintf("%s (%d/%d tries)", lastResult.Error, successCount, ds.validationTries)
 			}
 			log.DiscoveryLogf("    [%s] → FAILED (%s)", di.Domain, lastResult.Error)
 			results[di.Domain] = lastResult
@@ -965,47 +1072,44 @@ func (ds *DiscoverySuite) withSingleDomain(domain string, fn func()) {
 	ds.CheckURL = origURL
 }
 
+// collectTargetIPs returns deduplicated IPs from DNS discovery results, limited to maxIPs.
+func (ds *DiscoverySuite) collectTargetIPs(domain string, maxIPs int) []string {
+	dnsResult := ds.dnsResults[domain]
+	if dnsResult == nil {
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	var ips []string
+	for _, ip := range dnsResult.ExpectedIPs {
+		if !seen[ip] {
+			seen[ip] = true
+			ips = append(ips, ip)
+		}
+	}
+	for _, probe := range dnsResult.ProbeResults {
+		if probe.ResolvedIP != "" && !seen[probe.ResolvedIP] {
+			seen[probe.ResolvedIP] = true
+			ips = append(ips, probe.ResolvedIP)
+		}
+	}
+	if maxIPs > 0 && len(ips) > maxIPs {
+		ips = ips[:maxIPs]
+	}
+	return ips
+}
+
 func (ds *DiscoverySuite) fetchForDomain(di DomainInput, timeout time.Duration) CheckResult {
 	geoip, geosite := GetCDNCategories(di.Domain)
 	if len(geoip) > 0 || len(geosite) > 0 {
 		return ds.fetchUsingIPForDomain(di, timeout, "")
 	}
 
-	dnsResult := ds.dnsResults[di.Domain]
-
-	var allIPs []string
-	if dnsResult != nil {
-		allIPs = append(allIPs, dnsResult.ExpectedIPs...)
-		for _, probe := range dnsResult.ProbeResults {
-			if probe.ResolvedIP != "" {
-				found := false
-				for _, ip := range allIPs {
-					if ip == probe.ResolvedIP {
-						found = true
-						break
-					}
-				}
-				if !found {
-					allIPs = append(allIPs, probe.ResolvedIP)
-				}
-			}
-		}
-	}
-
-	freshIPs, _ := net.LookupIP(di.Domain)
-	for _, ip := range freshIPs {
-		ipStr := ip.String()
-		found := false
-		for _, existing := range allIPs {
-			if existing == ipStr {
-				found = true
-				break
-			}
-		}
-		if !found {
-			allIPs = append([]string{ipStr}, allIPs...)
-		}
-	}
+	// Use IPs already collected during DNS discovery — no fresh DNS lookups.
+	// Fresh lookups are slow (poisoned DNS can timeout) and redundant since
+	// DNS discovery already gathered all valid IPs from DoH + system resolver.
+	// Limit to 2 IPs to avoid slow sequential fallback.
+	allIPs := ds.collectTargetIPs(di.Domain, 2)
 
 	for _, ip := range allIPs {
 		result := ds.fetchUsingIPForDomain(di, timeout, ip)
@@ -1094,7 +1198,7 @@ func (ds *DiscoverySuite) fetchUsingIPForDomain(di DomainInput, timeout time.Dur
 	resp, err := client.Do(req)
 	if err != nil {
 		result.Status = CheckStatusFailed
-		result.Error = err.Error()
+		result.Error = humanizeError(err.Error())
 		result.Duration = time.Since(start)
 		return result
 	}
@@ -1103,8 +1207,28 @@ func (ds *DiscoverySuite) fetchUsingIPForDomain(di DomainInput, timeout time.Dur
 	result.StatusCode = resp.StatusCode
 	result.ContentSize = resp.ContentLength
 
+	// Check for ISP block page indicators before reading body.
+	if resp.StatusCode == 451 {
+		result.Status = CheckStatusFailed
+		result.Error = "ISP block page (HTTP 451)"
+		result.Duration = time.Since(start)
+		return result
+	}
+	if loc := resp.Header.Get("Location"); loc != "" {
+		locLower := strings.ToLower(loc)
+		for _, marker := range blockPageRedirectMarkers {
+			if strings.Contains(locLower, marker) {
+				result.Status = CheckStatusFailed
+				result.Error = "ISP block page (redirect to " + loc + ")"
+				result.Duration = time.Since(start)
+				return result
+			}
+		}
+	}
+
 	buf := make([]byte, 16*1024)
-	tailBuf := make([]byte, 0, 64) // rolling tail for </body></html> detection
+	tailBuf := make([]byte, 0, 64)     // rolling tail for </body></html> detection
+	headBuf := make([]byte, 0, 4*1024) // first 4KB for ISP block page detection
 	var bytesRead int64
 	lastProgress := time.Now()
 
@@ -1124,6 +1248,12 @@ func (ds *DiscoverySuite) fetchUsingIPForDomain(di DomainInput, timeout time.Dur
 		if n > 0 {
 			bytesRead += int64(n)
 			lastProgress = time.Now()
+			if len(headBuf) < 4*1024 {
+				headBuf = append(headBuf, buf[:n]...)
+				if len(headBuf) > 4*1024 {
+					headBuf = headBuf[:4*1024]
+				}
+			}
 			tailBuf = append(tailBuf, buf[:n]...)
 			if len(tailBuf) > 64 {
 				tailBuf = tailBuf[len(tailBuf)-64:]
@@ -1159,6 +1289,13 @@ evaluate:
 		result.Speed = float64(bytesRead) / duration.Seconds()
 	}
 
+	// Check for ISP block page in response body before marking as success.
+	if blockErr := detectBlockPage(headBuf); blockErr != "" {
+		result.Status = CheckStatusFailed
+		result.Error = blockErr
+		return result
+	}
+
 	if len(tailBuf) > 0 {
 		tailLower := bytes.ToLower(tailBuf)
 		if bytes.Contains(tailLower, []byte("</body>")) && bytes.Contains(tailLower, []byte("</html>")) {
@@ -1184,6 +1321,7 @@ evaluate:
 	result.Status = CheckStatusComplete
 	return result
 }
+
 // storeResult stores a single-domain result (used during Phase 2 optimization via withSingleDomain).
 func (ds *DiscoverySuite) storeResult(preset ConfigPreset, result CheckResult) {
 	ds.CheckSuite.mu.Lock()
@@ -1550,6 +1688,20 @@ func (ds *DiscoverySuite) setStatus(status CheckStatus) {
 	ds.CheckSuite.mu.Unlock()
 }
 
+// allDomainsTransportBlocked returns true if DNS discovery flagged all domains
+// as transport-blocked (neither system nor reference IPs could connect).
+func (ds *DiscoverySuite) allDomainsTransportBlocked() bool {
+	if len(ds.dnsResults) == 0 {
+		return false
+	}
+	for _, result := range ds.dnsResults {
+		if result == nil || !result.TransportBlocked {
+			return false
+		}
+	}
+	return true
+}
+
 func (ds *DiscoverySuite) setPhase(phase DiscoveryPhase) {
 	ds.CheckSuite.mu.Lock()
 	ds.CurrentPhase = phase
@@ -1561,6 +1713,11 @@ func (ds *DiscoverySuite) finalize() {
 	ds.DomainDiscoveryResults = ds.domainResults
 	ds.Status = CheckStatusComplete
 	ds.CheckSuite.mu.Unlock()
+
+	// Persist results to history
+	if ds.cfg != nil {
+		SaveToHistory(ds.CheckSuite, ds.cfg.ConfigPath)
+	}
 
 	go func() {
 		time.Sleep(30 * time.Second)
@@ -1588,6 +1745,23 @@ func (ds *DiscoverySuite) logDiscoverySummary() {
 
 	for _, di := range ds.Domains {
 		domainResult := ds.domainResults[di.Domain]
+		dnsResult := ds.dnsResults[di.Domain]
+
+		// DNS status line
+		if dnsResult != nil {
+			switch {
+			case dnsResult.TransportBlocked:
+				log.DiscoveryLogf("  ⊘ [%s] IP-blocked: TCP connections fail to all known IPs — VPN/proxy required", di.Domain)
+				continue
+			case dnsResult.IsPoisoned && dnsResult.BestServer != "":
+				log.DiscoveryLogf("  ⚡ [%s] DNS poisoned, bypassed via %s", di.Domain, dnsResult.BestServer)
+			case dnsResult.IsPoisoned && dnsResult.NeedsFragment:
+				log.DiscoveryLogf("  ⚡ [%s] DNS poisoned, bypassed via fragmented queries", di.Domain)
+			case dnsResult.IsPoisoned:
+				log.DiscoveryLogf("  ✗ [%s] DNS poisoned, no bypass found", di.Domain)
+			}
+		}
+
 		if domainResult.BestSuccess {
 			improvement := ""
 			if domainResult.Improvement > 0 {
@@ -1595,7 +1769,7 @@ func (ds *DiscoverySuite) logDiscoverySummary() {
 			}
 			log.DiscoveryLogf("  ✓ [%s] Best: %s (%.2f KB/s%s)", di.Domain, domainResult.BestPreset, domainResult.BestSpeed/1024, improvement)
 		} else {
-			log.DiscoveryLogf("  ✗ [%s] No working config found", di.Domain)
+			log.DiscoveryLogf("  ✗ [%s] No working DPI bypass found", di.Domain)
 		}
 	}
 

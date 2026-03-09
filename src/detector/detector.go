@@ -7,7 +7,7 @@ import (
 	"github.com/daniellavrushin/b4/log"
 )
 
-func (s *DetectorSuite) Run() {
+func (s *DetectorSuite) Run(configPath string) {
 	s.mu.Lock()
 	s.Status = StatusRunning
 	s.StartTime = time.Now()
@@ -22,6 +22,11 @@ func (s *DetectorSuite) Run() {
 	for _, test := range s.Tests {
 		if s.isCanceled() {
 			log.DiscoveryLogf("[Detector] Suite %s canceled", s.Id)
+			s.mu.Lock()
+			s.EndTime = time.Now()
+			s.CurrentTest = ""
+			s.mu.Unlock()
+			SaveToHistory(s, configPath)
 			s.scheduleCleanup()
 			return
 		}
@@ -76,6 +81,7 @@ func (s *DetectorSuite) Run() {
 
 	log.DiscoveryLogf("[Detector] Detection suite %s complete in %v", s.Id, s.EndTime.Sub(s.StartTime).Round(time.Second))
 
+	SaveToHistory(s, configPath)
 	s.scheduleCleanup()
 }
 

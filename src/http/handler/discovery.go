@@ -20,6 +20,10 @@ func (api *API) RegisterDiscoveryApi() {
 	api.mux.HandleFunc("/api/discovery/add", api.handleAddPresetAsSet)
 	api.mux.HandleFunc("/api/discovery/similar", api.handleFindSimilarSets)
 	api.mux.HandleFunc("/api/discovery/cache/clear", api.handleClearDiscoveryCache)
+	api.mux.HandleFunc("/api/discovery/current", api.handleGetCurrentDiscovery)
+	api.mux.HandleFunc("/api/discovery/history", api.handleDiscoveryHistory)
+	api.mux.HandleFunc("/api/discovery/history/clear", api.handleClearDiscoveryHistory)
+	api.mux.HandleFunc("/api/discovery/history/{domain}", api.handleDeleteHistoryDomain)
 }
 
 func (api *API) handleCheckStatus(w http.ResponseWriter, r *http.Request) {
@@ -273,6 +277,83 @@ func extractDomainName(domain string) string {
 		return strings.ToLower(parts[0])
 	}
 	return ""
+}
+
+func (api *API) handleGetCurrentDiscovery(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	suite, ok := discovery.GetCurrentSuite()
+	if !ok {
+		setJsonHeader(w)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("null"))
+		return
+	}
+
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(suite)
+}
+
+func (api *API) handleDiscoveryHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	history := discovery.GetHistory(api.cfg.ConfigPath)
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(history.Entries)
+}
+
+func (api *API) handleClearDiscoveryHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	history := discovery.LoadDiscoveryHistory(api.cfg.ConfigPath)
+	history.Clear()
+	if err := history.Save(api.cfg.ConfigPath); err != nil {
+		log.Errorf("Failed to clear discovery history: %v", err)
+		http.Error(w, "Failed to clear discovery history", http.StatusInternalServerError)
+		return
+	}
+
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Discovery history cleared",
+	})
+}
+
+func (api *API) handleDeleteHistoryDomain(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	domain := r.PathValue("domain")
+	if domain == "" {
+		http.Error(w, "Domain required", http.StatusBadRequest)
+		return
+	}
+
+	history := discovery.LoadDiscoveryHistory(api.cfg.ConfigPath)
+	history.RemoveDomain(domain)
+	if err := history.Save(api.cfg.ConfigPath); err != nil {
+		log.Errorf("Failed to save discovery history: %v", err)
+		http.Error(w, "Failed to save discovery history", http.StatusInternalServerError)
+		return
+	}
+
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Removed history for %s", domain),
+	})
 }
 
 func (api *API) handleClearDiscoveryCache(w http.ResponseWriter, r *http.Request) {

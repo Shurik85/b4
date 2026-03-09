@@ -143,126 +143,160 @@ func (p *DNSProber) Probe(ctx context.Context) *DNSDiscoveryResult {
 		ProbeResults: []DNSProbeResult{},
 	}
 
-	// Run DoH and system resolver in parallel with independent timeouts.
+	// Run system resolver and DoH in parallel.
 	var expectedIPs, systemIPs []string
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		dohCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		expectedIPs = p.getExpectedIPs(dohCtx)
-	}()
-	go func() {
-		defer wg.Done()
-		sysCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		sysCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		systemIPs = p.getSystemResolverIPs(sysCtx)
 	}()
+	go func() {
+		defer wg.Done()
+		dohCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		expectedIPs = p.getExpectedIPs(dohCtx)
+	}()
 	wg.Wait()
 
+	if validIP := p.findValidIP(ctx, systemIPs); validIP != "" {
+		log.DiscoveryLogf("  ✓ DNS OK: system IP %s serves %s", validIP, p.domain)
+		result.ExpectedIPs = uniqueIPs(systemIPs, expectedIPs)
+		result.ProbeResults = append(result.ProbeResults, DNSProbeResult{
+			ResolvedIP: validIP,
+			Works:      true,
+		})
+		return result
+	}
+	if len(systemIPs) > 0 {
+		log.DiscoveryLogf("  DNS: system IPs %v failed TLS validation for %s", systemIPs, p.domain)
+	}
+
 	if len(expectedIPs) == 0 {
-		log.DiscoveryLogf("DNS Discovery: couldn't get reference IP for %s", p.domain)
+		log.DiscoveryLogf("  DNS: no reference IPs available for %s, assuming OK", p.domain)
+		result.ExpectedIPs = systemIPs
+		return result
+	}
+	log.DiscoveryLogf("  DNS: system IPs %v, reference IPs (DoH): %v", systemIPs, expectedIPs)
+
+	if p.findValidIP(ctx, expectedIPs) == "" {
+		log.DiscoveryLogf("  DNS: neither system nor reference IPs serve %s (transport issue or site down)", p.domain)
+		result.TransportBlocked = true
+		result.ExpectedIPs = uniqueIPs(expectedIPs, systemIPs)
 		return result
 	}
 
-	log.DiscoveryLogf("  DNS: reference IPs (DoH): %v", expectedIPs)
-
-	isPoisoned := true
-	var matchedIP string
-	expectedSet := make(map[string]bool)
-	for _, ip := range expectedIPs {
-		expectedSet[ip] = true
+	if len(systemIPs) > 0 && sameSubnet(systemIPs, expectedIPs) {
+		log.DiscoveryLogf("  ✓ DNS: system IPs in same subnet as reference (CDN variance, not poisoned)")
+		result.ExpectedIPs = uniqueIPs(expectedIPs, systemIPs)
+		return result
 	}
 
-	for _, sysIP := range systemIPs {
-		if expectedSet[sysIP] {
-			isPoisoned = false
-			matchedIP = sysIP
-			break
-		}
-	}
-
-	if isPoisoned && len(systemIPs) > 0 {
-		valCtx, valCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer valCancel()
-		for _, sysIP := range systemIPs {
-			if p.testIPServesDomain(valCtx, sysIP) {
-				log.Tracef("DNS: system IP %s serves %s (CDN variance, not poisoned)", sysIP, p.domain)
-				isPoisoned = false
-				matchedIP = sysIP
-				break
-			}
-		}
-	}
+	result.IsPoisoned = true
+	result.ExpectedIPs = uniqueIPs(expectedIPs, systemIPs)
+	log.DiscoveryLogf("  ✗ DNS poisoned: system IPs %v don't serve %s and differ from reference %v", systemIPs, p.domain, expectedIPs)
 
 	sysResult := DNSProbeResult{
 		Server:     "",
-		Fragmented: false,
 		ExpectedIP: expectedIPs[0],
-		ResolvedIP: "",
-		Works:      !isPoisoned,
-		IsPoisoned: isPoisoned,
+		IsPoisoned: true,
 	}
 	if len(systemIPs) > 0 {
 		sysResult.ResolvedIP = systemIPs[0]
 	}
-
 	result.ProbeResults = append(result.ProbeResults, sysResult)
 
-	if isPoisoned {
-		result.IsPoisoned = true
-		log.DiscoveryLogf("  ✗ DNS poisoned: system IPs %v don't match reference %v", systemIPs, expectedIPs)
-	}
+	// Step 6: Try DNS bypass strategies.
+	p.findDNSBypass(ctx, result, expectedIPs[0])
+	return result
+}
 
-	for _, ip := range systemIPs {
-		if !expectedSet[ip] {
-			expectedIPs = append(expectedIPs, ip)
-		}
-	}
-	result.ExpectedIPs = expectedIPs
-
-	if !result.IsPoisoned {
-		log.DiscoveryLogf("  ✓ DNS: system resolver OK (matched %s)", matchedIP)
-	}
-
-	if !result.IsPoisoned {
-		return result
-	}
-
-	expectedIP := expectedIPs[0]
-	fragResult := p.testDNSWithFragment("", expectedIP)
+// findDNSBypass tries fragmentation and alternative DNS servers to bypass poisoning.
+func (p *DNSProber) findDNSBypass(ctx context.Context, result *DNSDiscoveryResult, expectedIP string) {
+	// Try fragmented query on system resolver first.
+	fragResult := p.testDNSWithFragment(ctx, "", expectedIP)
 	result.ProbeResults = append(result.ProbeResults, fragResult)
-
 	if fragResult.Works {
 		result.NeedsFragment = true
-		log.DiscoveryLogf("DNS Discovery: fragmented query works for %s", p.domain)
-		return result
+		log.DiscoveryLogf("  DNS: fragmented query bypass works for %s", p.domain)
+		return
 	}
 
+	// Try alternative DNS servers (plain and fragmented).
 	for _, server := range p.cfg.System.Checker.ReferenceDNS {
 		plainResult := p.testDNS(ctx, server, false, expectedIP)
 		result.ProbeResults = append(result.ProbeResults, plainResult)
-
 		if plainResult.Works {
 			result.BestServer = server
-			result.NeedsFragment = false
-			log.DiscoveryLogf("DNS Discovery: %s works with DNS %s", p.domain, server)
-			return result
+			log.DiscoveryLogf("  DNS: %s works with DNS %s", p.domain, server)
+			return
 		}
 
-		fragAltResult := p.testDNSWithFragment(server, expectedIP)
+		fragAltResult := p.testDNSWithFragment(ctx, server, expectedIP)
 		result.ProbeResults = append(result.ProbeResults, fragAltResult)
-
 		if fragAltResult.Works {
 			result.BestServer = server
 			result.NeedsFragment = true
-			log.DiscoveryLogf("DNS Discovery: %s works with fragmented DNS to %s", p.domain, server)
-			return result
+			log.DiscoveryLogf("  DNS: %s works with fragmented DNS to %s", p.domain, server)
+			return
 		}
 	}
 
-	log.DiscoveryLogf("DNS Discovery: no working DNS config found for %s", p.domain)
+	log.DiscoveryLogf("  DNS: no working DNS config found for %s", p.domain)
+}
+
+// sameSubnet checks if any system IP shares a /24 (IPv4) or /48 (IPv6) subnet
+// with any reference IP. Same-subnet IPs are CDN edge variance, not DNS poisoning.
+func sameSubnet(systemIPs, referenceIPs []string) bool {
+	refSubnets := make(map[string]bool)
+	for _, ipStr := range referenceIPs {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		if v4 := ip.To4(); v4 != nil {
+			refSubnets[fmt.Sprintf("%d.%d.%d", v4[0], v4[1], v4[2])] = true
+		} else if len(ip) == net.IPv6len {
+			refSubnets[fmt.Sprintf("%x%x%x", ip[0:2], ip[2:4], ip[4:6])] = true
+		}
+	}
+
+	for _, ipStr := range systemIPs {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		var key string
+		if v4 := ip.To4(); v4 != nil {
+			key = fmt.Sprintf("%d.%d.%d", v4[0], v4[1], v4[2])
+		} else if len(ip) == net.IPv6len {
+			key = fmt.Sprintf("%x%x%x", ip[0:2], ip[2:4], ip[4:6])
+		}
+		if key != "" && refSubnets[key] {
+			return true
+		}
+	}
+	return false
+}
+
+// uniqueIPs merges two IP lists, deduplicating entries.
+func uniqueIPs(primary, secondary []string) []string {
+	seen := make(map[string]bool, len(primary))
+	result := make([]string, 0, len(primary)+len(secondary))
+	for _, ip := range primary {
+		if !seen[ip] {
+			seen[ip] = true
+			result = append(result, ip)
+		}
+	}
+	for _, ip := range secondary {
+		if !seen[ip] {
+			seen[ip] = true
+			result = append(result, ip)
+		}
+	}
 	return result
 }
 
@@ -272,35 +306,23 @@ func (p *DNSProber) getSystemResolverIPs(ctx context.Context) []string {
 		network = "ip6"
 	}
 
-	seenIPs := make(map[string]bool)
+	ips, err := net.DefaultResolver.LookupIP(ctx, network, p.domain)
+	if err != nil {
+		log.DiscoveryLogf("  DNS: system resolver error: %v", err)
+		return nil
+	}
+	if len(ips) == 0 {
+		log.DiscoveryLogf("  DNS: system resolver returned no IPs")
+		return nil
+	}
+
+	seen := make(map[string]bool)
 	var result []string
-
-	for i := 0; i < 3; i++ {
-		if ctx.Err() != nil {
-			log.DiscoveryLogf("  DNS: context expired, stopping system resolver retries")
-			break
-		}
-		if i > 0 {
-			log.DiscoveryLogf("  DNS: retrying system resolver for %s (attempt %d)", p.domain, i+1)
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		ips, err := net.DefaultResolver.LookupIP(ctx, network, p.domain)
-		if err != nil {
-			log.DiscoveryLogf("  DNS FAILED: system resolver error: %v", err)
-			continue
-		}
-		if len(ips) == 0 {
-			log.DiscoveryLogf("  DNS FAILED: system resolver returned empty (no error)")
-			continue
-		}
-
-		for _, ip := range ips {
-			ipStr := ip.String()
-			if !seenIPs[ipStr] {
-				seenIPs[ipStr] = true
-				result = append(result, ipStr)
-			}
+	for _, ip := range ips {
+		s := ip.String()
+		if !seen[s] {
+			seen[s] = true
+			result = append(result, s)
 		}
 	}
 
@@ -452,15 +474,27 @@ func (p *DNSProber) testDNS(ctx context.Context, server string, fragmented bool,
 
 	result.ResolvedIP = ips[0].String()
 
-	if expectedIP != "" {
-		result.IsPoisoned = result.ResolvedIP != expectedIP
-		result.Works = !result.IsPoisoned
+	if expectedIP != "" && result.ResolvedIP == expectedIP {
+		result.Works = true
 	} else {
 		result.Works = p.testIPServesDomain(ctx, result.ResolvedIP)
-		result.IsPoisoned = !result.Works
 	}
+	result.IsPoisoned = !result.Works
 
 	return result
+}
+
+// findValidIP returns the first IP from the list that serves the domain (TLS handshake),
+// or empty string if none work.
+func (p *DNSProber) findValidIP(ctx context.Context, ips []string) string {
+	valCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	for _, ip := range ips {
+		if p.testIPServesDomain(valCtx, ip) {
+			return ip
+		}
+	}
+	return ""
 }
 
 func (p *DNSProber) testIPServesDomain(ctx context.Context, ip string) bool {
@@ -484,7 +518,7 @@ func (p *DNSProber) testIPServesDomain(ctx context.Context, ip string) bool {
 	return true
 }
 
-func (p *DNSProber) testDNSWithFragment(server string, expectedIP string) DNSProbeResult {
+func (p *DNSProber) testDNSWithFragment(ctx context.Context, server string, expectedIP string) DNSProbeResult {
 	result := DNSProbeResult{
 		Server:     server,
 		Fragmented: true,
@@ -500,17 +534,21 @@ func (p *DNSProber) testDNSWithFragment(server string, expectedIP string) DNSPro
 
 	time.Sleep(time.Duration(p.cfg.System.Checker.ConfigPropagateMs) * time.Millisecond)
 
+	// Use a timeout so we don't hang if fragmented DNS gets no response
+	lookupCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	// Now DNS queries should be fragmented via NFQ
 	start := time.Now()
-	ips, err := net.LookupIP(p.domain)
+	ips, err := net.DefaultResolver.LookupIPAddr(lookupCtx, p.domain)
 	result.Latency = time.Since(start)
 
 	if err != nil || len(ips) == 0 {
 		return result
 	}
 
-	result.ResolvedIP = ips[0].String()
-	result.Works = p.testIPServesDomain(context.Background(), result.ResolvedIP)
+	result.ResolvedIP = ips[0].IP.String()
+	result.Works = p.testIPServesDomain(ctx, result.ResolvedIP)
 	result.IsPoisoned = !result.Works
 
 	return result

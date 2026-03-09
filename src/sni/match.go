@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"net"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -282,6 +283,12 @@ func (s *SuffixSet) MatchIP(ip net.IP) (bool, *config.SetConfig) {
 	if err != nil || len(entries) == 0 {
 		s.cacheIPResult(ipStr, false, nil)
 		return false, nil
+	}
+
+	// Sort by prefix length descending so most specific match wins
+	// (e.g., /32 beats /16 when IP falls in both ranges)
+	if len(entries) > 1 {
+		sortEntriesBySpecificity(entries)
 	}
 
 	matchedEntry := entries[0].(*ipRange)
@@ -623,12 +630,27 @@ func (s *SuffixSet) MatchIPWithSource(ip net.IP, srcMAC string) (bool, *config.S
 		return false, nil
 	}
 
+	// Sort by prefix length descending so most specific match wins
+	sortEntriesBySpecificity(entries)
+
 	var candidates []*config.SetConfig
 	for _, e := range entries {
 		candidates = append(candidates, e.(*ipRange).set)
 	}
 
 	return selectSetBySource(candidates, srcMAC)
+}
+
+// sortEntriesBySpecificity sorts CIDR entries by prefix length descending,
+// so more specific matches (e.g., /32) come before broader ones (e.g., /16).
+func sortEntriesBySpecificity(entries []cidranger.RangerEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		ni := entries[i].Network()
+		nj := entries[j].Network()
+		onesI, _ := ni.Mask.Size()
+		onesJ, _ := nj.Mask.Size()
+		return onesI > onesJ
+	})
 }
 
 func (s *SuffixSet) MatchLearnedIPWithSource(ip net.IP, srcMAC string) (bool, *config.SetConfig, string) {

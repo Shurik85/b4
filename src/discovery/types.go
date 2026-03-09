@@ -136,11 +136,12 @@ type DNSProbeResult struct {
 }
 
 type DNSDiscoveryResult struct {
-	IsPoisoned    bool             `json:"is_poisoned"`
-	ExpectedIPs   []string         `json:"expected_ips,omitempty"`
-	BestServer    string           `json:"best_server,omitempty"`
-	NeedsFragment bool             `json:"needs_fragment"`
-	ProbeResults  []DNSProbeResult `json:"probe_results,omitempty"`
+	IsPoisoned       bool             `json:"is_poisoned"`
+	TransportBlocked bool             `json:"transport_blocked,omitempty"`
+	ExpectedIPs      []string         `json:"expected_ips,omitempty"`
+	BestServer       string           `json:"best_server,omitempty"`
+	NeedsFragment    bool             `json:"needs_fragment"`
+	ProbeResults     []DNSProbeResult `json:"probe_results,omitempty"`
 }
 
 type PayloadTestResult struct {

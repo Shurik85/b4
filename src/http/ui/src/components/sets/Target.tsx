@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Grid,
   Box,
@@ -43,7 +43,9 @@ import {
   B4TooltipButton,
 } from "@b4.elements";
 import SettingAutocomplete from "@common/B4Autocomplete";
-import { B4SetConfig, GeoConfig } from "@models/config";
+import { B4SetConfig, GeoConfig, TargetsConfig } from "@models/config";
+
+export type OtherSetsTargets = Map<string, string[]>;
 import { useDevices } from "@b4.devices";
 import { colors } from "@design";
 import { SetStats } from "./Manager";
@@ -53,6 +55,7 @@ interface TargetSettingsProps {
   config: B4SetConfig;
   geo: GeoConfig;
   stats?: SetStats;
+  otherSetsTargets?: OtherSetsTargets;
   onChange: (field: string, value: string | string[]) => void;
 }
 
@@ -89,6 +92,7 @@ export const TargetSettings = ({
   onChange,
   geo,
   stats,
+  otherSetsTargets,
 }: TargetSettingsProps) => {
   const [tabValue, setTabValue] = useState(0);
   const {
@@ -98,7 +102,9 @@ export const TargetSettings = ({
     loadDevices,
   } = useDevices();
   const [newBypassDomain, setNewBypassDomain] = useState("");
+  const [domainDuplicateWarning, setDomainDuplicateWarning] = useState("");
   const [newBypassIP, setNewBypassIP] = useState("");
+  const [ipDuplicateWarning, setIpDuplicateWarning] = useState("");
   const [newBypassCategory, setNewBypassCategory] = useState("");
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -118,10 +124,10 @@ export const TargetSettings = ({
 
   useEffect(() => {
     if (geo.sitedat_path) {
-      void loadAvailableSiteCategories();
+      void loadCategories("/api/geosite", setAvailableCategories, setLoadingCategories);
     }
     if (geo.ipdat_path) {
-      void loadAvailableGeoIPCategories();
+      void loadCategories("/api/geoip", setAvailableGeoIPCategories, setLoadingGeoIPCategories);
     }
   }, [geo.sitedat_path, geo.ipdat_path]);
 
@@ -129,34 +135,92 @@ export const TargetSettings = ({
     loadDevices().catch(() => {});
   }, [loadDevices]);
 
-  const loadAvailableSiteCategories = async () => {
-    setLoadingCategories(true);
+  const loadCategories = async (
+    endpoint: string,
+    setItems: (items: string[]) => void,
+    setLoading: (loading: boolean) => void,
+  ) => {
+    setLoading(true);
     try {
-      const response = await fetch("/api/geosite");
+      const response = await fetch(endpoint);
       if (response.ok) {
         const data = (await response.json()) as { tags: string[] };
-        setAvailableCategories(data.tags || []);
+        setItems(data.tags || []);
       }
     } catch (error) {
-      console.error("Failed to load geosite categories:", error);
+      console.error(`Failed to load categories from ${endpoint}:`, error);
     } finally {
-      setLoadingCategories(false);
+      setLoading(false);
     }
   };
 
-  const loadAvailableGeoIPCategories = async () => {
-    setLoadingGeoIPCategories(true);
-    try {
-      const response = await fetch("/api/geoip");
-      if (response.ok) {
-        const data = (await response.json()) as { tags: string[] };
-        setAvailableGeoIPCategories(data.tags || []);
-      }
-    } catch (error) {
-      console.error("Failed to load geoip categories:", error);
-    } finally {
-      setLoadingGeoIPCategories(false);
+  const domainCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ipCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const checkDomainBackend = useCallback(
+    (domain: string) => {
+      fetch(
+        `/api/sets/check-domain?domain=${encodeURIComponent(domain)}&exclude=${encodeURIComponent(config.id)}`,
+      )
+        .then((res) => res.json())
+        .then((matches: { set_name: string; via: string }[]) => {
+          if (matches.length > 0) {
+            const msg = matches
+              .map((m) => `"${domain}" is in ${m.set_name} (${m.via})`)
+              .join("; ");
+            setDomainDuplicateWarning(msg);
+          } else {
+            setDomainDuplicateWarning("");
+          }
+        })
+        .catch(() => {});
+    },
+    [config.id],
+  );
+
+  const checkDomainDuplicates = (input: string) => {
+    if (!input.trim()) {
+      setDomainDuplicateWarning("");
+      clearTimeout(domainCheckTimer.current);
+      return;
     }
+    const domains = input.split(/[\s,|]+/).filter(Boolean);
+    // Instant client-side check against manual domains in other sets
+    if (otherSetsTargets) {
+      const found: string[] = [];
+      for (const raw of domains) {
+        const sets = otherSetsTargets.get(raw.trim().toLowerCase());
+        if (sets) found.push(`"${raw.trim()}" is in ${sets.join(", ")}`);
+      }
+      if (found.length > 0) {
+        setDomainDuplicateWarning(found.join("; "));
+      } else {
+        setDomainDuplicateWarning("");
+      }
+    }
+    // Always run debounced backend check (catches geosite matches too)
+    clearTimeout(domainCheckTimer.current);
+    if (domains.length === 1) {
+      domainCheckTimer.current = setTimeout(
+        () => checkDomainBackend(domains[0].trim()),
+        400,
+      );
+    }
+  };
+
+  const checkIpDuplicates = (input: string) => {
+    if (!otherSetsTargets || !input.trim()) {
+      setIpDuplicateWarning("");
+      clearTimeout(ipCheckTimer.current);
+      return;
+    }
+    const ips = input.split(/[\s,|]+/).filter(Boolean);
+    const found: string[] = [];
+    for (const raw of ips) {
+      const sets = otherSetsTargets.get(raw.trim());
+      if (sets) found.push(`"${raw.trim()}" is in ${sets.join(", ")}`);
+    }
+    setIpDuplicateWarning(found.join("; "));
   };
 
   const handleAddBypassDomain = () => {
@@ -177,6 +241,7 @@ export const TargetSettings = ({
 
     onChange("targets.sni_domains", next);
     setNewBypassDomain("");
+    setDomainDuplicateWarning("");
   };
 
   const handleAddBypassIP = () => {
@@ -197,17 +262,16 @@ export const TargetSettings = ({
 
     onChange("targets.ip", next);
     setNewBypassIP("");
+    setIpDuplicateWarning("");
   };
 
-  const handleClearAllBypassIPs = () => {
-    onChange("targets.ip", []);
+  const handleClearAll = (field: string) => {
+    onChange(field, []);
   };
 
-  const handleRemoveBypassIP = (ip: string) => {
-    onChange(
-      "targets.ip",
-      config.targets.ip.filter((d) => d !== ip),
-    );
+  const handleRemove = (field: keyof TargetsConfig, value: string) => {
+    const items = config.targets[field] ?? [];
+    onChange(`targets.${String(field)}`, items.filter((item) => item !== value));
   };
 
   const handleAddBypassGeoIPCategory = (category: string) => {
@@ -220,20 +284,6 @@ export const TargetSettings = ({
     }
   };
 
-  const handleRemoveBypassGeoIPCategory = (category: string) => {
-    onChange(
-      "targets.geoip_categories",
-      config.targets.geoip_categories.filter((c) => c !== category),
-    );
-  };
-
-  const handleRemoveBypassDomain = (domain: string) => {
-    onChange(
-      "targets.sni_domains",
-      config.targets.sni_domains.filter((d) => d !== domain),
-    );
-  };
-
   const handleAddBypassCategory = (category: string) => {
     if (category && !config.targets.geosite_categories.includes(category)) {
       onChange("targets.geosite_categories", [
@@ -242,13 +292,6 @@ export const TargetSettings = ({
       ]);
       setNewBypassCategory("");
     }
-  };
-
-  const handleRemoveBypassCategory = (category: string) => {
-    onChange(
-      "targets.geosite_categories",
-      config.targets.geosite_categories.filter((c) => c !== category),
-    );
   };
 
   const previewCategory = async (category: string) => {
@@ -367,7 +410,10 @@ export const TargetSettings = ({
                     <B4TextField
                       label="Add Bypass Domain"
                       value={newBypassDomain}
-                      onChange={(e) => setNewBypassDomain(e.target.value)}
+                      onChange={(e) => {
+                        setNewBypassDomain(e.target.value);
+                        checkDomainDuplicates(e.target.value);
+                      }}
                       onKeyDown={(e) => {
                         if (
                           e.key === "Enter" ||
@@ -386,13 +432,38 @@ export const TargetSettings = ({
                       disabled={!newBypassDomain.trim()}
                     />
                   </Box>
+                  {domainDuplicateWarning && (
+                    <B4Alert severity="warning" sx={{ mt: 1 }}>
+                      Already exists in other sets: {domainDuplicateWarning}
+                    </B4Alert>
+                  )}
                   <Box sx={{ mt: 2 }}>
+                    {config.targets.sni_domains.length > 0 && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="subtitle2">
+                          Active manually added domains
+                        </Typography>
+                        <Button
+                          size="small"
+                          onClick={() => handleClearAll("targets.sni_domains")}
+                          startIcon={<ClearIcon />}
+                        >
+                          Clear All
+                        </Button>
+                      </Box>
+                    )}
                     <B4ChipList
                       items={config.targets.sni_domains}
                       getKey={(d) => d}
                       getLabel={(d) => d}
-                      onDelete={handleRemoveBypassDomain}
-                      title="Active manually added domains"
+                      onDelete={(d) => handleRemove("sni_domains", d)}
                       emptyMessage="No bypass domains added"
                       showEmpty
                     />
@@ -431,8 +502,28 @@ export const TargetSettings = ({
                     />
 
                     <Box sx={{ mt: 2 }}>
+                      {config.targets.geosite_categories.length > 0 && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography variant="subtitle2">
+                            Active Bypass Categories
+                          </Typography>
+                          <Button
+                            size="small"
+                            onClick={() => handleClearAll("targets.geosite_categories")}
+                            startIcon={<ClearIcon />}
+                          >
+                            Clear All
+                          </Button>
+                        </Box>
+                      )}
                       <B4ChipList
-                        title="Active Bypass Categories"
                         items={config.targets.geosite_categories}
                         getKey={(c) => c}
                         getLabel={(c) =>
@@ -441,7 +532,7 @@ export const TargetSettings = ({
                             stats?.geosite_category_breakdown,
                           )
                         }
-                        onDelete={handleRemoveBypassCategory}
+                        onDelete={(c) => handleRemove("geosite_categories", c)}
                         onClick={(c) => void previewCategory(c)}
                       />
                     </Box>
@@ -471,7 +562,7 @@ export const TargetSettings = ({
                       mb: 2,
                     }}
                   >
-                    <DomainIcon /> Manual Bypass IPs
+                    <IpIcon /> Manual Bypass IPs
                     <Tooltip title="Add specific ip/cidr to bypass DPI.">
                       <InfoIcon fontSize="small" color="action" />
                     </Tooltip>
@@ -482,7 +573,10 @@ export const TargetSettings = ({
                     <B4TextField
                       label="Add Bypass IP/CIDR"
                       value={newBypassIP}
-                      onChange={(e) => setNewBypassIP(e.target.value)}
+                      onChange={(e) => {
+                        setNewBypassIP(e.target.value);
+                        checkIpDuplicates(e.target.value);
+                      }}
                       onKeyDown={(e) => {
                         if (
                           e.key === "Enter" ||
@@ -501,33 +595,38 @@ export const TargetSettings = ({
                       disabled={!newBypassIP}
                     />
                   </Box>
+                  {ipDuplicateWarning && (
+                    <B4Alert severity="warning" sx={{ mt: 1 }}>
+                      Already exists in other sets: {ipDuplicateWarning}
+                    </B4Alert>
+                  )}
                   <Box sx={{ mt: 2 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle2">
-                        Active manually added IPs ({config.targets.ip.length})
-                      </Typography>
-                      {config.targets.ip.length > 0 && (
+                    {config.targets.ip.length > 0 && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="subtitle2">
+                          Active manually added IPs
+                        </Typography>
                         <Button
                           size="small"
-                          onClick={handleClearAllBypassIPs}
+                          onClick={() => handleClearAll("targets.ip")}
                           startIcon={<ClearIcon />}
                         >
                           Clear All
                         </Button>
-                      )}
-                    </Box>
+                      </Box>
+                    )}
                     <B4ChipList
                       items={config.targets.ip}
                       getKey={(ip) => ip}
                       getLabel={(ip) => ip}
-                      onDelete={handleRemoveBypassIP}
+                      onDelete={(ip) => handleRemove("ip", ip)}
                       emptyMessage="No bypass ip added"
                       showEmpty
                       maxHeight={200}
@@ -567,6 +666,27 @@ export const TargetSettings = ({
                     />
 
                     <Box sx={{ mt: 2 }}>
+                      {config.targets.geoip_categories.length > 0 && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography variant="subtitle2">
+                            Active Bypass GeoIP Categories
+                          </Typography>
+                          <Button
+                            size="small"
+                            onClick={() => handleClearAll("targets.geoip_categories")}
+                            startIcon={<ClearIcon />}
+                          >
+                            Clear All
+                          </Button>
+                        </Box>
+                      )}
                       <B4ChipList
                         items={config.targets.geoip_categories}
                         getKey={(c) => c}
@@ -576,8 +696,7 @@ export const TargetSettings = ({
                             stats?.geoip_category_breakdown,
                           )
                         }
-                        onDelete={handleRemoveBypassGeoIPCategory}
-                        title="Active Bypass GeoIP Categories"
+                        onDelete={(c) => handleRemove("geoip_categories", c)}
                       />
                     </Box>
                   </Box>
@@ -754,7 +873,7 @@ export const TargetSettings = ({
                     <Box sx={{ mt: 2 }}>
                       <Button
                         size="small"
-                        onClick={() => onChange("targets.source_devices", [])}
+                        onClick={() => handleClearAll("targets.source_devices")}
                         startIcon={<ClearIcon />}
                       >
                         Clear All

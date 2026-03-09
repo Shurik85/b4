@@ -1,5 +1,13 @@
-import { useState, useCallback } from "react";
-import { Box, Button, Stack, Typography, CircularProgress } from "@mui/material";
+import { useState, useCallback, useEffect } from "react";
+import {
+  Box,
+  Button,
+  Stack,
+  Typography,
+  CircularProgress,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
 import { motion, AnimatePresence } from "motion/react";
 import {
   StartIcon,
@@ -11,11 +19,17 @@ import {
   NetworkIcon,
   SniIcon,
   WarningIcon,
+  HistoryIcon,
+  DeleteIcon,
+  ClearIcon,
+  ExpandIcon,
+  CollapseIcon,
 } from "@b4.icons";
-import { colors } from "@design";
-import { B4Alert, B4Section } from "@b4.elements";
+import { colors, spacing } from "@design";
+import { B4Alert, B4Section, B4Badge } from "@b4.elements";
+import { B4Card } from "@common/B4Card";
 import { useDetector } from "@hooks/useDetector";
-import type { DetectorTestType } from "@models/detector";
+import type { DetectorTestType, DetectorHistoryEntry } from "@models/detector";
 
 import { TestSelectionGrid } from "./TestSelectionGrid";
 import { ProgressGauge } from "./ProgressGauge";
@@ -25,6 +39,71 @@ import { DNSResults } from "./results/DNSResults";
 import { DomainsResults } from "./results/DomainsResults";
 import { TCPResults } from "./results/TCPResults";
 import { SNIResults } from "./results/SNIResults";
+import { testNames, statusColors } from "./constants";
+
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function getStatusLabel(status: string): string {
+  if (status === "complete") return "Complete";
+  if (status === "canceled") return "Canceled";
+  return "Failed";
+}
+
+function getHistoryStatusColor(entry: DetectorHistoryEntry): string {
+  if (entry.status === "canceled") return statusColors.warning;
+  if (entry.status === "failed") return statusColors.error;
+
+  const hasIssues =
+    (entry.dns_result &&
+      (entry.dns_result.spoof_count > 0 ||
+        entry.dns_result.intercept_count > 0)) ||
+    (entry.domains_result && entry.domains_result.blocked_count > 0) ||
+    (entry.tcp_result && entry.tcp_result.detected_count > 0);
+
+  return hasIssues ? statusColors.error : statusColors.ok;
+}
+
+function getHistorySummary(entry: DetectorHistoryEntry): string {
+  const parts: string[] = [];
+
+  if (entry.dns_result) {
+    const bad =
+      entry.dns_result.spoof_count + entry.dns_result.intercept_count;
+    parts.push(bad > 0 ? `DNS: ${bad} issues` : "DNS: OK");
+  }
+  if (entry.domains_result) {
+    parts.push(
+      entry.domains_result.blocked_count > 0
+        ? `Domains: ${entry.domains_result.blocked_count} blocked`
+        : "Domains: OK",
+    );
+  }
+  if (entry.tcp_result) {
+    parts.push(
+      entry.tcp_result.detected_count > 0
+        ? `TSPU: ${entry.tcp_result.detected_count} detected`
+        : "TSPU: Clean",
+    );
+  }
+  if (entry.sni_result) {
+    parts.push(
+      entry.sni_result.found_count > 0
+        ? `SNI: ${entry.sni_result.found_count} found`
+        : "SNI: None",
+    );
+  }
+
+  return parts.join(" / ");
+}
 
 export const DetectorRunner = () => {
   const {
@@ -32,19 +111,38 @@ export const DetectorRunner = () => {
     suiteId,
     suite,
     error,
+    history,
     startDetector,
     cancelDetector,
     resetDetector,
+    clearHistory,
+    deleteHistoryEntry,
   } = useDetector();
 
-  const [selectedTests, setSelectedTests] = useState<
-    Record<DetectorTestType, boolean>
-  >({
+  const defaultTests: Record<DetectorTestType, boolean> = {
     dns: true,
     domains: true,
     tcp: true,
     sni: false,
+  };
+
+  const [selectedTests, setSelectedTests] = useState<
+    Record<DetectorTestType, boolean>
+  >(() => {
+    try {
+      const saved = localStorage.getItem("detector_selectedTests");
+      if (saved) return { ...defaultTests, ...JSON.parse(saved) };
+    } catch { /* ignore */ }
+    return defaultTests;
   });
+
+  useEffect(() => {
+    localStorage.setItem("detector_selectedTests", JSON.stringify(selectedTests));
+  }, [selectedTests]);
+
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(
+    null,
+  );
 
   const isReconnecting = suiteId && running && !suite;
 
@@ -276,6 +374,252 @@ export const DetectorRunner = () => {
               <SNIResults results={suite.sni_result.asn_results} />
             )}
         </ResultSection>
+      )}
+
+      {/* Detection History */}
+      {history.length > 0 && (
+        <B4Section
+          title="Previous Results"
+          description={`${history.length} detection${history.length === 1 ? "" : "s"} saved`}
+          icon={<HistoryIcon />}
+        >
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+            <Button
+              size="small"
+              startIcon={<ClearIcon />}
+              onClick={() => void clearHistory()}
+              sx={{ color: colors.text.secondary }}
+            >
+              Clear History
+            </Button>
+          </Box>
+          <Stack spacing={1}>
+            {history.map((entry) => {
+              const isExpanded = expandedHistoryId === entry.id;
+              const color = getHistoryStatusColor(entry);
+              const summaryText = getHistorySummary(entry);
+
+              return (
+                <motion.div
+                  key={entry.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <B4Card
+                    variant="outlined"
+                    sx={{
+                      borderLeft: `3px solid ${color}`,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Header */}
+                    <Box
+                      sx={{
+                        p: spacing.md,
+                        cursor: "pointer",
+                        "&:hover": { bgcolor: `${colors.text.primary}08` },
+                      }}
+                      onClick={() =>
+                        setExpandedHistoryId(isExpanded ? null : entry.id)
+                      }
+                    >
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={1.5}
+                          sx={{ flex: 1, minWidth: 0 }}
+                        >
+                          {isExpanded ? (
+                            <CollapseIcon
+                              sx={{
+                                fontSize: 20,
+                                color: colors.text.secondary,
+                              }}
+                            />
+                          ) : (
+                            <ExpandIcon
+                              sx={{
+                                fontSize: 20,
+                                color: colors.text.secondary,
+                              }}
+                            />
+                          )}
+                          <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              spacing={1}
+                            >
+                              <B4Badge
+                                label={getStatusLabel(entry.status)}
+                                sx={{
+                                  bgcolor: `${color}22`,
+                                  color,
+                                  fontWeight: 600,
+                                  fontSize: "0.7rem",
+                                }}
+                                size="small"
+                              />
+                              {entry.tests.map((t) => (
+                                <B4Badge
+                                  key={t}
+                                  label={testNames[t]}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: `${colors.text.primary}11`,
+                                    color: colors.text.secondary,
+                                    fontSize: "0.65rem",
+                                  }}
+                                />
+                              ))}
+                            </Stack>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: colors.text.secondary,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {summaryText}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={1}
+                        >
+                          <Typography
+                            variant="caption"
+                            sx={{ color: colors.text.secondary }}
+                          >
+                            {formatTimeAgo(entry.end_time)}
+                          </Typography>
+                          <Tooltip title="Remove from history">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void deleteHistoryEntry(entry.id);
+                              }}
+                              sx={{ color: colors.text.secondary }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </Stack>
+                    </Box>
+
+                    {/* Expanded details */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25 }}
+                          style={{ overflow: "hidden" }}
+                        >
+                          <Stack
+                            spacing={2}
+                            sx={{
+                              px: spacing.md,
+                              pb: spacing.md,
+                              borderTop: `1px solid ${colors.text.primary}11`,
+                              pt: spacing.md,
+                            }}
+                          >
+                            {/* DNS */}
+                            {entry.dns_result && (
+                              <ResultSection
+                                title="DNS Integrity Check"
+                                icon={<DnsIcon />}
+                                summary={entry.dns_result.summary}
+                                ok={entry.dns_result.status === "OK"}
+                              >
+                                {entry.dns_result.domains &&
+                                  entry.dns_result.domains.length > 0 && (
+                                    <DNSResults
+                                      domains={entry.dns_result.domains}
+                                    />
+                                  )}
+                              </ResultSection>
+                            )}
+
+                            {/* Domains */}
+                            {entry.domains_result && (
+                              <ResultSection
+                                title="Domain Accessibility"
+                                icon={<DomainIcon />}
+                                summary={entry.domains_result.summary}
+                                ok={
+                                  entry.domains_result.blocked_count === 0
+                                }
+                              >
+                                {entry.domains_result.domains &&
+                                  entry.domains_result.domains.length > 0 && (
+                                    <DomainsResults
+                                      domains={entry.domains_result.domains}
+                                    />
+                                  )}
+                              </ResultSection>
+                            )}
+
+                            {/* TCP */}
+                            {entry.tcp_result && (
+                              <ResultSection
+                                title="TCP Fat Probe Test"
+                                icon={<NetworkIcon />}
+                                summary={entry.tcp_result.summary}
+                                ok={entry.tcp_result.detected_count === 0}
+                              >
+                                {entry.tcp_result.targets &&
+                                  entry.tcp_result.targets.length > 0 && (
+                                    <TCPResults
+                                      targets={entry.tcp_result.targets}
+                                    />
+                                  )}
+                              </ResultSection>
+                            )}
+
+                            {/* SNI */}
+                            {entry.sni_result && (
+                              <ResultSection
+                                title="SNI Whitelist Brute-Force"
+                                icon={<SniIcon />}
+                                summary={entry.sni_result.summary}
+                                ok={
+                                  entry.sni_result.tested_count === 0 ||
+                                  entry.sni_result.found_count > 0
+                                }
+                              >
+                                {entry.sni_result.asn_results &&
+                                  entry.sni_result.asn_results.length > 0 && (
+                                    <SNIResults
+                                      results={entry.sni_result.asn_results}
+                                    />
+                                  )}
+                              </ResultSection>
+                            )}
+                          </Stack>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </B4Card>
+                </motion.div>
+              );
+            })}
+          </Stack>
+        </B4Section>
       )}
     </Stack>
   );

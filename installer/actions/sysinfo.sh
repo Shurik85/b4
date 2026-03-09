@@ -21,6 +21,26 @@ action_sysinfo() {
     fi
     [ -n "$cpu_cores" ] && log_detail "CPU cores" "$cpu_cores"
 
+    # MIPS-specific diagnostics
+    _raw_arch=$(uname -m)
+    case "$_raw_arch" in
+    mips*)
+        if [ -f /proc/cpuinfo ]; then
+            _cpu_model=$(grep -i "cpu model" /proc/cpuinfo 2>/dev/null | head -1 | sed 's/.*: *//')
+            [ -n "$_cpu_model" ] && log_detail "CPU model" "$_cpu_model"
+            if grep -qi "nofpu\|no fpu" /proc/cpuinfo 2>/dev/null; then
+                log_detail "FPU" "${YELLOW}not available (softfloat needed)${NC}"
+            elif grep -qi "FPU" /proc/cpuinfo 2>/dev/null; then
+                log_detail "FPU" "${GREEN}available${NC}"
+            fi
+        fi
+        if command_exists opkg; then
+            _opkg_arch=$(opkg print-architecture 2>/dev/null | grep -i "mips" | head -1 | awk '{print $2}')
+            [ -n "$_opkg_arch" ] && log_detail "opkg arch" "$_opkg_arch"
+        fi
+        ;;
+    esac
+
     # Memory
     if [ -f /proc/meminfo ]; then
         mem_total=$(awk '/^MemTotal:/ {printf "%.0f", $2/1024}' /proc/meminfo 2>/dev/null)

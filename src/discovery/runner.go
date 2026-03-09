@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/daniellavrushin/b4/log"
 	"github.com/google/uuid"
 )
 
@@ -12,6 +13,35 @@ var (
 	activeSuites = make(map[string]*CheckSuite)
 	suitesMu     sync.RWMutex
 )
+
+// GetCurrentSuite returns the first running/pending suite, if any.
+func GetCurrentSuite() (*CheckSuite, bool) {
+	suitesMu.RLock()
+	defer suitesMu.RUnlock()
+
+	for _, suite := range activeSuites {
+		if suite.Status == CheckStatusRunning || suite.Status == CheckStatusPending {
+			return suite, true
+		}
+	}
+	return nil, false
+}
+
+// GetHistory loads and returns discovery history from disk.
+func GetHistory(configPath string) *DiscoveryHistory {
+	return LoadDiscoveryHistory(configPath)
+}
+
+// SaveToHistory persists the suite results to history file.
+func SaveToHistory(suite *CheckSuite, configPath string) {
+	history := LoadDiscoveryHistory(configPath)
+	history.AddFromSuite(suite)
+	if err := history.Save(configPath); err != nil {
+		log.Errorf("Failed to save discovery history: %v", err)
+	} else {
+		log.Tracef("Saved discovery results to history")
+	}
+}
 
 func NewCheckSuite(domainInputs []DomainInput) *CheckSuite {
 	if len(domainInputs) == 0 {
