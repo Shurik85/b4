@@ -12,6 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { OtherSetsTargets } from "./Target";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router";
 import { SetEditorPage } from "./Editor";
 import { SetStats, SetWithStats, SetsManager } from "./Manager";
@@ -35,6 +36,25 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
   ) as (SetStats | null)[];
 
   const existingSet = isNew ? null : sets.find((s) => s.id === id);
+
+  const otherSetsTargets = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const s of sets) {
+      if (s.id === id) continue;
+      for (const domain of s.targets.sni_domains) {
+        const key = domain.toLowerCase();
+        const existing = map.get(key);
+        if (existing) existing.push(s.name);
+        else map.set(key, [s.name]);
+      }
+      for (const ip of s.targets.ip) {
+        const existing = map.get(ip);
+        if (existing) existing.push(s.name);
+        else map.set(ip, [s.name]);
+      }
+    }
+    return map;
+  }, [sets, id]);
   const defaultSet = useMemo(() => createDefaultSet(sets.length), [sets.length]);
   const set = isNew ? defaultSet : existingSet;
 
@@ -71,6 +91,7 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
       set={set}
       config={config}
       stats={stats}
+      otherSetsTargets={otherSetsTargets}
       isNew={isNew}
       saving={saving}
       onSave={handleSave}

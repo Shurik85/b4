@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Grid,
   Box,
@@ -44,6 +44,8 @@ import {
 } from "@b4.elements";
 import SettingAutocomplete from "@common/B4Autocomplete";
 import { B4SetConfig, GeoConfig } from "@models/config";
+
+export type OtherSetsTargets = Map<string, string[]>;
 import { useDevices } from "@b4.devices";
 import { colors } from "@design";
 import { SetStats } from "./Manager";
@@ -53,6 +55,7 @@ interface TargetSettingsProps {
   config: B4SetConfig;
   geo: GeoConfig;
   stats?: SetStats;
+  otherSetsTargets?: OtherSetsTargets;
   onChange: (field: string, value: string | string[]) => void;
 }
 
@@ -89,6 +92,7 @@ export const TargetSettings = ({
   onChange,
   geo,
   stats,
+  otherSetsTargets,
 }: TargetSettingsProps) => {
   const [tabValue, setTabValue] = useState(0);
   const {
@@ -98,7 +102,9 @@ export const TargetSettings = ({
     loadDevices,
   } = useDevices();
   const [newBypassDomain, setNewBypassDomain] = useState("");
+  const [domainDuplicateWarning, setDomainDuplicateWarning] = useState("");
   const [newBypassIP, setNewBypassIP] = useState("");
+  const [ipDuplicateWarning, setIpDuplicateWarning] = useState("");
   const [newBypassCategory, setNewBypassCategory] = useState("");
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -159,6 +165,71 @@ export const TargetSettings = ({
     }
   };
 
+  const domainCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ipCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const checkDomainBackend = useCallback(
+    (domain: string) => {
+      fetch(
+        `/api/sets/check-domain?domain=${encodeURIComponent(domain)}&exclude=${encodeURIComponent(config.id)}`,
+      )
+        .then((res) => res.json())
+        .then((matches: { set_name: string; via: string }[]) => {
+          if (matches.length > 0) {
+            const msg = matches
+              .map((m) => `"${domain}" is in ${m.set_name} (${m.via})`)
+              .join("; ");
+            setDomainDuplicateWarning(msg);
+          }
+        })
+        .catch(() => {});
+    },
+    [config.id],
+  );
+
+  const checkDomainDuplicates = (input: string) => {
+    if (!input.trim()) {
+      setDomainDuplicateWarning("");
+      clearTimeout(domainCheckTimer.current);
+      return;
+    }
+    const domains = input.split(/[\s,|]+/).filter(Boolean);
+    // Instant client-side check against manual domains in other sets
+    if (otherSetsTargets) {
+      const found: string[] = [];
+      for (const raw of domains) {
+        const sets = otherSetsTargets.get(raw.trim().toLowerCase());
+        if (sets) found.push(`"${raw.trim()}" is in ${sets.join(", ")}`);
+      }
+      if (found.length > 0) {
+        setDomainDuplicateWarning(found.join("; "));
+      }
+    }
+    // Always run debounced backend check (catches geosite matches too)
+    clearTimeout(domainCheckTimer.current);
+    if (domains.length === 1) {
+      domainCheckTimer.current = setTimeout(
+        () => checkDomainBackend(domains[0].trim()),
+        400,
+      );
+    }
+  };
+
+  const checkIpDuplicates = (input: string) => {
+    if (!otherSetsTargets || !input.trim()) {
+      setIpDuplicateWarning("");
+      clearTimeout(ipCheckTimer.current);
+      return;
+    }
+    const ips = input.split(/[\s,|]+/).filter(Boolean);
+    const found: string[] = [];
+    for (const raw of ips) {
+      const sets = otherSetsTargets.get(raw.trim());
+      if (sets) found.push(`"${raw.trim()}" is in ${sets.join(", ")}`);
+    }
+    setIpDuplicateWarning(found.join("; "));
+  };
+
   const handleAddBypassDomain = () => {
     const value = newBypassDomain.trim();
     if (!value) return;
@@ -177,6 +248,7 @@ export const TargetSettings = ({
 
     onChange("targets.sni_domains", next);
     setNewBypassDomain("");
+    setDomainDuplicateWarning("");
   };
 
   const handleAddBypassIP = () => {
@@ -197,6 +269,7 @@ export const TargetSettings = ({
 
     onChange("targets.ip", next);
     setNewBypassIP("");
+    setIpDuplicateWarning("");
   };
 
   const handleClearAllBypassIPs = () => {
@@ -367,7 +440,10 @@ export const TargetSettings = ({
                     <B4TextField
                       label="Add Bypass Domain"
                       value={newBypassDomain}
-                      onChange={(e) => setNewBypassDomain(e.target.value)}
+                      onChange={(e) => {
+                        setNewBypassDomain(e.target.value);
+                        checkDomainDuplicates(e.target.value);
+                      }}
                       onKeyDown={(e) => {
                         if (
                           e.key === "Enter" ||
@@ -386,6 +462,11 @@ export const TargetSettings = ({
                       disabled={!newBypassDomain.trim()}
                     />
                   </Box>
+                  {domainDuplicateWarning && (
+                    <B4Alert severity="warning" sx={{ mt: 1 }}>
+                      Already exists in other sets: {domainDuplicateWarning}
+                    </B4Alert>
+                  )}
                   <Box sx={{ mt: 2 }}>
                     <B4ChipList
                       items={config.targets.sni_domains}
@@ -482,7 +563,10 @@ export const TargetSettings = ({
                     <B4TextField
                       label="Add Bypass IP/CIDR"
                       value={newBypassIP}
-                      onChange={(e) => setNewBypassIP(e.target.value)}
+                      onChange={(e) => {
+                        setNewBypassIP(e.target.value);
+                        checkIpDuplicates(e.target.value);
+                      }}
                       onKeyDown={(e) => {
                         if (
                           e.key === "Enter" ||
@@ -501,6 +585,11 @@ export const TargetSettings = ({
                       disabled={!newBypassIP}
                     />
                   </Box>
+                  {ipDuplicateWarning && (
+                    <B4Alert severity="warning" sx={{ mt: 1 }}>
+                      Already exists in other sets: {ipDuplicateWarning}
+                    </B4Alert>
+                  )}
                   <Box sx={{ mt: 2 }}>
                     <Box
                       sx={{

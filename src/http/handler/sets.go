@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
@@ -12,6 +13,7 @@ import (
 func (api *API) RegisterSetsApi() {
 	api.mux.HandleFunc("/api/sets", api.handleSets)
 	api.mux.HandleFunc("/api/sets/targeted-domains", api.handleTargetedDomains)
+	api.mux.HandleFunc("/api/sets/check-domain", api.handleCheckDomain)
 	api.mux.HandleFunc("/api/sets/{id}", api.handleSetById)
 	api.mux.HandleFunc("/api/sets/reorder", api.handleReorderSets)
 	api.mux.HandleFunc("/api/sets/{id}/add-domain", api.handleSetDomains)
@@ -41,6 +43,52 @@ func (api *API) handleTargetedDomains(w http.ResponseWriter, r *http.Request) {
 
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(result)
+}
+
+func (api *API) handleCheckDomain(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	domain := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("domain")))
+	excludeId := r.URL.Query().Get("exclude")
+
+	if domain == "" {
+		writeJsonError(w, http.StatusBadRequest, "domain parameter required")
+		return
+	}
+
+	type setMatch struct {
+		SetName string `json:"set_name"`
+		SetId   string `json:"set_id"`
+		Via     string `json:"via"`
+	}
+
+	var matches []setMatch
+	for _, set := range api.cfg.Sets {
+		if set.Id == excludeId {
+			continue
+		}
+
+		for _, d := range set.Targets.SNIDomains {
+			if strings.ToLower(d) == domain {
+				matches = append(matches, setMatch{SetName: set.Name, SetId: set.Id, Via: "manual"})
+				goto nextSet
+			}
+		}
+
+		for _, d := range set.Targets.DomainsToMatch {
+			if strings.ToLower(d) == domain {
+				matches = append(matches, setMatch{SetName: set.Name, SetId: set.Id, Via: "geosite"})
+				goto nextSet
+			}
+		}
+	nextSet:
+	}
+
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(matches)
 }
 
 func (api *API) handleSetDomains(w http.ResponseWriter, r *http.Request) {
