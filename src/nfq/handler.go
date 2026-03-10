@@ -454,7 +454,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if host != "" {
-		if mSNI, sniSet := matcher.MatchSNIWithSource(host, pkt.srcMac); mSNI {
+		if mSNI, sniSet := matcher.MatchSNIWithSourceTLS(host, pkt.srcMac, 0x0304); mSNI { // QUIC is always TLS 1.3
 			// If SNI-matched set has a port filter, verify port matches (AND logic)
 			if sniSet.MatchesUDPDPort(dport) {
 				matchedQUIC = true

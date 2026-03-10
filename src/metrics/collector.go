@@ -461,6 +461,7 @@ func (m *MetricsCollector) pruneTopDomains() {
 	}
 
 	delete(m.TopDomains, minDomain)
+	delete(m.DomainTLS, minDomain)
 }
 
 func smoothTimeSeriesData(data []TimeSeriesPoint, windowSize int) []TimeSeriesPoint {
