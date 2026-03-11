@@ -1,5 +1,5 @@
 import { ApiIcon } from "@b4.icons";
-import { B4FormGroup, B4Section, B4TextField } from "@b4.elements";
+import { B4Alert, B4FormGroup, B4Section, B4TextField } from "@b4.elements";
 import { B4Config } from "@models/config";
 
 interface WebServerSettingsProps {
@@ -79,6 +79,14 @@ export const WebServerSettings = ({
           helperText="Basic auth password for the web UI"
         />
       </B4FormGroup>
+      {(config.system.web_server.username ||
+        config.system.web_server.password) &&
+        !config.system.web_server.tls_cert && (
+          <B4Alert severity="warning">
+            Authentication credentials will be sent over unencrypted HTTP.
+            Configure TLS certificates above for secure HTTPS transport.
+          </B4Alert>
+        )}
     </B4Section>
   );
 };

@@ -50,13 +50,13 @@ export const MSSClampingSettings = ({
             helperText="Lower values = more fragmentation. 88 is commonly used for YouTube bypass."
           />
         )}
-        <B4Alert>
-          Reduces the TCP Maximum Segment Size on SYN/SYN-ACK packets for all
-          TCP port 443 traffic, forcing data fragmentation. Most DPI systems
-          cannot reassemble fragmented ClientHello. For per-device MSS clamping,
-          use the Device Filtering settings.
-        </B4Alert>
       </B4FormGroup>
+      <B4Alert>
+        Reduces the TCP Maximum Segment Size on SYN/SYN-ACK packets for all TCP
+        port 443 traffic, forcing data fragmentation. Most DPI systems cannot
+        reassemble fragmented ClientHello. For per-device MSS clamping, use the
+        Device Filtering settings.
+      </B4Alert>
     </B4Section>
   );
 };

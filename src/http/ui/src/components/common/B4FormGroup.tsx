@@ -17,7 +17,7 @@ export const B4FormGroup = ({
   children,
   columns = 2,
 }: B4FormGroupProps) => (
-  <Box sx={{ mb: spacing.md }}>
+  <Box>
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: spacing.md }}>
       {icon}
       <Box>
@@ -32,7 +32,7 @@ export const B4FormGroup = ({
       </Box>
     </Box>
 
-    <Grid container spacing={spacing.md}>
+    <Grid container>
       {Children.map(children, (child) => (
         <Grid size={{ xs: 12, md: 12 / columns }}>{child}</Grid>
       ))}
