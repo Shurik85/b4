@@ -146,12 +146,10 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
     );
     if (size === null || size === 0) {
       if (idx !== -1) current.splice(idx, 1);
+    } else if (idx === -1) {
+      current.push({ mac: mac.toUpperCase(), size });
     } else {
-      if (idx !== -1) {
-        current[idx] = { ...current[idx], size };
-      } else {
-        current.push({ mac: mac.toUpperCase(), size });
-      }
+      current[idx] = { ...current[idx], size };
     }
     onChange("queue.devices.mss_clamps", current);
   };
@@ -170,7 +168,14 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
     >
       <Grid container spacing={2}>
         <Grid size={{ xs: 12 }}>
-          <Box sx={{ display: "flex", gap: 3, alignItems: "center", flexWrap: "wrap" }}>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 3,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
             <B4Switch
               label="Enable Device Filtering"
               checked={enabled}
@@ -180,7 +185,9 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
             <B4Switch
               label="Vendor Lookup"
               checked={vendorLookup}
-              onChange={(checked) => onChange("queue.devices.vendor_lookup", checked)}
+              onChange={(checked) =>
+                onChange("queue.devices.vendor_lookup", checked)
+              }
               description="Download vendor database to identify device manufacturers (~6MB)"
             />
             <B4Switch
@@ -290,8 +297,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        sortDevices(devices, isSelected)
-                          .map((device) => (
+                        sortDevices(devices, isSelected).map((device) => (
                           <TableRow
                             key={device.mac}
                             hover
