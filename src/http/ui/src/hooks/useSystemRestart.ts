@@ -71,33 +71,23 @@ export const useSystemRestart = () => {
 
   const waitForReconnection = useCallback(
     async (maxAttempts: number = 30): Promise<boolean> => {
-      let attempts = 0;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      while (attempts < maxAttempts) {
         try {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-
           const response = await fetch("/api/version", {
             method: "GET",
             cache: "no-cache",
           });
 
-          if (response.ok) {
+          if (response.status > 0) {
             setLoading(false);
             return true;
           }
-        } catch (err) {
-          // Service not yet available
-          if (err instanceof Error) {
-            console.warn(
-              `Attempt ${attempts + 1}: Service not available yet - ${
-                err.message
-              }`
-            );
-          } else {
-            console.warn(`Attempt ${attempts + 1}: Service not available yet`);
-          }
-          attempts++;
+        } catch {
+          console.warn(
+            `Attempt ${attempt}/${maxAttempts}: Service not available yet`,
+          );
         }
       }
 
@@ -105,7 +95,7 @@ export const useSystemRestart = () => {
       setError("Service did not restart within expected time");
       return false;
     },
-    []
+    [],
   );
 
   return {
