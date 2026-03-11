@@ -183,6 +183,8 @@ type WebServerConfig struct {
 	BindAddress string `json:"bind_address" bson:"bind_address"`
 	TLSCert     string `json:"tls_cert" bson:"tls_cert"`
 	TLSKey      string `json:"tls_key" bson:"tls_key"`
+	Username    string `json:"username" bson:"username"`
+	Password    string `json:"password" bson:"password"`
 	IsEnabled   bool   `json:"-" bson:"-"`
 }
 

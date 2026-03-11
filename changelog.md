@@ -1,7 +1,8 @@
 # B4 - Bye Bye Big Bro
 
-## [1.4x.x] - 2026-03-xx
+## [1.42.0] - 2026-03-11
 
+- ADDED: **Web UI login protection** — you can now set a username and password to protect the B4 web interface. Useful when B4 is installed on a VPS or accessible from the internet. Set it up in Settings > Web Server > Authentication, or during installation. When enabled, a login page appears before you can access the dashboard.
 - ADDED: **TLS version filter** — you can now assign a set to only handle TLS 1.2 or TLS 1.3 traffic. This is useful when the same domain uses different TLS versions on different devices (e.g., a smart TV using TLS 1.2 vs a browser using TLS 1.3) and each needs a different bypass strategy. Set the filter in `Targets > TLS Version Filter`. Leave it on "Any" to match all traffic as before.
 - ADDED: **TLS version in Connections table** — the connections log now shows the detected TLS version (1.2 or 1.3) as a badge next to the domain name, so you can see which version each connection uses.
 - ADDED: **Discovery sets TLS filter automatically** — when you run Discovery with a specific TLS version (TLS 1.2 or TLS 1.3), the resulting set will automatically have the matching TLS filter applied.

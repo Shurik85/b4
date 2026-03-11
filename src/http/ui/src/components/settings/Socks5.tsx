@@ -58,13 +58,16 @@ export const Socks5Settings = ({ config, onChange }: Socks5SettingsProps) => {
           onChange={(e) => onChange("system.socks5.username", e.target.value)}
           disabled={!config.system.socks5?.enabled}
           helperText="Leave empty for no authentication"
+          autoComplete="new-password"
         />
         <B4TextField
           label="Password"
+          type="password"
           value={config.system.socks5?.password || ""}
           onChange={(e) => onChange("system.socks5.password", e.target.value)}
           disabled={!config.system.socks5?.enabled}
           helperText="Leave empty for no authentication"
+          autoComplete="new-password"
         />
         {config.system.socks5?.enabled && (
           <B4Alert severity="info">

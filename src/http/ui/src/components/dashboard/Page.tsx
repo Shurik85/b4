@@ -14,6 +14,7 @@ import { UnmatchedDomains } from "./UnmatchedDomains";
 import { SimpleLineChart } from "./SimpleLineChart";
 import { colors } from "@design";
 import { useDashboardSets } from "@hooks/useDashboardSets";
+import { wsUrl } from "@utils";
 
 export interface Metrics {
   total_connections: number;
@@ -267,11 +268,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     const connectWebSocket = () => {
-      const ws = new WebSocket(
-        (location.protocol === "https:" ? "wss://" : "ws://") +
-          location.host +
-          "/api/ws/metrics",
-      );
+      const ws = new WebSocket(wsUrl("/api/ws/metrics"));
 
       ws.onopen = () => {
         setConnected(true);

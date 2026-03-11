@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { ApiError, ApiResponse } from "@api/apiClient";
 import { discoveryApi, DiscoverySuite, HistoryEntry } from "@b4.discovery";
 import { B4SetConfig } from "@b4.sets";
+import { wsUrl } from "@utils";
 
 export function useDiscovery() {
   const [discoveryRunning, setDiscoveryRunning] = useState(false);
@@ -233,11 +234,6 @@ export function useDiscoveryLogs() {
   const logsRef = useRef<string[]>([]);
 
   useEffect(() => {
-    const wsUrl =
-      (location.protocol === "https:" ? "wss://" : "ws://") +
-      location.host +
-      "/api/ws/discovery";
-
     let ws: WebSocket | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let isCleaningUp = false;
@@ -245,7 +241,8 @@ export function useDiscoveryLogs() {
     const connect = () => {
       if (isCleaningUp) return;
 
-      ws = new WebSocket(wsUrl);
+      const url = wsUrl("/api/ws/discovery");
+      ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {

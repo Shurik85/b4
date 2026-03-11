@@ -1,5 +1,5 @@
 import { ApiIcon } from "@b4.icons";
-import { B4FormGroup, B4Section, B4TextField } from "@b4.elements";
+import { B4Alert, B4FormGroup, B4Section, B4TextField } from "@b4.elements";
 import { B4Config } from "@models/config";
 
 interface WebServerSettingsProps {
@@ -58,6 +58,46 @@ export const WebServerSettings = ({
           helperText="Path to TLS private key file (empty = HTTP mode)"
         />
       </B4FormGroup>
+      <B4FormGroup label="Authentication" columns={2}>
+        <B4TextField
+          label="Username"
+          value={config.system.web_server.username || ""}
+          onChange={(e) =>
+            onChange("system.web_server.username", e.target.value)
+          }
+          placeholder=""
+          helperText="Leave both empty to disable authentication"
+          autoComplete="new-password"
+        />
+        <B4TextField
+          label="Password"
+          type="password"
+          value={config.system.web_server.password || ""}
+          onChange={(e) =>
+            onChange("system.web_server.password", e.target.value)
+          }
+          placeholder=""
+          helperText="Password for logging into the web UI"
+          autoComplete="new-password"
+        />
+      </B4FormGroup>
+      {((config.system.web_server.username &&
+        !config.system.web_server.password) ||
+        (!config.system.web_server.username &&
+          config.system.web_server.password)) && (
+        <B4Alert severity="warning">
+          Authentication is only enabled when both username and password are
+          set. Partial credentials will be ignored.
+        </B4Alert>
+      )}
+      {config.system.web_server.username &&
+        config.system.web_server.password &&
+        !config.system.web_server.tls_cert && (
+          <B4Alert severity="warning">
+            Authentication credentials will be sent over unencrypted HTTP.
+            Configure TLS certificates above for secure HTTPS transport.
+          </B4Alert>
+        )}
     </B4Section>
   );
 };

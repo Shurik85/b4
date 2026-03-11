@@ -71,4 +71,5 @@ export {
   VpnKey as SniIcon,
   History as HistoryIcon,
   Delete as DeleteIcon,
+  Logout as LogoutIcon,
 } from "@mui/icons-material";

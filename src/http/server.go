@@ -31,11 +31,17 @@ func StartServer(cfg *config.Config, pool *nfq.Pool) (*stdhttp.Server, error) {
 	registerWebSocketEndpoints(mux)
 
 	registerAPIEndpoints(mux, cfg)
+	registerAuthEndpoints(mux, cfg)
 
 	handler.RegisterSpa(mux, uiDist)
 
 	var httpHandler stdhttp.Handler = mux
+	httpHandler = authMiddleware(cfg, httpHandler)
 	httpHandler = cors(httpHandler)
+
+	if authEnabled(cfg) {
+		log.Infof("Web server authentication enabled")
+	}
 
 	bindAddr := cfg.System.WebServer.BindAddress
 	if bindAddr == "" {

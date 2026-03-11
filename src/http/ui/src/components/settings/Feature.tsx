@@ -14,7 +14,7 @@ interface FeatureSettingsProps {
   config: B4Config;
   onChange: (
     field: string,
-    value: boolean | string | number | string[]
+    value: boolean | string | number | string[],
   ) => void;
 }
 
@@ -101,11 +101,11 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
                     onClick={() =>
                       onChange(
                         "system.tables.masquerade_interface",
-                        isSelected ? "" : iface
+                        isSelected ? "" : iface,
                       )
                     }
                     variant={isSelected ? "filled" : "outlined"}
-                    color={isSelected ? "primary" : "primary"}
+                    color={"primary"}
                   />
                 );
               })}
@@ -132,7 +132,7 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
             {(config.available_ifaces ?? []).map((iface) => {
               const isSelected = (config.queue.interfaces || []).includes(
-                iface
+                iface,
               );
               return (
                 <B4Badge
@@ -140,7 +140,7 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
                   label={iface}
                   onClick={() => handleInterfaceToggle(iface)}
                   variant={isSelected ? "filled" : "outlined"}
-                  color={isSelected ? "primary" : "primary"}
+                  color={"primary"}
                 />
               );
             })}

@@ -30,11 +30,14 @@ import {
   DashboardIcon,
   DiscoveryIcon,
   LogsIcon,
+  LogoutIcon,
   MenuIcon,
   SecurityIcon,
   SetsIcon,
 } from "@b4.icons";
 import { colors, theme } from "@design";
+import { useAuth } from "@context/AuthProvider";
+import { LoginPage } from "@components/auth/LoginPage";
 
 import { Logo } from "@common/Logo";
 import Version from "@components/version/Version";
@@ -73,6 +76,20 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { unseenDomainsCount, resetDomainsBadge } = useWebSocket();
+  const { isAuthenticated, isLoading, authRequired, logout } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (authRequired && !isAuthenticated) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <LoginPage />
+      </ThemeProvider>
+    );
+  }
 
   const getPageTitle = () => {
     const path = location.pathname;
@@ -190,6 +207,11 @@ export default function App() {
                 <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
                   {getPageTitle()}
                 </Typography>
+                {authRequired && (
+                  <IconButton color="inherit" onClick={logout} title="Logout">
+                    <LogoutIcon />
+                  </IconButton>
+                )}
               </Toolbar>
             </AppBar>
 

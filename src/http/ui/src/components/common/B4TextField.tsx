@@ -24,6 +24,11 @@ export const B4TextField = ({ helperText, ...props }: B4TextFieldProps) => {
             borderColor: colors.secondary,
           },
         },
+        "& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus": {
+          WebkitBoxShadow: `0 0 0 100px ${colors.background.dark} inset`,
+          WebkitTextFillColor: colors.text.primary,
+          caretColor: colors.text.primary,
+        },
 
         "& .MuiFormHelperText-root": {
           m: 0,

@@ -1,6 +1,31 @@
 import { QueryClient } from "@tanstack/react-query";
+import { getAuthToken } from "@context/AuthProvider";
 
 type ContentType = "json" | "text";
+
+// Intercept all fetch calls to inject auth token for /api/ requests
+const originalFetch = globalThis.fetch.bind(globalThis);
+globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  let url: string;
+  if (typeof input === "string") {
+    url = input;
+  } else if (input instanceof URL) {
+    url = input.toString();
+  } else {
+    url = input.url;
+  }
+  if (url.startsWith("/api/")) {
+    const token = getAuthToken();
+    if (token) {
+      const headers = new Headers(init?.headers);
+      if (!headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+      init = { ...init, headers };
+    }
+  }
+  return originalFetch(input, init);
+};
 
 export const apiClient = new QueryClient({
   defaultOptions: {

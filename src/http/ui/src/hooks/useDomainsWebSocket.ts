@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { wsUrl } from "@utils";
 
 interface UseDomainsWebSocketProps {
   paused: boolean;
@@ -12,11 +13,7 @@ export function useDomainsWebSocket({
   onError,
 }: UseDomainsWebSocketProps) {
   useEffect(() => {
-    const ws = new WebSocket(
-      (location.protocol === "https:" ? "wss://" : "ws://") +
-        location.host +
-        "/api/ws/logs"
-    );
+    const ws = new WebSocket(wsUrl("/api/ws/logs"));
 
     ws.onmessage = (ev) => {
       if (!paused) {

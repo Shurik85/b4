@@ -1,4 +1,12 @@
 import type { DeviceInfo } from "@models/devices";
+import { getAuthToken } from "@context/AuthProvider";
+
+export function wsUrl(path: string): string {
+  const protocol = location.protocol === "https:" ? "wss://" : "ws://";
+  const token = getAuthToken();
+  const query = token ? `?token=${encodeURIComponent(token)}` : "";
+  return protocol + location.host + path + query;
+}
 
 export function sortDevices(
   devices: DeviceInfo[],

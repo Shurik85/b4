@@ -141,7 +141,7 @@ export const CaptureSettings = () => {
               <B4TextField
                 label="Name/Domain"
                 value={uploadForm.domain}
-                onChange={(e) =>
+                onChange={(e: { target: { value: string } }) =>
                   setUploadForm({
                     ...uploadForm,
                     domain: e.target.value.toLowerCase(),
@@ -202,10 +202,10 @@ export const CaptureSettings = () => {
               <B4TextField
                 label="Domain"
                 value={probeForm.domain}
-                onChange={(e) =>
+                onChange={(e: { target: { value: string } }) =>
                   setProbeForm({ domain: e.target.value.toLowerCase() })
                 }
-                onKeyPress={(e) => {
+                onKeyPress={(e: { key: string }) => {
                   if (e.key === "Enter" && !loading && probeForm.domain) {
                     void generateCapture();
                   }

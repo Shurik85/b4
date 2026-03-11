@@ -208,6 +208,8 @@ export interface WebServerConfig {
   bind_address: string;
   tls_cert: string;
   tls_key: string;
+  username: string;
+  password: string;
 }
 export interface TableConfig {
   monitor_interval: number;

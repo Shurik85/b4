@@ -7,6 +7,7 @@ import {
   useCallback,
   useRef,
 } from "react";
+import { wsUrl } from "@utils";
 
 const MAX_BUFFER_SIZE = 2000;
 const BATCH_INTERVAL_MS = 150; // Batch updates every 150ms
@@ -137,21 +138,14 @@ export const WebSocketProvider = ({
 
   // Schedule batch processing
   const scheduleBatch = useCallback(() => {
-    if (batchTimeoutRef.current === null) {
-      batchTimeoutRef.current = setTimeout(() => {
-        batchTimeoutRef.current = null;
-        processBatch();
-      }, BATCH_INTERVAL_MS);
-    }
+    batchTimeoutRef.current ??= setTimeout(() => {
+      batchTimeoutRef.current = null;
+      processBatch();
+    }, BATCH_INTERVAL_MS);
   }, [processBatch]);
 
   // WebSocket connection
   useEffect(() => {
-    const wsUrl =
-      (location.protocol === "https:" ? "wss://" : "ws://") +
-      location.host +
-      "/api/ws/logs";
-
     let ws: WebSocket | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let isCleaningUp = false;
@@ -159,7 +153,8 @@ export const WebSocketProvider = ({
     const connect = () => {
       if (isCleaningUp) return;
 
-      ws = new WebSocket(wsUrl);
+      const url = wsUrl("/api/ws/logs");
+      ws = new WebSocket(url);
 
       ws.onopen = () => {
         console.log("WebSocket connected");
@@ -245,11 +240,7 @@ export const WebSocketProvider = ({
     ],
   );
 
-  return (
-    <WebSocketContext value={contextValue}>
-      {children}
-    </WebSocketContext>
-  );
+  return <WebSocketContext value={contextValue}>{children}</WebSocketContext>;
 };
 
 export const useWebSocket = () => {
