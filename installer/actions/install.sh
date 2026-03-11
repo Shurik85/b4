@@ -200,10 +200,18 @@ _install_summary() {
     log_info "To see all options: ${B4_BIN_DIR}/${BINARY_NAME} --help"
     echo ""
 
-    # Offer to start service
+    # Offer to start/restart service
     if [ "$QUIET_MODE" -eq 0 ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
-        if confirm "Start B4 service now?"; then
-            service_call start || true
+        if is_b4_running; then
+            if confirm "B4 is already running. Restart now?"; then
+                service_call stop || true
+                sleep 1
+                service_call start || true
+            fi
+        else
+            if confirm "Start B4 service now?"; then
+                service_call start || true
+            fi
         fi
     fi
 
