@@ -22,6 +22,7 @@ export const B4Section = ({
         border: `1px solid ${colors.border.default}`,
         display: "flex",
         flexDirection: "column",
+        height: "100%",
       }}
       variant="outlined"
     >

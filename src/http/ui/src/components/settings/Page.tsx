@@ -35,7 +35,10 @@ import { CheckerSettings } from "./Discovery";
 import { FeatureSettings } from "./Feature";
 import { GeoSettings } from "./Geo";
 import { LoggingSettings } from "./Logging";
-import { NetworkSettings } from "./Network";
+import { MSSClampingSettings } from "./MSSClamping";
+import { QueueSettings } from "./Queue";
+import { Socks5Settings } from "./Socks5";
+import { WebServerSettings } from "./WebServer";
 
 import { B4Alert, B4Dialog, B4Tab, B4Tabs } from "@b4.elements";
 import { configApi } from "@b4.settings";
@@ -403,10 +406,6 @@ export function SettingsPage() {
       <Box sx={{ flex: 1, overflow: "auto", pb: 2 }}>
         <TabPanel value={validTab} index={TABS.GENERAL}>
           <Grid container spacing={spacing.lg} alignItems="stretch">
-            <Grid size={{ xs: 12 }}>
-              <NetworkSettings config={config} onChange={handleChange} />
-            </Grid>
-
             <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
               <Box sx={{ width: "100%" }}>
                 <ControlSettings loadConfig={() => { loadConfig().catch(() => {}); }} />
@@ -418,12 +417,37 @@ export function SettingsPage() {
               </Box>
             </Grid>
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <FeatureSettings config={config} onChange={handleChange} />
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+              <Box sx={{ width: "100%" }}>
+                <QueueSettings config={config} onChange={handleChange} />
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+              <Box sx={{ width: "100%" }}>
+                <FeatureSettings config={config} onChange={handleChange} />
+              </Box>
             </Grid>
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <DevicesSettings config={config} onChange={handleChange} />
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+              <Box sx={{ width: "100%" }}>
+                <WebServerSettings config={config} onChange={handleChange} />
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+              <Box sx={{ width: "100%" }}>
+                <Socks5Settings config={config} onChange={handleChange} />
+              </Box>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+              <Box sx={{ width: "100%" }}>
+                <MSSClampingSettings config={config} onChange={handleChange} />
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+              <Box sx={{ width: "100%" }}>
+                <DevicesSettings config={config} onChange={handleChange} />
+              </Box>
             </Grid>
           </Grid>
         </TabPanel>
