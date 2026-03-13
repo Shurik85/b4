@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/daniellavrushin/b4/config"
@@ -13,7 +14,49 @@ import (
 	"github.com/daniellavrushin/b4/quic"
 	"github.com/daniellavrushin/b4/sock"
 	"github.com/florianl/go-nfqueue"
+	"github.com/mdlayher/netlink"
 )
+
+// kernels < 3.8, support
+func pfBind(con *netlink.Conn, family uint8) error {
+	const (
+		nfnlSubSysQueue      = 0x03
+		nfQnlMsgConfig       = 2
+		nfQaCfgCmd           = 1
+		nfUlnlCfgCmdPfUnbind = 4
+		nfUlnlCfgCmdPfBind   = 3
+		nfnetlinkV0          = 0
+	)
+
+	for _, cmd := range []byte{nfUlnlCfgCmdPfUnbind, nfUlnlCfgCmdPfBind} {
+		attrs, err := netlink.MarshalAttributes([]netlink.Attribute{
+			{Type: nfQaCfgCmd, Data: []byte{cmd, 0x0, 0x0, family}},
+		})
+		if err != nil {
+			return err
+		}
+		hdr := make([]byte, 2)
+		binary.BigEndian.PutUint16(hdr, 0)
+		data := append([]byte{syscall.AF_UNSPEC, nfnetlinkV0}, hdr...)
+		data = append(data, attrs...)
+
+		req := netlink.Message{
+			Header: netlink.Header{
+				Type:  netlink.HeaderType((nfnlSubSysQueue << 8) | nfQnlMsgConfig),
+				Flags: netlink.Request | netlink.Acknowledge,
+			},
+			Data: data,
+		}
+		reply, err := con.Execute(req)
+		if err != nil {
+			return err
+		}
+		if err := netlink.Validate(req, reply); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (w *Worker) Start() error {
 	cfg := w.getConfig()
@@ -35,6 +78,13 @@ func (w *Worker) Start() error {
 		return err
 	}
 	w.q = q
+
+	if err := pfBind(q.Con, syscall.AF_INET); err != nil {
+		log.Warnf("nfqueue PF_BIND AF_INET: %v", err)
+	}
+	if err := pfBind(q.Con, syscall.AF_INET6); err != nil {
+		log.Warnf("nfqueue PF_BIND AF_INET6: %v", err)
+	}
 
 	w.wg.Add(1)
 	go w.gc(cfg)
