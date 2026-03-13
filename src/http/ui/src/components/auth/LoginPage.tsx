@@ -5,8 +5,10 @@ import { B4Alert } from "@b4.elements";
 import { colors } from "@design";
 import { useAuth } from "@context/AuthProvider";
 import { Logo } from "@common/Logo";
+import { useTranslation } from "react-i18next";
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +57,7 @@ export function LoginPage() {
             variant="body2"
             sx={{ color: colors.text.secondary, mt: 1 }}
           >
-            Sign in to continue
+            {t("login.subtitle")}
           </Typography>
         </Box>
 
@@ -67,14 +69,14 @@ export function LoginPage() {
               </B4Alert>
             )}
             <B4TextField
-              label="Username"
+              label={t("login.username")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoFocus
               autoComplete="username"
             />
             <B4TextField
-              label="Password"
+              label={t("login.password")}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -91,7 +93,7 @@ export function LoginPage() {
                 "&:hover": { bgcolor: colors.tertiary },
               }}
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? t("login.signingIn") : t("login.signIn")}
             </Button>
           </Box>
         </form>

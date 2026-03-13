@@ -1233,5 +1233,40 @@
     "clearLogs": "Clear Logs",
     "waitingForLogs": "Waiting for logs...",
     "noMatch": "No logs match your filter"
+  },
+  "login": {
+    "subtitle": "Sign in to continue",
+    "username": "Username",
+    "password": "Password",
+    "signingIn": "Signing in...",
+    "signIn": "Sign In"
+  },
+  "update": {
+    "title": "Version Management",
+    "publishedOn": "Published on {{date}}",
+    "updatingTitle": "Updating B4 Service",
+    "pleaseWait": "Please wait...",
+    "successTitle": "Update Successful",
+    "failedTitle": "Update Failed",
+    "selectVersion": "Select Version",
+    "includePrereleases": "Include pre-releases",
+    "prerelease": "Pre-release",
+    "current": "current",
+    "currentVersion": "Current: v{{version}}",
+    "downgrade": "Downgrade",
+    "upgrade": "Upgrade",
+    "releaseNotes": "Release Notes - {{version}}",
+    "noReleaseNotes": "No release notes available.",
+    "dockerTitle": "Running inside a container",
+    "dockerDesc": "To update, pull the latest image and recreate your container:",
+    "fullChangelog": "Full Changelog",
+    "viewOnGitHub": "View on GitHub",
+    "dontShowAgain": "Don't Show Again",
+    "reloadPage": "Reload Page",
+    "initiating": "Initiating update...",
+    "failedInitiate": "Failed to initiate update.",
+    "inProgress": "Update in progress. Waiting for service to restart...",
+    "completed": "Update completed successfully! Refreshing...",
+    "manualCheck": "Update may have completed but service did not restart. Please check manually."
   }
 }
