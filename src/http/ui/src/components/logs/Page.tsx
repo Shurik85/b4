@@ -12,8 +12,10 @@ import { B4Badge, B4TextField, B4Switch, B4TooltipButton } from "@b4.elements";
 import { ArrowDownIcon } from "@b4.icons";
 import { useWebSocket } from "@context/B4WsProvider";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { useTranslation } from "react-i18next";
 
 export function LogsPage() {
+  const { t } = useTranslation();
   const { showSuccess } = useSnackbar();
   const [filter, setFilter] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
@@ -65,11 +67,11 @@ export function LogsPage() {
       if ((e.ctrlKey && e.key === "x") || e.key === "Delete") {
         e.preventDefault();
         clearLogs();
-        showSuccess("Logs cleared");
+        showSuccess(t("logs.cleared"));
       } else if (e.key === "p" || e.key === "Pause") {
         e.preventDefault();
         setPauseLogs(!pauseLogs);
-        showSuccess(`Logs ${!pauseLogs ? "paused" : "resumed"}`);
+        showSuccess(!pauseLogs ? t("logs.paused") : t("logs.resumed"));
       }
     },
     [clearLogs, pauseLogs, setPauseLogs, showSuccess]
@@ -121,23 +123,23 @@ export function LogsPage() {
           <Stack direction="row" spacing={2} alignItems="center">
             <B4TextField
               size="small"
-              placeholder="Filter logs..."
+              placeholder={t("logs.filterPlaceholder")}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
             <Stack direction="row" spacing={1} alignItems="center">
-              <B4Badge label={`${logs.length} lines`} size="small" />
+              <B4Badge label={t("logs.lines", { count: logs.length })} size="small" />
               {filter && (
-                <B4Badge label={`${filtered.length} filtered`} size="small" />
+                <B4Badge label={t("logs.filtered", { count: filtered.length })} size="small" />
               )}
             </Stack>
             <B4Switch
-              label={pauseLogs ? "Paused" : "Streaming"}
+              label={pauseLogs ? t("logs.pausedLabel") : t("logs.streamingLabel")}
               checked={pauseLogs}
               onChange={(checked: boolean) => setPauseLogs(checked)}
             />
             <B4TooltipButton
-              title={"Clear Logs"}
+              title={t("logs.clearLogs")}
               onClick={clearLogs}
               icon={<ClearIcon />}
             />
@@ -173,7 +175,7 @@ export function LogsPage() {
                     fontStyle: "italic",
                   }}
                 >
-                  Waiting for logs...
+                  {t("logs.waitingForLogs")}
                 </Typography>
               );
             } else if (filtered.length === 0) {
@@ -186,7 +188,7 @@ export function LogsPage() {
                     fontStyle: "italic",
                   }}
                 >
-                  No logs match your filter
+                  {t("logs.noMatch")}
                 </Typography>
               );
             } else {

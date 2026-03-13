@@ -1318,5 +1318,19 @@
       "timezone": "Timezone",
       "postalCode": "Postal Code"
     }
+  },
+
+  "logs": {
+    "cleared": "Logs cleared",
+    "paused": "Logs paused",
+    "resumed": "Logs resumed",
+    "filterPlaceholder": "Filter logs...",
+    "lines": "{{count}} lines",
+    "filtered": "{{count}} filtered",
+    "pausedLabel": "Paused",
+    "streamingLabel": "Streaming",
+    "clearLogs": "Clear Logs",
+    "waitingForLogs": "Waiting for logs...",
+    "noMatch": "No logs match your filter"
   }
 }

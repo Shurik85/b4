@@ -1318,5 +1318,19 @@
       "timezone": "Часовой пояс",
       "postalCode": "Почтовый индекс"
     }
+  },
+
+  "logs": {
+    "cleared": "Логи очищены",
+    "paused": "Логи приостановлены",
+    "resumed": "Логи возобновлены",
+    "filterPlaceholder": "Фильтр логов...",
+    "lines": "{{count}} строк",
+    "filtered": "{{count}} отфильтровано",
+    "pausedLabel": "Пауза",
+    "streamingLabel": "Поток",
+    "clearLogs": "Очистить логи",
+    "waitingForLogs": "Ожидание логов...",
+    "noMatch": "Нет логов, соответствующих фильтру"
   }
 }
