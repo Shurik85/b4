@@ -31,6 +31,7 @@ import { systemApi } from "@api/settings";
 import { colors } from "@design";
 import { B4Dialog } from "@common/B4Dialog";
 import { GitHubRelease, compareVersions } from "@hooks/useGitHubRelease";
+import { useTranslation } from "react-i18next";
 
 interface UpdateModalProps {
   open: boolean;
@@ -66,6 +67,7 @@ export const UpdateModal = ({
   includePrerelease,
   onTogglePrerelease,
 }: UpdateModalProps) => {
+  const { t } = useTranslation();
   const { performUpdate, waitForReconnection } = useSystemUpdate();
   const [updateStatus, setUpdateStatus] = useState<
     "idle" | "updating" | "reconnecting" | "success" | "error"
@@ -105,7 +107,7 @@ export const UpdateModal = ({
   const isCurrent = selectedVersion === `v${currentVersion}`;
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString(undefined, {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -114,29 +116,27 @@ export const UpdateModal = ({
 
   const handleUpdate = async () => {
     setUpdateStatus("updating");
-    setUpdateMessage("Initiating update...");
+    setUpdateMessage(t("update.initiating"));
 
     const result = await performUpdate(selectedVersion);
     if (!result?.success) {
       setUpdateStatus("error");
-      setUpdateMessage(result?.message || "Failed to initiate update.");
+      setUpdateMessage(result?.message || t("update.failedInitiate"));
       return;
     }
 
-    setUpdateMessage("Update in progress. Waiting for service to restart...");
+    setUpdateMessage(t("update.inProgress"));
     setUpdateStatus("reconnecting");
 
     const reconnected = await waitForReconnection();
 
     if (reconnected) {
       setUpdateStatus("success");
-      setUpdateMessage("Update completed successfully! Refreshing...");
+      setUpdateMessage(t("update.completed"));
       setTimeout(() => globalThis.window.location.reload(), 5000);
     } else {
       setUpdateStatus("error");
-      setUpdateMessage(
-        "Update may have completed but service did not restart. Please check manually.",
-      );
+      setUpdateMessage(t("update.manualCheck"));
     }
   };
 
@@ -145,9 +145,9 @@ export const UpdateModal = ({
 
   const getDialogProps = () => {
     const base = {
-      title: "Version Management",
+      title: t("update.title"),
       subtitle: selectedRelease
-        ? `Published on ${formatDate(selectedRelease.published_at)}`
+        ? t("update.publishedOn", { date: formatDate(selectedRelease.published_at) })
         : "",
       icon: <NewReleaseIcon />,
     };
@@ -156,13 +156,13 @@ export const UpdateModal = ({
       case "reconnecting":
         return {
           ...base,
-          title: "Updating B4 Service",
-          subtitle: "Please wait...",
+          title: t("update.updatingTitle"),
+          subtitle: t("update.pleaseWait"),
         };
       case "success":
-        return { ...base, title: "Update Successful", subtitle: "" };
+        return { ...base, title: t("update.successTitle"), subtitle: "" };
       case "error":
-        return { ...base, title: "Update Failed", subtitle: "" };
+        return { ...base, title: t("update.failedTitle"), subtitle: "" };
       default:
         return base;
     }
@@ -210,17 +210,17 @@ export const UpdateModal = ({
             sx={{ mb: 2, mt: 2 }}
           >
             <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel>Select Version</InputLabel>
+              <InputLabel>{t("update.selectVersion")}</InputLabel>
               <Select
                 value={selectedVersion}
-                label="Select Version"
+                label={t("update.selectVersion")}
                 onChange={(e) => setSelectedVersion(e.target.value)}
               >
                 {releases.map((r) => (
                   <MenuItem key={r.tag_name} value={r.tag_name}>
                     {r.tag_name}
-                    {r.prerelease && " (pre-release)"}
-                    {r.tag_name === `v${currentVersion}` && " (current)"}
+                    {r.prerelease && ` (${t("update.prerelease")})`}
+                    {r.tag_name === `v${currentVersion}` && ` (${t("update.current")})`}
                   </MenuItem>
                 ))}
               </Select>
@@ -233,12 +233,12 @@ export const UpdateModal = ({
                   size="small"
                 />
               }
-              label="Include pre-releases"
+              label={t("update.includePrereleases")}
             />
           </Stack>
           <Stack direction="row" spacing={1}>
             <Chip
-              label={`Current: v${currentVersion}`}
+              label={t("update.currentVersion", { version: currentVersion })}
               size="small"
               sx={{
                 bgcolor: colors.accent.primary,
@@ -247,14 +247,14 @@ export const UpdateModal = ({
             />
             {!isCurrent && (
               <Chip
-                label={isDowngrade ? "Downgrade" : "Upgrade"}
+                label={isDowngrade ? t("update.downgrade") : t("update.upgrade")}
                 size="small"
                 color={isDowngrade ? "warning" : "success"}
                 sx={{ fontWeight: 600 }}
               />
             )}
             {selectedRelease?.prerelease && (
-              <Chip label="Pre-release" size="small" color="info" />
+              <Chip label={t("update.prerelease")} size="small" color="info" />
             )}
           </Stack>
         </Box>
@@ -280,7 +280,7 @@ export const UpdateModal = ({
               textTransform: "uppercase",
             }}
           >
-            Release Notes - {selectedRelease.tag_name}
+            {t("update.releaseNotes", { version: selectedRelease.tag_name })}
           </Typography>
           <Box
             sx={{
@@ -300,7 +300,7 @@ export const UpdateModal = ({
             }}
           >
             <ReactMarkdown components={{ h2: H2Typography }}>
-              {selectedRelease.body || "No release notes available."}
+              {selectedRelease.body || t("update.noReleaseNotes")}
             </ReactMarkdown>
           </Box>
         </Box>
@@ -309,10 +309,10 @@ export const UpdateModal = ({
       {isDocker && (
         <B4Alert severity="info" icon={<InfoIcon />} sx={{ mt: 2 }}>
           <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-            Running inside a container
+            {t("update.dockerTitle")}
           </Typography>
           <Typography variant="body2">
-            To update, pull the latest image and recreate your container:
+            {t("update.dockerDesc")}
           </Typography>
           <Box
             component="code"
@@ -340,7 +340,7 @@ export const UpdateModal = ({
           target="_blank"
           disabled={isUpdating}
         >
-          Full Changelog
+          {t("update.fullChangelog")}
         </Button>
         {selectedRelease && (
           <Button
@@ -350,7 +350,7 @@ export const UpdateModal = ({
             target="_blank"
             disabled={isUpdating}
           >
-            View on GitHub
+            {t("update.viewOnGitHub")}
           </Button>
         )}
       </Stack>
@@ -364,13 +364,13 @@ export const UpdateModal = ({
         startIcon={<CloseIcon />}
         disabled={isUpdating}
       >
-        Don't Show Again
+        {t("update.dontShowAgain")}
       </Button>
       <Box sx={{ flex: 1 }} />
       {updateStatus === "idle" && (
         <>
           <Button onClick={onClose} variant="outlined" disabled={isUpdating}>
-            Close
+            {t("core.close")}
           </Button>
           {!isDocker && (
             <Button
@@ -380,7 +380,7 @@ export const UpdateModal = ({
               disabled={isUpdating || isCurrent}
               color={isDowngrade ? "warning" : "primary"}
             >
-              {isDowngrade ? "Downgrade" : "Update"}
+              {isDowngrade ? t("update.downgrade") : t("update.upgrade")}
             </Button>
           )}
         </>
@@ -390,7 +390,7 @@ export const UpdateModal = ({
           variant="contained"
           onClick={() => globalThis.window.location.reload()}
         >
-          Reload Page
+          {t("update.reloadPage")}
         </Button>
       )}
     </>
