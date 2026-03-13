@@ -132,7 +132,7 @@ export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
               }}
             />
             {logs.length > 0 && (
-              <B4Badge variant="filled" label={t("discovery.logs.lines", { count: logs.length })} />
+              <B4Badge variant="filled" label={t("core.lines", { count: logs.length })} />
             )}
           </Stack>
           <Stack direction="row" alignItems="center" spacing={1}>

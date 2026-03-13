@@ -72,7 +72,7 @@ export function SNIResults({
                 <Stack spacing={1} sx={{ py: 0.5 }}>
                   <KVRow label={t("detector.labels.asn")} value={`AS${r.asn}`} mono />
                   <KVRow label={t("detector.labels.provider")} value={r.provider} />
-                  <KVRow label={t("detector.labels.ip")} value={r.ip} mono />
+                  <KVRow label={t("core.devices.ip")} value={r.ip} mono />
                   <KVRow
                     label={t("detector.labels.status")}
                     value={<StatusChip status={r.status} />}

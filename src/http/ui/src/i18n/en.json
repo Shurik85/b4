@@ -45,7 +45,6 @@
     "targetSet": "Target Set",
     "setName": "Set Name",
     "createNewSet": "Create New Set",
-
     "nav": {
       "dashboard": "Dashboard",
       "sets": "Sets",
@@ -54,9 +53,33 @@
       "connections": "Connections",
       "logs": "Logs",
       "settings": "Settings"
+    },
+    "failed": "Failed",
+    "filtered": "{{count}} filtered",
+    "lines": "{{count}} lines",
+    "addHostname": "Add Hostname",
+    "timeAgo": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago",
+      "monthsAgo": "{{count}}mo ago"
+    },
+    "history": {
+      "title": "Previous Results",
+      "clearHistory": "Clear History",
+      "removeFromHistory": "Remove from history"
+    },
+    "devices": {
+      "availableDevices": "Available Devices",
+      "refreshDevices": "Refresh devices",
+      "loadingDevices": "Loading devices...",
+      "noDevices": "No devices found",
+      "macAddress": "MAC Address",
+      "deviceName": "Name",
+      "ip": "IP"
     }
   },
-
   "settings": {
     "tabs": {
       "core": "Core",
@@ -72,14 +95,12 @@
       "backup": "Backup",
       "backupDesc": "Backup and restore configuration"
     },
-
     "Control": {
       "title": "Core Controls",
       "description": "Control core service and config operations",
       "restartService": "Restart B4 System Service",
       "resetConfig": "Reset the configuration to default settings"
     },
-
     "Queue": {
       "title": "Queue & Packet Processing",
       "description": "Configure netfilter queue and packet processing parameters",
@@ -95,7 +116,6 @@
       "udpLimit": "UDP Connection Packets Limit",
       "udpLimitHelp": "Max UDP packets per connection to inspect (default 8). Sets cannot exceed this value."
     },
-
     "Logging": {
       "title": "Logging Configuration",
       "description": "Configure logging behavior and output",
@@ -113,7 +133,6 @@
       "levelTrace": "Trace",
       "levelDebug": "Debug"
     },
-
     "Feature": {
       "title": "Feature Flags",
       "description": "Enable or disable advanced features",
@@ -138,7 +157,6 @@
       "networkInterfacesDesc": "Select interfaces to monitor (empty = all interfaces)",
       "listenAllInterfaces": "B4 will listen on all available interfaces if none are selected."
     },
-
     "WebServer": {
       "title": "Web Server",
       "description": "Configure the web UI server binding and TLS",
@@ -163,7 +181,6 @@
       "authHttpWarning": "Authentication credentials will be sent over unencrypted HTTP. Configure TLS certificates above for secure HTTPS transport.",
       "languageHelp": "Web interface display language"
     },
-
     "Socks5": {
       "title": "SOCKS5 Proxy",
       "description": "Built-in SOCKS5 proxy that routes traffic through DPI bypass engine",
@@ -181,7 +198,6 @@
       "passwordHelp": "Leave empty for no authentication",
       "restartNote": "Restart B4 after changing SOCKS5 settings for changes to take effect."
     },
-
     "MSSClamping": {
       "title": "Global MSS Clamping",
       "description": "Clamp TCP Maximum Segment Size to force data fragmentation",
@@ -192,7 +208,6 @@
       "mssSizeHelp": "Lower values = more fragmentation. 88 is commonly used for YouTube bypass.",
       "info": "Reduces the TCP Maximum Segment Size on SYN/SYN-ACK packets for all TCP port 443 traffic, forcing data fragmentation. Most DPI systems cannot reassemble fragmented ClientHello. For per-device MSS clamping, use the Device Filtering settings."
     },
-
     "Devices": {
       "title": "Device Filtering",
       "description": "Filter traffic by source device MAC address",
@@ -205,20 +220,11 @@
       "invertWhitelist": "Allow only selected devices",
       "blacklistAlert": "Blacklist mode: Selected devices will be EXCLUDED from DPI bypass",
       "whitelistAlert": "Whitelist mode: Only selected devices will use DPI bypass",
-      "availableDevices": "Available Devices",
       "arpUnavailable": "ARP table not available. Device discovery unavailable.",
-      "refreshDevices": "Refresh devices",
-      "loadingDevices": "Loading devices...",
-      "noDevices": "No devices found",
-      "macAddress": "MAC Address",
-      "ip": "IP",
-      "name": "Name",
       "mss": "MSS",
       "editName": "Edit name",
-      "resetToVendor": "Reset to vendor name",
-      "unknown": "Unknown"
+      "resetToVendor": "Reset to vendor name"
     },
-
     "RestartDialog": {
       "title": "Restart B4 Service",
       "subtitle": "System Service Management",
@@ -238,7 +244,6 @@
       "doNotClose": "Please wait, do not close this window...",
       "restartButton": "Restart Service"
     },
-
     "Api": {
       "alert": "Here you can setup API settings for different services that can be used by B4.",
       "ipinfoTitle": "IPINFO.IO Settings",
@@ -248,7 +253,6 @@
       "tokenHelpLink": "IPINFO.IO Dashboard",
       "tokenPlaceholder": "abcd1234efgh"
     },
-
     "Checker": {
       "title": "Testing Configuration",
       "description": "Configure testing behavior and output",
@@ -263,7 +267,6 @@
       "addDnsHelp": "DNS servers used during discovery to detect DNS poisoning and find a working bypass. Each server is tested with plain and fragmented queries to determine if it can resolve blocked domains correctly.",
       "activeDns": "Active DNS servers for poisoning detection:"
     },
-
     "Geo": {
       "alert": "GeoSite and GeoIP database files for domain and IP categorization.",
       "alertSub": "Each database can be downloaded independently from different sources.",
@@ -293,10 +296,8 @@
       "uploadingGeosite": "Uploading geosite.dat...",
       "uploadingGeoip": "Uploading geoip.dat...",
       "uploadSuccess": "Uploaded successfully",
-      "selectSource": "Please select a source or enter a URL",
-      "unknown": "Unknown"
+      "selectSource": "Please select a source or enter a URL"
     },
-
     "Backup": {
       "alert": "Create a backup of your B4 configuration directory or restore from a previous backup. Backups include configuration, discovery history, detector history, device aliases, and captured payloads. Geodat files (.dat) and OUI database are excluded.",
       "downloadTitle": "Download Backup",
@@ -314,7 +315,6 @@
       "restoreSuccess": "Backup restored successfully. Restart B4 to apply changes.",
       "restoreFailed": "Failed to restore backup"
     },
-
     "Capture": {
       "alert": "Generate optimized TLS ClientHello with SNI-first extension order",
       "alertSub": "Instant generation for DPI bypass. One payload per domain. Use in Faking → Captured Payload",
@@ -351,7 +351,6 @@
       "downloadBin": "Download .bin",
       "uploadedSuccess": "Uploaded payload for {{domain}}"
     },
-
     "ResetDialog": {
       "title": "Reset Configuration",
       "subtitle": "Restore default settings",
@@ -372,11 +371,9 @@
       "resetButton": "Reset to Defaults"
     }
   },
-
   "dashboard": {
     "loading": "Loading dashboard...",
     "connectionRate": "Connection Rate",
-
     "metrics": {
       "connections": "Connections",
       "connPerSec": "conn/s",
@@ -385,7 +382,6 @@
       "packets": "Packets",
       "pktPerSec": "pkt/s"
     },
-
     "health": {
       "running": "Running",
       "degraded": "Degraded",
@@ -401,27 +397,22 @@
       "resetConfirm": "Reset all statistics? This will clear all connection counters, device activity, and domain statistics. The service will continue running.",
       "reset": "Reset"
     },
-
     "activeSets": {
       "title": "Active Sets",
       "targets": "targets"
     },
-
     "deviceActivity": {
       "title": "Device Activity",
       "conn": "conn",
       "alreadyInSet": "Already in a set"
     },
-
     "unmatchedDomains": {
       "title": "Domains Not In Any Set"
     }
   },
-
   "sets": {
     "setCreated": "Set created",
     "setUpdated": "Set updated",
-
     "manager": {
       "title": "Configuration Sets",
       "description": "Manage bypass configurations for different domains and scenarios",
@@ -443,25 +434,21 @@
       "failedToDeleteSets": "Failed to delete sets",
       "failedToUpdate": "Failed to update"
     },
-
     "deleteDialog": {
       "title": "Delete Configuration Set",
       "subtitle": "This action cannot be undone",
       "confirm": "Are you sure you want to delete",
       "deleteSet": "Delete Set"
     },
-
     "batchDeleteDialog": {
       "title": "Delete Configuration Sets",
       "subtitle": "This action cannot be undone",
       "confirm": "Are you sure you want to delete the following sets?"
     },
-
     "compareDialog": {
       "title": "Select Set to Compare",
       "comparingWith": "Comparing with"
     },
-
     "card": {
       "noTargets": "No targets configured",
       "manual": "manual",
@@ -472,20 +459,17 @@
       "sniFakingOff": "SNI Faking OFF",
       "dnsOff": "DNS OFF"
     },
-
     "targets": {
       "sectionTitle": "Domain Filtering Configuration",
       "sectionDescription": "Configure domain matching for DPI bypass and blocking",
       "tlsVersionFilter": "TLS Version Filter",
       "tlsAny": "Any",
       "tlsHelperText": "Match only specific TLS version",
-
       "tabs": {
         "domains": "Bypass Domains",
         "ips": "Bypass IPs",
         "sourceDevices": "Source Devices"
       },
-
       "domainAlert": "Domains in this list will use DPI bypass techniques (fragmentation, faking) when matched.",
       "manualDomains": "Manual Bypass Domains",
       "manualDomainsTooltip": "Add specific domains to bypass DPI.",
@@ -495,14 +479,12 @@
       "duplicateWarning": "Already exists in other sets:",
       "activeDomains": "Active manually added domains",
       "noDomainsAdded": "No bypass domains added",
-
       "geositeCategories": "Bypass GeoSite Categories",
       "geositeCatTooltip": "Load predefined domain lists from GeoSite database for DPI bypass",
       "addGeositeLabel": "Add Bypass Category",
       "addGeositePlaceholder": "Select or type category",
       "geositeCatAvailable": "{{count}} categories available",
       "activeGeositeCategories": "Active Bypass Categories",
-
       "ipAlert": "IP ranges in these categories will use DPI bypass techniques (fragmentation, faking) when matched.",
       "manualIps": "Manual Bypass IPs",
       "manualIpsTooltip": "Add specific ip/cidr to bypass DPI.",
@@ -511,31 +493,20 @@
       "addIpPlaceholder": "192.168.1.1",
       "activeIps": "Active manually added IPs",
       "noIpsAdded": "No bypass IP added",
-
       "geoipCategories": "Bypass GeoIP Categories",
       "geoipCatTooltip": "Load predefined IP lists from GeoIP database for DPI bypass",
       "addGeoipLabel": "Add Bypass GeoIP Category",
       "addGeoipPlaceholder": "Select or type GeoIP category",
       "geoipCatAvailable": "{{count}} GeoIP categories available",
       "activeGeoipCategories": "Active Bypass GeoIP Categories",
-
       "deviceAlert": "Restrict this set to specific source devices. When devices are selected, this set will only apply to traffic from those devices. Device-specific sets take priority over general sets.",
-      "availableDevices": "Available Devices",
       "selectedCount": "{{count}} selected",
-      "refreshDevices": "Refresh devices",
-      "loadingDevices": "Loading devices...",
-      "noDevicesFound": "No devices found",
-      "macAddress": "MAC Address",
-      "ip": "IP",
-      "name": "Name",
       "arpUnavailable": "ARP table not available. Device discovery is unavailable. Source device filtering requires a working ARP table.",
-
       "previewSubtitle": "Category Preview",
       "previewTotal": "Total domains in category: {{count}}",
       "previewShowing": "showing first {{count}}",
       "previewFailed": "Failed to load category preview"
     },
-
     "tcp": {
       "sectionTitle": "TCP Configuration",
       "sectionDescription": "Configure TCP packet handling and DPI bypass techniques",
@@ -587,7 +558,6 @@
         "tlsRecPosition": "Record Split Position",
         "tlsRecPositionHelper": "First TLS record size in bytes",
         "disabledWarning": "Fragmentation disabled. Only fake packets (if enabled) will be used for bypass.",
-
         "combo": {
           "header": "Combo Strategy",
           "alert": "Combo combines multiple split points and sends segments out of order with timing jitter to confuse stateful DPI.",
@@ -632,7 +602,6 @@
           "fakesPerSegHelper": "Number of fake packets before each segment",
           "noSplitPointsWarning": "No split points enabled. Enable at least one for Combo to work effectively."
         },
-
         "disorder": {
           "header": "Disorder Strategy",
           "alert": "Disorder sends real TCP segments out of order with timing jitter. No fake packets — exploits DPI that expects sequential data.",
@@ -676,7 +645,6 @@
           "presetZeros": "Zeros",
           "presetCustom": "Custom"
         },
-
         "extSplit": {
           "header": "Extension Split",
           "alert": "Automatically splits TLS ClientHello just before the SNI extension. DPI sees incomplete extension list and fails to parse SNI.",
@@ -684,7 +652,6 @@
           "splitNote": "Split happens at the yellow line — before SNI extension starts",
           "noConfigNeeded": "No configuration needed. Uses <strong>Reverse Order</strong> toggle above and <strong>Seg2 Delay</strong> from TCP tab."
         },
-
         "firstByte": {
           "header": "First-Byte Desync",
           "alert": "Sends just 1 byte, waits, then sends the rest. Exploits DPI timeout — incomplete TLS record can't be parsed.",
@@ -693,7 +660,6 @@
           "vizNote": "DPI sees 1 byte (TLS record type), waits for more, times out before SNI arrives",
           "noConfigNeeded": "No configuration needed. Delay controlled by <strong>Seg2 Delay</strong> in TCP tab (minimum 100ms applied automatically)."
         },
-
         "tcpIp": {
           "whereToSplit": "Where to Split",
           "smartSniSplit": "Smart SNI Split",
@@ -709,7 +675,6 @@
         }
       }
     },
-
     "faking": {
       "fakeSni": {
         "title": "Fake SNI Packets",
@@ -755,7 +720,6 @@
         "dupSessionId": "Duplicate Session ID",
         "dupSessionIdDesc": "Copy Session ID from real ClientHello into fake"
       },
-
       "synFake": {
         "title": "SYN Fake Packets",
         "alert": "Send fake SYN packets during the TCP handshake phase to pre-confuse DPI state tracking before the real connection starts.",
@@ -768,7 +732,6 @@
         "ttl": "SYN Fake TTL",
         "ttlHelper": "TTL value for SYN fake packets (default 3 if unset)"
       },
-
       "desync": {
         "title": "TCP Desync Attack",
         "alert": "Desync attacks inject fake TCP control packets (RST/FIN/ACK) with corrupted checksums and low TTL. These packets confuse stateful DPI systems but are discarded by the real server.",
@@ -794,7 +757,6 @@
         "postDesync": "Post-ClientHello RST",
         "postDesyncDesc": "Send fake RST after ClientHello to evict connection from DPI tracking table"
       },
-
       "window": {
         "title": "Window Manipulation",
         "alert": "Window manipulation sends fake ACK packets with modified TCP window sizes before your real packet. These fakes use low TTL so they expire before reaching the server but confuse middlebox DPI.",
@@ -815,7 +777,6 @@
         "addValue": "Add Value (0-65535)",
         "emptyValues": "No values configured - defaults will be used"
       },
-
       "incoming": {
         "title": "Incoming Response Bypass",
         "alert": "Manipulates incoming server responses to bypass DPI that throttles connections after receiving ~15-20KB. Injects fake packets toward server that DPI sees but die before reaching destination.",
@@ -854,7 +815,6 @@
         "thresholdMaxFixed": "Fixed threshold (min = max)",
         "thresholdMaxHelper": "Threshold randomized between min-max per connection"
       },
-
       "mutation": {
         "title": "ClientHello Mutation",
         "mode": "Mutation Mode",
@@ -888,7 +848,6 @@
         "activeFakeSnisTitle": "Active Fake SNIs"
       }
     },
-
     "udp": {
       "sectionTitle": "UDP & QUIC Configuration",
       "sectionDescription": "Configure UDP packet processing and QUIC filtering",
@@ -932,7 +891,6 @@
       "seg2delay": "Segment 2 Delay",
       "seg2delayHelper": "Delay between segments. Use a range for random delay per packet."
     },
-
     "dns": {
       "sectionTitle": "DNS Redirect",
       "sectionDescription": "Redirect DNS queries to bypass ISP DNS poisoning",
@@ -954,7 +912,6 @@
       "noServerWarning": "Select or enter a DNS server IP to enable redirect.",
       "googleWarning": "Google DNS (8.8.8.8) is commonly poisoned by Russian ISPs. Consider Quad9 (9.9.9.9) or Cloudflare (1.1.1.1) instead."
     },
-
     "importExport": {
       "sectionTitle": "Import/Export Set configuration",
       "importSuccess": "Configuration imported successfully! Review your changes in the other tabs, then click <strong>Save</strong> to apply.",
@@ -969,7 +926,6 @@
       "invalidFields": "Invalid set configuration: missing required fields",
       "invalidJson": "Invalid JSON format"
     },
-
     "editor": {
       "namePlaceholder": "Set name...",
       "newSet": "New Set",
@@ -983,7 +939,6 @@
       }
     }
   },
-
   "discovery": {
     "title": "Configuration Discovery",
     "description": "Hierarchical testing: Strategy Detection → Optimization → Combination",
@@ -993,7 +948,6 @@
     "addDomainHelper": "Press Enter to add. Paste multiple URLs separated by commas or newlines.",
     "noUrlsAdded": "No URLs added yet",
     "startDiscovery": "Start Discovery",
-    "cancel": "Cancel",
     "newDiscovery": "New Discovery",
     "reconnecting": "Reconnecting to running discovery...",
     "checkingDns": "Checking DNS...",
@@ -1017,16 +971,11 @@
     "foundWorking": "Found a working configuration! Still testing {{remaining}} more configs — a faster option may be found.",
     "transportBlocked": "<strong>Transport blocked:</strong> This domain is blocked at the IP/network level — TCP connections cannot be established to any known IP address. DPI bypass strategies cannot help with IP-level blocking. A VPN or proxy is required for this domain.",
     "allFailed": "All {{count}} tested configurations failed for this domain. Check your network connection and domain accessibility.",
-    "failed": "Failed",
-
     "history": {
-      "title": "Previous Results",
       "domainsTested": "{{count}} domain tested",
       "domainsTested_plural": "{{count}} domains tested",
-      "clearHistory": "Clear History",
       "historyCleared": "History cleared",
       "historyClearFailed": "Failed to clear history",
-      "removeFromHistory": "Remove from history",
       "removedFromHistory": "Removed {{domain}} from history",
       "dnsPoisoning": "DNS poisoning detected",
       "dnsPoisoningServer": "DNS poisoning detected — best server: {{server}}",
@@ -1036,7 +985,6 @@
       "improvement": "(+{{percent}}% improvement)",
       "retest": "Re-test"
     },
-
     "familyNames": {
       "none": "Baseline",
       "tcp_frag": "TCP Fragmentation",
@@ -1057,7 +1005,6 @@
       "mutation": "Mutation",
       "incoming": "Incoming"
     },
-
     "phaseNames": {
       "baseline": "Baseline Test",
       "cached": "Cached Strategies",
@@ -1066,15 +1013,6 @@
       "combination": "Combination Test",
       "dns_detection": "DNS Detection"
     },
-
-    "timeAgo": {
-      "justNow": "just now",
-      "minutesAgo": "{{count}}m ago",
-      "hoursAgo": "{{count}}h ago",
-      "daysAgo": "{{count}}d ago",
-      "monthsAgo": "{{count}}mo ago"
-    },
-
     "addDialog": {
       "title": "Add Configuration",
       "subtitle": "Strategy: {{name}}",
@@ -1088,7 +1026,6 @@
       "createSet": "Create Set",
       "addToSet": "Add to Set"
     },
-
     "options": {
       "title": "Discovery Options",
       "skipDns": "Skip DNS Discovery",
@@ -1111,38 +1048,30 @@
       "summaryPayloads": "{{count}} payload",
       "summaryPayloads_plural": "{{count}} payloads"
     },
-
     "logs": {
       "title": "Discovery Logs",
       "waiting": "Waiting for discovery logs...",
       "clearLogs": "Clear logs",
       "fullscreenLogs": "Fullscreen logs",
-      "lines": "{{count}} lines",
       "clear": "Clear"
     },
-
     "badges": {
       "success": "Success",
       "testing": "Testing...",
-      "blocked": "Blocked",
-      "failed": "Failed"
+      "blocked": "Blocked"
     }
   },
-
   "detector": {
     "title": "TSPU / DPI Detector",
     "description": "Detect ISP-level Deep Packet Inspection and blocking",
     "alert": "<strong>DPI Detector:</strong> Runs diagnostic tests to detect TSPU (Technical System for Countering Threats) and ISP-level internet blocking. Tests DNS integrity, domain accessibility via TLS/HTTP, and TCP connection drops at characteristic byte thresholds.",
     "inspiredBy": "Inspired by",
     "project": "project",
-
     "actions": {
       "startDetection": "Start Detection",
-      "cancel": "Cancel",
       "newDetection": "New Detection",
       "reconnecting": "Reconnecting to running detection..."
     },
-
     "tests": {
       "names": {
         "dns": "DNS Integrity",
@@ -1157,12 +1086,10 @@
         "sni": "Finds bypass SNI values for blocked ASNs by brute-forcing whitelist domains"
       }
     },
-
     "progress": {
       "checks": "{{completed}}/{{total}} checks",
       "currentlyRunning": "Currently running"
     },
-
     "summary": {
       "dnsIntegrity": "DNS Integrity",
       "domainAccess": "Domain Access",
@@ -1178,33 +1105,28 @@
       "noneFound": "None Found",
       "notBlocked": "Not Blocked"
     },
-
     "sections": {
       "dnsIntegrityCheck": "DNS Integrity Check",
       "domainAccessibility": "Domain Accessibility",
       "tcpFatProbeTest": "TCP Fat Probe Test",
       "sniWhitelistBruteForce": "SNI Whitelist Brute-Force"
     },
-
     "alerts": {
       "dohBlocked": "All DNS-over-HTTPS servers are blocked. Your ISP is filtering encrypted DNS.",
       "udpBlocked": "All UDP DNS servers (port 53) are blocked.",
       "stubIps": "Stub/sinkhole IPs detected: {{ips}}. Multiple blocked domains resolve to these IPs."
     },
-
     "results": {
       "stubIpDetected": "Stub/sinkhole IP detected",
       "fakeIp": "FAKE IP",
       "alive": "Alive",
       "dead": "Dead"
     },
-
     "labels": {
       "dohIp": "DoH IP",
       "udpIp": "UDP IP",
       "status": "Status",
       "note": "Note",
-      "ip": "IP",
       "tls13": "TLS 1.3",
       "tls12": "TLS 1.2",
       "http": "HTTP",
@@ -1217,16 +1139,11 @@
       "provider": "Provider",
       "foundSni": "Found SNI"
     },
-
     "history": {
-      "title": "Previous Results",
       "detectionsSaved": "{{count}} detection saved",
       "detectionsSaved_plural": "{{count}} detections saved",
-      "clearHistory": "Clear History",
-      "removeFromHistory": "Remove from history",
       "complete": "Complete",
       "canceled": "Canceled",
-      "failed": "Failed",
       "dnsOk": "DNS: OK",
       "dnsIssues": "DNS: {{count}} issues",
       "domainsOk": "Domains: OK",
@@ -1235,16 +1152,8 @@
       "tspuDetected": "TSPU: {{count}} detected",
       "sniFound": "SNI: {{count}} found",
       "sniNone": "SNI: None"
-    },
-
-    "time": {
-      "justNow": "just now",
-      "minutesAgo": "{{count}}m ago",
-      "hoursAgo": "{{count}}h ago",
-      "daysAgo": "{{count}}d ago"
     }
   },
-
   "connections": {
     "page": {
       "clearedAll": "Cleared all domains",
@@ -1256,7 +1165,6 @@
     "controlBar": {
       "filterPlaceholder": "Filter (combine with +, exclude with !, e.g. tcp+!domain:google.com)",
       "connections": "{{count}} connections",
-      "filtered": "{{count}} filtered",
       "sortedBy": "Sorted by {{column}}",
       "allPackets": "All packets",
       "domainsOnly": "Domains only",
@@ -1290,8 +1198,6 @@
       "hostname": "Hostname:",
       "location": "Location:",
       "loadingPrefixes": "Loading AS{{asn}} prefixes...",
-      "addHostname": "Add Hostname",
-      "loading": "Loading...",
       "enrichWithIpInfo": "Enrich with IPInfo",
       "loadNetworkInfo": "Load Network Info",
       "loadedPrefixes": "Loaded {{count}} prefixes from AS{{asn}}",
@@ -1308,8 +1214,6 @@
     },
     "ipInfo": {
       "title": "IP Information",
-      "addHostname": "Add Hostname",
-      "close": "Close",
       "organization": "Organization",
       "hostname": "Hostname",
       "ipAddress": "IP Address",
@@ -1319,14 +1223,11 @@
       "postalCode": "Postal Code"
     }
   },
-
   "logs": {
     "cleared": "Logs cleared",
     "paused": "Logs paused",
     "resumed": "Logs resumed",
     "filterPlaceholder": "Filter logs...",
-    "lines": "{{count}} lines",
-    "filtered": "{{count}} filtered",
     "pausedLabel": "Paused",
     "streamingLabel": "Streaming",
     "clearLogs": "Clear Logs",

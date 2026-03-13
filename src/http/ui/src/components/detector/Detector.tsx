@@ -126,22 +126,22 @@ export const DetectorRunner = () => {
 
   function formatTimeAgo(dateStr: string): string {
     const date = new Date(dateStr);
-    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) return t("detector.time.justNow");
+    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) return t("core.timeAgo.justNow");
     const diff = Date.now() - date.getTime();
-    if (diff < 0) return t("detector.time.justNow");
+    if (diff < 0) return t("core.timeAgo.justNow");
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return t("detector.time.justNow");
-    if (minutes < 60) return t("detector.time.minutesAgo", { count: minutes });
+    if (minutes < 1) return t("core.timeAgo.justNow");
+    if (minutes < 60) return t("core.timeAgo.minutesAgo", { count: minutes });
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return t("detector.time.hoursAgo", { count: hours });
+    if (hours < 24) return t("core.timeAgo.hoursAgo", { count: hours });
     const days = Math.floor(hours / 24);
-    return t("detector.time.daysAgo", { count: days });
+    return t("core.timeAgo.daysAgo", { count: days });
   }
 
   function getStatusLabel(status: string): string {
     if (status === "complete") return t("detector.history.complete");
     if (status === "canceled") return t("detector.history.canceled");
-    return t("detector.history.failed");
+    return t("core.failed");
   }
 
   function getHistorySummary(entry: DetectorHistoryEntry): string {
@@ -236,7 +236,7 @@ export const DetectorRunner = () => {
               startIcon={<StopIcon />}
               onClick={() => void cancelDetector()}
             >
-              {t("detector.actions.cancel")}
+              {t("core.cancel")}
             </Button>
           )}
           {suite && !running && (
@@ -388,7 +388,7 @@ export const DetectorRunner = () => {
       {/* Detection History */}
       {history.length > 0 && (
         <B4Section
-          title={t("detector.history.title")}
+          title={t("core.history.title")}
           description={t("detector.history.detectionsSaved", { count: history.length })}
           icon={<HistoryIcon />}
         >
@@ -399,7 +399,7 @@ export const DetectorRunner = () => {
               onClick={() => void clearHistory()}
               sx={{ color: colors.text.secondary }}
             >
-              {t("detector.history.clearHistory")}
+              {t("core.history.clearHistory")}
             </Button>
           </Box>
           <Stack spacing={1}>
@@ -512,7 +512,7 @@ export const DetectorRunner = () => {
                           >
                             {formatTimeAgo(entry.end_time)}
                           </Typography>
-                          <Tooltip title={t("detector.history.removeFromHistory")}>
+                          <Tooltip title={t("core.history.removeFromHistory")}>
                             <IconButton
                               size="small"
                               onClick={(e) => {

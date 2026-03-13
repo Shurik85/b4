@@ -264,13 +264,13 @@ export const AddIpModal = ({
                         color={colors.secondary}
                         sx={{ mt: 1 }}
                       >
-                        {t("connections.addIp.loadingPrefixes", { asn })}
+                        {t("core.loadingPrefixes", { asn })}
                       </Typography>
                     )}
                   </Box>
                   {ipInfo.hostname && onAddHostname && (
                     <Button size="small" onClick={handleAddHostname}>
-                      {t("connections.addIp.addHostname")}
+                      {t("core.addHostname")}
                     </Button>
                   )}
                 </Stack>
@@ -289,7 +289,7 @@ export const AddIpModal = ({
                   onClick={() => void loadIpInfo()}
                   disabled={loadingInfo}
                 >
-                  {loadingInfo ? t("connections.addIp.loading") : t("connections.addIp.enrichWithIpInfo")}
+                  {loadingInfo ? t("core.loading") : t("connections.addIp.enrichWithIpInfo")}
                 </Button>
               )}
               <Button
@@ -298,7 +298,7 @@ export const AddIpModal = ({
                 onClick={() => void loadRipeNetworkInfo()}
                 disabled={loadingInfo}
               >
-                {loadingInfo ? t("connections.addIp.loading") : t("connections.addIp.loadNetworkInfo")}
+                {loadingInfo ? t("core.loading") : t("connections.addIp.loadNetworkInfo")}
               </Button>
             </Stack>
           )}

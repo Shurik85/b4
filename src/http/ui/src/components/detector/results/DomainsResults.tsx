@@ -105,7 +105,7 @@ export function DomainsResults({
                           letterSpacing: "0.5px",
                         }}
                       >
-                        {t("detector.labels.ip")}
+                        {t("core.devices.ip")}
                       </Typography>
                       <Typography
                         variant="body2"

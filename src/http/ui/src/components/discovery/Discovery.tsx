@@ -79,17 +79,17 @@ export const DiscoveryRunner = () => {
 
   function formatTimeAgo(dateStr: string): string {
     const date = new Date(dateStr);
-    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) return t("discovery.timeAgo.justNow");
+    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) return t("core.timeAgo.justNow");
     const diff = Date.now() - date.getTime();
-    if (diff < 0) return t("discovery.timeAgo.justNow");
+    if (diff < 0) return t("core.timeAgo.justNow");
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return t("discovery.timeAgo.justNow");
-    if (minutes < 60) return t("discovery.timeAgo.minutesAgo", { count: minutes });
+    if (minutes < 1) return t("core.timeAgo.justNow");
+    if (minutes < 60) return t("core.timeAgo.minutesAgo", { count: minutes });
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return t("discovery.timeAgo.hoursAgo", { count: hours });
+    if (hours < 24) return t("core.timeAgo.hoursAgo", { count: hours });
     const days = Math.floor(hours / 24);
-    if (days < 30) return t("discovery.timeAgo.daysAgo", { count: days });
-    return t("discovery.timeAgo.monthsAgo", { count: Math.floor(days / 30) });
+    if (days < 30) return t("core.timeAgo.daysAgo", { count: days });
+    return t("core.timeAgo.monthsAgo", { count: Math.floor(days / 30) });
   }
 
   const {
@@ -305,7 +305,7 @@ export const DiscoveryRunner = () => {
     if (domainResult.dns_result?.transport_blocked) {
       return <B4Badge label={t("discovery.badges.blocked")} size="small" color="info" />;
     }
-    return <B4Badge label={t("discovery.badges.failed")} size="small" color="error" />;
+    return <B4Badge label={t("core.failed")} size="small" color="error" />;
   };
 
   const groupResultsByPhase = (results: Record<string, DomainPresetResult>) => {
@@ -390,7 +390,7 @@ export const DiscoveryRunner = () => {
                   whiteSpace: "nowrap",
                 }}
               >
-                {t("discovery.cancel")}
+                {t("core.cancel")}
               </Button>
             )}
             {suite && !running && (
@@ -756,7 +756,7 @@ export const DiscoveryRunner = () => {
                                                 1024 /
                                                 1024
                                               ).toFixed(2)} MB/s`
-                                            : t("discovery.failed")
+                                            : t("core.failed")
                                         }`}
                                         size="small"
                                         color={
@@ -845,7 +845,7 @@ export const DiscoveryRunner = () => {
       {/* Discovery History */}
       {history.length > 0 && (
         <B4Section
-          title={t("discovery.history.title")}
+          title={t("core.history.title")}
           description={`${history.length} ${history.length !== 1 ? t("discovery.history.domainsTested_plural", { count: history.length }) : t("discovery.history.domainsTested", { count: history.length })}`}
           icon={<HistoryIcon />}
         >
@@ -862,7 +862,7 @@ export const DiscoveryRunner = () => {
               }}
               sx={{ color: colors.text.secondary, textTransform: "none" }}
             >
-              {t("discovery.history.clearHistory")}
+              {t("core.history.clearHistory")}
             </Button>
           </Box>
           <Stack spacing={1}>
@@ -921,7 +921,7 @@ export const DiscoveryRunner = () => {
                         ) : entry.dns_result?.transport_blocked ? (
                           <B4Badge label={t("discovery.badges.blocked")} size="small" color="info" />
                         ) : (
-                          <B4Badge label={t("discovery.badges.failed")} size="small" color="error" />
+                          <B4Badge label={t("core.failed")} size="small" color="error" />
                         )}
                         {entry.best_family && entry.best_success && (
                           <B4Badge
@@ -946,7 +946,7 @@ export const DiscoveryRunner = () => {
                         <Typography variant="caption" sx={{ color: colors.text.secondary }}>
                           {formatTimeAgo(entry.end_time)}
                         </Typography>
-                        <Tooltip title={t("discovery.history.removeFromHistory")}>
+                        <Tooltip title={t("core.history.removeFromHistory")}>
                           <IconButton
                             size="small"
                             onClick={(e) => {
@@ -1090,7 +1090,7 @@ export const DiscoveryRunner = () => {
                                             label={`${result.preset_name}: ${
                                               result.status === "complete"
                                                 ? `${(result.speed / 1024 / 1024).toFixed(2)} MB/s`
-                                                : t("discovery.failed")
+                                                : t("core.failed")
                                             }`}
                                             size="small"
                                             color={result.status === "complete" ? "primary" : "error"}

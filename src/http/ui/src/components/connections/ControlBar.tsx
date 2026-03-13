@@ -59,7 +59,7 @@ export const DomainsControlBar = ({
         <Stack direction="row" spacing={1} alignItems="center">
           <B4Badge label={t("connections.controlBar.connections", { count: totalCount })} />
           {filter && (
-            <B4Badge label={t("connections.controlBar.filtered", { count: filteredCount })} variant="outlined" />
+            <B4Badge label={t("core.filtered", { count: filteredCount })} variant="outlined" />
           )}
           {sortColumn && (
             <B4Badge

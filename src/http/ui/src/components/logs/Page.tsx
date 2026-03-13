@@ -128,9 +128,9 @@ export function LogsPage() {
               onChange={(e) => setFilter(e.target.value)}
             />
             <Stack direction="row" spacing={1} alignItems="center">
-              <B4Badge label={t("logs.lines", { count: logs.length })} size="small" />
+              <B4Badge label={t("core.lines", { count: logs.length })} size="small" />
               {filter && (
-                <B4Badge label={t("logs.filtered", { count: filtered.length })} size="small" />
+                <B4Badge label={t("core.filtered", { count: filtered.length })} size="small" />
               )}
             </Stack>
             <B4Switch

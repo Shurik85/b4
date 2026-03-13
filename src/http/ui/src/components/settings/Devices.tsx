@@ -75,7 +75,7 @@ const DeviceNameCell = ({
         />
       ) : (
         <Typography variant="caption" color="text.secondary">
-          {t("settings.Devices.unknown")}
+          {t("core.unknown")}
         </Typography>
       )}
       <Tooltip title={t("settings.Devices.editName")}>
@@ -165,9 +165,9 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
     selectedMacs.length > 0 && selectedMacs.length < devices.length;
 
   const tableHeaders = [
-    t("settings.Devices.macAddress"),
-    t("settings.Devices.ip"),
-    t("settings.Devices.name"),
+    t("core.devices.macAddress"),
+    t("core.devices.ip"),
+    t("core.devices.deviceName"),
     t("settings.Devices.mss"),
   ];
 
@@ -232,7 +232,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                   }}
                 >
                   <Typography variant="subtitle2">
-                    {t("settings.Devices.availableDevices")}
+                    {t("core.devices.availableDevices")}
                     {source && (
                       <Chip
                         label={source}
@@ -246,7 +246,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                     )}
                   </Typography>
                   <B4TooltipButton
-                    title={t("settings.Devices.refreshDevices")}
+                    title={t("core.devices.refreshDevices")}
                     icon={
                       loading ? <CircularProgress size={18} /> : <RefreshIcon />
                     }
@@ -303,8 +303,8 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                         <TableRow>
                           <TableCell colSpan={5} align="center">
                             {loading
-                              ? t("settings.Devices.loadingDevices")
-                              : t("settings.Devices.noDevices")}
+                              ? t("core.devices.loadingDevices")
+                              : t("core.devices.noDevices")}
                           </TableCell>
                         </TableRow>
                       ) : (

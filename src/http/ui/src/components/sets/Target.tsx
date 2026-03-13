@@ -740,7 +740,7 @@ export const TargetSettings = ({
                     }}
                   >
                     <Typography variant="subtitle2">
-                      {t("sets.targets.availableDevices")}
+                      {t("core.devices.availableDevices")}
                       {selectedSourceDevices.length > 0 && (
                         <Typography
                           component="span"
@@ -752,7 +752,7 @@ export const TargetSettings = ({
                       )}
                     </Typography>
                     <B4TooltipButton
-                      title={t("sets.targets.refreshDevices")}
+                      title={t("core.devices.refreshDevices")}
                       icon={
                         devicesLoading ? (
                           <CircularProgress size={18} />
@@ -801,7 +801,7 @@ export const TargetSettings = ({
                               }
                             />
                           </TableCell>
-                          {[t("sets.targets.macAddress"), t("sets.targets.ip"), t("sets.targets.name")].map((label) => (
+                          {[t("core.devices.macAddress"), t("core.devices.ip"), t("core.devices.deviceName")].map((label) => (
                             <TableCell
                               key={label}
                               sx={{
@@ -819,8 +819,8 @@ export const TargetSettings = ({
                           <TableRow>
                             <TableCell colSpan={4} align="center">
                               {devicesLoading
-                                ? t("sets.targets.loadingDevices")
-                                : t("sets.targets.noDevicesFound")}
+                                ? t("core.devices.loadingDevices")
+                                : t("core.devices.noDevices")}
                             </TableCell>
                           </TableRow>
                         ) : (

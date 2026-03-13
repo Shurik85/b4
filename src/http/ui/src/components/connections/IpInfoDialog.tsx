@@ -89,12 +89,12 @@ export const IpInfoModal = ({
               variant="contained"
               startIcon={<AddIcon />}
             >
-              {t("connections.ipInfo.addHostname")}
+              {t("core.addHostname")}
             </Button>
           )}
           <Box sx={{ flex: 1 }} />
           <Button onClick={onClose} variant="outlined">
-            {t("connections.ipInfo.close")}
+            {t("core.close")}
           </Button>
         </>
       }

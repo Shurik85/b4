@@ -57,17 +57,17 @@ const GeoFileCard = ({
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatFileSize = (bytes?: number): string => {
-    if (!bytes) return t("settings.Geo.unknown");
+    if (!bytes) return t("core.unknown");
     const mb = bytes / (1024 * 1024);
     return `${mb.toFixed(2)} MB`;
   };
 
   const formatDate = (dateStr?: string): string => {
-    if (!dateStr) return t("settings.Geo.unknown");
+    if (!dateStr) return t("core.unknown");
     try {
       return new Date(dateStr).toLocaleString();
     } catch {
-      return t("settings.Geo.unknown");
+      return t("core.unknown");
     }
   };
 
