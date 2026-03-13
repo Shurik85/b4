@@ -34,6 +34,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { B4Badge } from "@b4.elements";
 import { colors, radius } from "@design";
 import { B4SetConfig } from "@models/config";
+import { useTranslation } from "react-i18next";
 import { SetStats } from "./Manager";
 
 interface SetCardProps {
@@ -117,6 +118,7 @@ export const SetCard = ({
   selected,
   onSelect,
 }: SetCardProps) => {
+  const { t } = useTranslation();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const strategy = set.fragmentation.strategy;
 
@@ -202,7 +204,7 @@ export const SetCard = ({
             </Box>
           )}
 
-          <Tooltip title={set.enabled ? "Disable" : "Enable"}>
+          <Tooltip title={set.enabled ? t("sets.card.disable") : t("sets.card.enable")}>
             <Switch
               size="small"
               checked={set.enabled}
@@ -241,19 +243,19 @@ export const SetCard = ({
             <ListItemIcon>
               <EditIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Edit</ListItemText>
+            <ListItemText>{t("sets.card.edit")}</ListItemText>
           </MenuItem>
           <MenuItem onClick={() => handleAction(onDuplicate)}>
             <ListItemIcon>
               <CopyIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Duplicate</ListItemText>
+            <ListItemText>{t("sets.card.duplicate")}</ListItemText>
           </MenuItem>
           <MenuItem onClick={() => handleAction(onCompare)}>
             <ListItemIcon>
               <CompareIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Compare</ListItemText>
+            <ListItemText>{t("sets.card.compare")}</ListItemText>
           </MenuItem>
           <Divider />
           <MenuItem
@@ -263,7 +265,7 @@ export const SetCard = ({
             <ListItemIcon>
               <ClearIcon fontSize="small" sx={{ color: colors.secondary }} />
             </ListItemIcon>
-            <ListItemText>Delete</ListItemText>
+            <ListItemText>{t("sets.card.delete")}</ListItemText>
           </MenuItem>
         </Menu>
       </Box>
@@ -371,7 +373,7 @@ export const SetCard = ({
                 color="text.secondary"
                 sx={{ fontStyle: "italic" }}
               >
-                No targets configured
+                {t("sets.card.noTargets")}
               </Typography>
             )}
           </Box>
@@ -402,9 +404,9 @@ export const SetCard = ({
           {/* Domain/IP counts */}
           <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
             <Tooltip
-              title={`${stats?.manual_domains || 0} manual, ${
+              title={`${stats?.manual_domains || 0} ${t("sets.card.manual")}, ${
                 stats?.geosite_domains || 0
-              } geosite`}
+              } ${t("sets.card.geosite")}`}
             >
               <Stack
                 direction="row"
@@ -423,14 +425,14 @@ export const SetCard = ({
                   {domainCount.toLocaleString()}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  domains
+                  {t("sets.card.domains")}
                 </Typography>
               </Stack>
             </Tooltip>
             <Tooltip
-              title={`${stats?.manual_ips || 0} manual, ${
+              title={`${stats?.manual_ips || 0} ${t("sets.card.manual")}, ${
                 stats?.geoip_ips || 0
-              } geoip`}
+              } ${t("sets.card.geoip")}`}
             >
               <Stack
                 direction="row"
@@ -447,7 +449,7 @@ export const SetCard = ({
                   {ipCount.toLocaleString()}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  IPs
+                  {t("sets.card.ips")}
                 </Typography>
               </Stack>
             </Tooltip>
@@ -467,18 +469,18 @@ export const SetCard = ({
             <QuickFlag
               icon={<TcpIcon />}
               label={`${set.tcp.conn_bytes_limit}B`}
-              tooltip="TCP bytes limit"
+              tooltip={t("sets.card.tcpBytesLimit")}
             />
             <QuickFlag
               icon={<FakingIcon />}
               enabled={set.faking.sni}
-              tooltip={set.faking.sni ? "SNI Faking ON" : "SNI Faking OFF"}
+              tooltip={set.faking.sni ? t("sets.card.sniFakingOn") : t("sets.card.sniFakingOff")}
             />
             <QuickFlag
               icon={<DnsIcon />}
               enabled={set.dns?.enabled}
               tooltip={
-                set.dns?.enabled ? `DNS → ${set.dns.target_dns}` : "DNS OFF"
+                set.dns?.enabled ? `DNS → ${set.dns.target_dns}` : t("sets.card.dnsOff")
               }
             />
           </Box>

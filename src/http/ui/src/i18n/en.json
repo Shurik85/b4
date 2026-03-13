@@ -406,5 +406,76 @@
       "tlsVersion": "TLS Version",
       "addToSet": "Add to set"
     }
+  },
+
+  "sets": {
+    "loading": "Loading...",
+    "setCreated": "Set created",
+    "setUpdated": "Set updated",
+    "failedToSave": "Failed to save",
+    "configLoadError": "Failed to load configuration",
+
+    "manager": {
+      "title": "Configuration Sets",
+      "description": "Manage bypass configurations for different domains and scenarios",
+      "totalSets": "total sets",
+      "enabled": "enabled",
+      "domains": "domains",
+      "searchPlaceholder": "Search sets...",
+      "selected": "selected",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "deleteCount": "Delete",
+      "cancel": "Cancel",
+      "select": "Select",
+      "createSet": "Create Set",
+      "noMatch": "No sets match",
+      "setDeleted": "Set deleted",
+      "failedToDelete": "Failed to delete",
+      "setDuplicated": "Set duplicated",
+      "failedToDuplicate": "Failed to duplicate",
+      "setsDeleted": "set(s) deleted",
+      "failedToDeleteSets": "Failed to delete sets",
+      "failedToUpdate": "Failed to update"
+    },
+
+    "deleteDialog": {
+      "title": "Delete Configuration Set",
+      "subtitle": "This action cannot be undone",
+      "confirm": "Are you sure you want to delete",
+      "cancel": "Cancel",
+      "deleteSet": "Delete Set"
+    },
+
+    "batchDeleteDialog": {
+      "title": "Delete Configuration Sets",
+      "subtitle": "This action cannot be undone",
+      "confirm": "Are you sure you want to delete the following sets?",
+      "deleteButton": "Delete"
+    },
+
+    "compareDialog": {
+      "title": "Select Set to Compare",
+      "comparingWith": "Comparing with"
+    },
+
+    "card": {
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "compare": "Compare",
+      "delete": "Delete",
+      "enable": "Enable",
+      "disable": "Disable",
+      "domains": "domains",
+      "ips": "IPs",
+      "noTargets": "No targets configured",
+      "manual": "manual",
+      "geosite": "geosite",
+      "geoip": "geoip",
+      "tcpBytesLimit": "TCP bytes limit",
+      "sniFakingOn": "SNI Faking ON",
+      "sniFakingOff": "SNI Faking OFF",
+      "dnsOff": "DNS OFF"
+    }
   }
 }

@@ -407,5 +407,76 @@
       "tlsVersion": "Версия TLS",
       "addToSet": "Добавить в сет"
     }
+  },
+
+  "sets": {
+    "loading": "Загрузка...",
+    "setCreated": "Сет создан",
+    "setUpdated": "Сет обновлён",
+    "failedToSave": "Не удалось сохранить",
+    "configLoadError": "Не удалось загрузить конфигурацию",
+
+    "manager": {
+      "title": "Сеты конфигурации",
+      "description": "Управление конфигурациями обхода для разных доменов и сценариев",
+      "totalSets": "всего сетов",
+      "enabled": "активных",
+      "domains": "доменов",
+      "searchPlaceholder": "Поиск сетов...",
+      "selected": "выбрано",
+      "selectAll": "Выбрать все",
+      "deselectAll": "Снять выбор",
+      "deleteCount": "Удалить",
+      "cancel": "Отмена",
+      "select": "Выбрать",
+      "createSet": "Создать сет",
+      "noMatch": "Нет сетов по запросу",
+      "setDeleted": "Сет удалён",
+      "failedToDelete": "Не удалось удалить",
+      "setDuplicated": "Сет дублирован",
+      "failedToDuplicate": "Не удалось дублировать",
+      "setsDeleted": "сет(ов) удалено",
+      "failedToDeleteSets": "Не удалось удалить сеты",
+      "failedToUpdate": "Не удалось обновить"
+    },
+
+    "deleteDialog": {
+      "title": "Удалить сет конфигурации",
+      "subtitle": "Это действие нельзя отменить",
+      "confirm": "Вы уверены, что хотите удалить",
+      "cancel": "Отмена",
+      "deleteSet": "Удалить сет"
+    },
+
+    "batchDeleteDialog": {
+      "title": "Удалить сеты конфигурации",
+      "subtitle": "Это действие нельзя отменить",
+      "confirm": "Вы уверены, что хотите удалить следующие сеты?",
+      "deleteButton": "Удалить"
+    },
+
+    "compareDialog": {
+      "title": "Выберите сет для сравнения",
+      "comparingWith": "Сравнение с"
+    },
+
+    "card": {
+      "edit": "Редактировать",
+      "duplicate": "Дублировать",
+      "compare": "Сравнить",
+      "delete": "Удалить",
+      "enable": "Включить",
+      "disable": "Отключить",
+      "domains": "доменов",
+      "ips": "IP",
+      "noTargets": "Цели не настроены",
+      "manual": "вручную",
+      "geosite": "geosite",
+      "geoip": "geoip",
+      "tcpBytesLimit": "TCP лимит байтов",
+      "sniFakingOn": "SNI Faking ВКЛ",
+      "sniFakingOff": "SNI Faking ВЫКЛ",
+      "dnsOff": "DNS ВЫКЛ"
+    }
   }
 }

@@ -51,6 +51,7 @@ import { SetCard } from "./SetCard";
 import { colors, radius } from "@design";
 import { useSets } from "@hooks/useSets";
 import { B4Config, B4SetConfig } from "@models/config";
+import { useTranslation } from "react-i18next";
 
 export interface SetStats {
   manual_domains: number;
@@ -107,6 +108,7 @@ const SortableCardWrapper = ({ id, children }: SortableCardWrapperProps) => {
 };
 
 export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
+  const { t } = useTranslation();
   const { showSuccess, showError } = useSnackbar();
   const navigate = useNavigate();
   const { deleteSet, deleteSets, duplicateSet, reorderSets, updateSet } =
@@ -218,11 +220,11 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
     void (async () => {
       const result = await deleteSet(setId);
       if (result.success) {
-        showSuccess("Set deleted");
+        showSuccess(t("sets.manager.setDeleted"));
         setDeleteDialog({ open: false, setId: null });
         onRefresh();
       } else {
-        showError(result.error || "Failed to delete");
+        showError(result.error || t("sets.manager.failedToDelete"));
       }
     })();
   };
@@ -231,10 +233,10 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
     void (async () => {
       const result = await duplicateSet(set);
       if (result.success) {
-        showSuccess("Set duplicated");
+        showSuccess(t("sets.manager.setDuplicated"));
         onRefresh();
       } else {
-        showError(result.error || "Failed to duplicate");
+        showError(result.error || t("sets.manager.failedToDuplicate"));
       }
     })();
   };
@@ -269,12 +271,12 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
     void (async () => {
       const result = await deleteSets(Array.from(selectedIds));
       if (result.success) {
-        showSuccess(`${selectedIds.size} set${selectedIds.size > 1 ? "s" : ""} deleted`);
+        showSuccess(`${selectedIds.size} ${t("sets.manager.setsDeleted")}`);
         setBatchDeleteDialog(false);
         handleExitSelectionMode();
         onRefresh();
       } else {
-        showError(result.error || "Failed to delete sets");
+        showError(result.error || t("sets.manager.failedToDeleteSets"));
       }
     })();
   };
@@ -286,7 +288,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
       if (result.success) {
         onRefresh();
       } else {
-        showError(result.error || "Failed to update");
+        showError(result.error || t("sets.manager.failedToUpdate"));
       }
     })();
   };
@@ -294,8 +296,8 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
   return (
     <Stack spacing={3}>
       <B4Section
-        title="Configuration Sets"
-        description="Manage bypass configurations for different domains and scenarios"
+        title={t("sets.manager.title")}
+        description={t("sets.manager.description")}
         icon={<SetsIcon />}
       >
         <Paper
@@ -319,18 +321,18 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
             <Stack direction="row" spacing={4}>
               <StatItem
                 value={summaryStats.total}
-                label="total sets"
+                label={t("sets.manager.totalSets")}
                 color={colors.text.primary}
               />
               <StatItem
                 value={summaryStats.enabled}
-                label="enabled"
+                label={t("sets.manager.enabled")}
                 color={colors.tertiary}
                 icon={<CheckIcon sx={{ fontSize: 16 }} />}
               />
               <StatItem
                 value={summaryStats.totalDomains.toLocaleString()}
-                label="domains"
+                label={t("sets.manager.domains")}
                 color={colors.secondary}
                 icon={<DomainIcon sx={{ fontSize: 16 }} />}
               />
@@ -339,7 +341,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
             <Stack direction="row" spacing={2} alignItems="center">
               <TextField
                 size="small"
-                placeholder="Search sets..."
+                placeholder={t("sets.manager.searchPlaceholder")}
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
                 slotProps={{
@@ -366,7 +368,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                     variant="body2"
                     sx={{ color: colors.text.secondary, whiteSpace: "nowrap" }}
                   >
-                    {selectedIds.size} selected
+                    {selectedIds.size} {t("sets.manager.selected")}
                   </Typography>
                   <Button
                     size="small"
@@ -377,8 +379,8 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                     }
                   >
                     {selectedIds.size === filteredSets.length
-                      ? "Deselect All"
-                      : "Select All"}
+                      ? t("sets.manager.deselectAll")
+                      : t("sets.manager.selectAll")}
                   </Button>
                   <Button
                     size="small"
@@ -388,10 +390,10 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                     disabled={selectedIds.size === 0}
                     onClick={() => setBatchDeleteDialog(true)}
                   >
-                    Delete ({selectedIds.size})
+                    {t("sets.manager.deleteCount")} ({selectedIds.size})
                   </Button>
                   <Button size="small" onClick={handleExitSelectionMode}>
-                    Cancel
+                    {t("sets.manager.cancel")}
                   </Button>
                 </>
               ) : (
@@ -403,7 +405,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                       variant="outlined"
                       size="small"
                     >
-                      Select
+                      {t("sets.manager.select")}
                     </Button>
                   )}
                   <Button
@@ -411,7 +413,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                     onClick={handleAddSet}
                     variant="contained"
                   >
-                    Create Set
+                    {t("sets.manager.createSet")}
                   </Button>
                 </>
               )}
@@ -506,7 +508,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
             }}
           >
             <Typography color="text.secondary">
-              No sets match "{filterText}"
+              {t("sets.manager.noMatch")} "{filterText}"
             </Typography>
           </Paper>
         )}
@@ -514,8 +516,8 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
 
       <B4Dialog
         open={deleteDialog.open}
-        title="Delete Configuration Set"
-        subtitle="This action cannot be undone"
+        title={t("sets.deleteDialog.title")}
+        subtitle={t("sets.deleteDialog.subtitle")}
         icon={<WarningIcon />}
         onClose={() => setDeleteDialog({ open: false, setId: null })}
         actions={
@@ -523,44 +525,43 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
             <Button
               onClick={() => setDeleteDialog({ open: false, setId: null })}
             >
-              Cancel
+              {t("sets.deleteDialog.cancel")}
             </Button>
             <Box sx={{ flex: 1 }} />
             <Button onClick={handleDeleteSet} variant="contained" color="error">
-              Delete Set
+              {t("sets.deleteDialog.deleteSet")}
             </Button>
           </>
         }
       >
         <Typography>
-          Are you sure you want to delete{" "}
-          <strong>{sets.find((s) => s.id === deleteDialog.setId)?.name}</strong>{" "}
-          ?
+          {t("sets.deleteDialog.confirm")}{" "}
+          <strong>{sets.find((s) => s.id === deleteDialog.setId)?.name}</strong>?
         </Typography>
       </B4Dialog>
 
       <B4Dialog
         open={batchDeleteDialog}
-        title={`Delete ${selectedIds.size} Configuration Set${selectedIds.size > 1 ? "s" : ""}`}
-        subtitle="This action cannot be undone"
+        title={`${t("sets.batchDeleteDialog.title")} (${selectedIds.size})`}
+        subtitle={t("sets.batchDeleteDialog.subtitle")}
         icon={<WarningIcon />}
         onClose={() => setBatchDeleteDialog(false)}
         actions={
           <>
-            <Button onClick={() => setBatchDeleteDialog(false)}>Cancel</Button>
+            <Button onClick={() => setBatchDeleteDialog(false)}>{t("sets.manager.cancel")}</Button>
             <Box sx={{ flex: 1 }} />
             <Button
               onClick={handleBatchDelete}
               variant="contained"
               color="error"
             >
-              Delete {selectedIds.size} Set{selectedIds.size > 1 ? "s" : ""}
+              {t("sets.batchDeleteDialog.deleteButton")} ({selectedIds.size})
             </Button>
           </>
         }
       >
         <Typography sx={{ mb: 1 }}>
-          Are you sure you want to delete the following sets?
+          {t("sets.batchDeleteDialog.confirm")}
         </Typography>
         <Box
           component="ul"
@@ -583,8 +584,8 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
         onClose={() =>
           setCompareDialog({ open: false, setA: null, setB: null })
         }
-        title="Select Set to Compare"
-        subtitle={`Comparing with: ${compareDialog.setA?.name}`}
+        title={t("sets.compareDialog.title")}
+        subtitle={`${t("sets.compareDialog.comparingWith")}: ${compareDialog.setA?.name}`}
         icon={<CompareIcon />}
       >
         <List>

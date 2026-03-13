@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { OtherSetsTargets } from "./Target";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router";
+import { useTranslation } from "react-i18next";
 import { SetEditorPage } from "./Editor";
 import { SetStats, SetWithStats, SetsManager } from "./Manager";
 
@@ -23,6 +24,7 @@ interface SetEditorRouteProps {
 }
 
 function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showSuccess, showError } = useSnackbar();
@@ -70,13 +72,13 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
         : await updateSet(editedSet);
 
       if (result.success) {
-        showSuccess(isNew ? "Set created" : "Set updated");
+        showSuccess(isNew ? t("sets.setCreated") : t("sets.setUpdated"));
         onRefresh();
         if (isNew && result.data) {
           await navigate(`/sets/${result.data.id}`, { replace: true });
         }
       } else {
-        showError(result.error || "Failed to save");
+        showError(result.error || t("sets.failedToSave"));
       }
     })();
   };
@@ -100,6 +102,7 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
 }
 
 export function SetsPage() {
+  const { t } = useTranslation();
   const { showError } = useSnackbar();
   const [config, setConfig] = useState<
     (B4Config & { sets?: SetWithStats[] }) | null
@@ -117,7 +120,7 @@ export function SetsPage() {
       };
       setConfig(data);
     } catch {
-      showError("Failed to load configuration");
+      showError(t("sets.configLoadError"));
     } finally {
       if (!initialLoadDone.current) {
         setLoading(false);
@@ -136,7 +139,7 @@ export function SetsPage() {
         <Stack alignItems="center" spacing={2}>
           <CircularProgress sx={{ color: colors.secondary }} />
           <Typography sx={{ color: colors.text.primary }}>
-            Loading...
+            {t("sets.loading")}
           </Typography>
         </Stack>
       </Backdrop>
