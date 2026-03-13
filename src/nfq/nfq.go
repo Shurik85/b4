@@ -17,7 +17,7 @@ import (
 	"github.com/mdlayher/netlink"
 )
 
-// kernels < 3.8, support
+// Support kernels < 3.8 by performing NFQUEUE PF_UNBIND/PF_BIND for the given family.
 func pfBind(con *netlink.Conn, family uint8) error {
 	const (
 		nfnlSubSysQueue      = 0x03
