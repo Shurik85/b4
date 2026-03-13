@@ -1,3 +1,6 @@
+-include .env
+export
+
 # Build configuration
 VERSION ?= 1.0.0
 VERSION_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -163,6 +166,30 @@ build-ui:
 	@cd src/http/ui && pnpm build
 	@echo "Web UI build complete."
 
+SFTP_PORT ?= 22
+
+.PHONY: deploy-%
+deploy-%:
+	@$(eval ARCH := $(subst deploy-,,$@))
+	@if [ ! -f .env ]; then \
+		echo "Error: .env file not found. Create one from .env.example"; \
+		exit 1; \
+	fi
+	@if [ -z "$(SFTP_HOST)" ] || [ -z "$(SFTP_PATH)" ] || [ -z "$(SFTP_USER)" ]; then \
+		echo "Error: SFTP_HOST, SFTP_USER and SFTP_PATH must be set in .env"; \
+		exit 1; \
+	fi
+	@$(MAKE) --no-print-directory linux-$(ARCH)
+	@echo "Uploading to $(SFTP_USER)@$(SFTP_HOST):$(SFTP_PATH)/$(BINARY_NAME)..."
+	@if [ -n "$(SFTP_PASS)" ]; then \
+		echo "put $(OUT_DIR)/linux-$(ARCH)/$(BINARY_NAME) $(SFTP_PATH)/$(BINARY_NAME)" | \
+			sshpass -p '$(SFTP_PASS)' sftp -oStrictHostKeyChecking=no -P $(SFTP_PORT) $(SFTP_USER)@$(SFTP_HOST); \
+	else \
+		echo "put $(OUT_DIR)/linux-$(ARCH)/$(BINARY_NAME) $(SFTP_PATH)/$(BINARY_NAME)" | \
+			sftp -P $(SFTP_PORT) $(SFTP_USER)@$(SFTP_HOST); \
+	fi
+	@echo "Deploy complete!"
+
 # Show help
 .PHONY: help
 help:
@@ -181,6 +208,7 @@ help:
 	@printf "  %-25s %s\n" "make build-installer" "Build the installer script"
 	@printf "  %-25s %s\n" "make watch-installer" "Watch and rebuild installer on changes"
 	@printf "  %-25s %s\n" "make build-ui" "Build the web UI"
+	@printf "  %-25s %s\n" "make deploy-<arch>" "Build and upload via SFTP (requires .env)"
 	@printf "  %-25s %s\n" "make help" "Show this help"
 	@echo ""
 	@echo "Architecture-specific builds:"
