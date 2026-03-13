@@ -139,12 +139,12 @@ const UnmatchedRow = ({
         alignItems="center"
         sx={{ minWidth: 0, flex: 1 }}
       >
-        {tls && <B4Badge label={tls} color="secondary" title={t("dashboard.unmatchedDomains.tlsVersion")} />}
+        {tls && <B4Badge label={tls} color="secondary" title={t("core.tlsVersion")} />}
         <Typography variant="overline">{domain}</Typography>
         <B4Badge label={formatNumber(count)} />
       </Stack>
 
-      <Tooltip title={t("dashboard.unmatchedDomains.addToSet")}>
+      <Tooltip title={t("core.addToSet")}>
         <IconButton
           size="small"
           onClick={(e) => {

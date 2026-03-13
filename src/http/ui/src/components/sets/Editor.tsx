@@ -176,7 +176,7 @@ export const SetEditorPage = ({
                 onClick={handleBack}
                 size="small"
               >
-                {t("sets.editor.back")}
+                {t("core.back")}
               </Button>
               <B4TextField
                 value={editedSet.name}
@@ -201,6 +201,7 @@ export const SetEditorPage = ({
                     color: colors.secondary,
                     fontWeight: 600,
                     textTransform: "uppercase",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {t("sets.editor.newSet")}
@@ -215,7 +216,7 @@ export const SetEditorPage = ({
                 onClick={handleBack}
                 disabled={saving}
               >
-                {t("sets.editor.cancel")}
+                {t("core.cancel")}
               </Button>
               <Button
                 size="small"
@@ -227,9 +228,9 @@ export const SetEditorPage = ({
                 disabled={!editedSet.name.trim() || saving}
                 sx={{ minWidth: 140 }}
               >
-                {saving && t("sets.editor.saving")}
+                {saving && t("core.saving")}
                 {!saving && isNew && t("sets.editor.createSet")}
-                {!saving && !isNew && t("sets.editor.saveChanges")}
+                {!saving && !isNew && t("core.save")}
               </Button>
             </Stack>
           </Stack>

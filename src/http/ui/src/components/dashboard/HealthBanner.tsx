@@ -170,7 +170,7 @@ export const HealthBanner = ({
               onClick={() => setResetOpen(false)}
               sx={{ color: colors.text.secondary }}
             >
-              {t("dashboard.health.cancel")}
+              {t("core.cancel")}
             </Button>
             <Button
               onClick={() => void handleReset()}

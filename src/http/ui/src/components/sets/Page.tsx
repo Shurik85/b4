@@ -78,7 +78,7 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
           await navigate(`/sets/${result.data.id}`, { replace: true });
         }
       } else {
-        showError(result.error || t("sets.failedToSave"));
+        showError(result.error || t("core.configSaveError"));
       }
     })();
   };
@@ -120,7 +120,7 @@ export function SetsPage() {
       };
       setConfig(data);
     } catch {
-      showError(t("sets.configLoadError"));
+      showError(t("core.configLoadError"));
     } finally {
       if (!initialLoadDone.current) {
         setLoading(false);
@@ -139,7 +139,7 @@ export function SetsPage() {
         <Stack alignItems="center" spacing={2}>
           <CircularProgress sx={{ color: colors.secondary }} />
           <Typography sx={{ color: colors.text.primary }}>
-            {t("sets.loading")}
+            {t("core.loading")}
           </Typography>
         </Stack>
       </Backdrop>

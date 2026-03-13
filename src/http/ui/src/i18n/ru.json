@@ -29,6 +29,17 @@
     "coreRestartWarning": "Основные настройки требуют перезапуска <strong>B4</strong>",
     "discardChanges": "Отменить изменения",
     "discardConfirm": "Вы уверены, что хотите отменить все несохранённые изменения? Это действие нельзя отменить.",
+    "back": "Назад",
+    "edit": "Редактировать",
+    "enable": "Включить",
+    "disable": "Отключить",
+    "duplicate": "Дублировать",
+    "compare": "Сравнить",
+    "domains": "доменов",
+    "ips": "IP",
+    "addToSet": "Добавить в сет",
+    "tlsVersion": "Версия TLS",
+    "noData": "Нет данных",
 
     "nav": {
       "dashboard": "Главная",
@@ -360,7 +371,6 @@
   "dashboard": {
     "loading": "Загрузка...",
     "connectionRate": "Скорость соединений",
-    "noData": "Нет данных",
 
     "metrics": {
       "connections": "Соединения",
@@ -384,7 +394,6 @@
       "resetting": "Сброс...",
       "resetTitle": "Сброс статистики",
       "resetConfirm": "Сбросить всю статистику? Будут очищены все счётчики соединений, активность устройств и статистика доменов. Сервис продолжит работу.",
-      "cancel": "Отмена",
       "reset": "Сбросить"
     },
 
@@ -395,39 +404,29 @@
 
     "deviceActivity": {
       "title": "Активность устройств",
-      "domains": "доменов",
       "conn": "соед",
-      "tlsVersion": "Версия TLS",
-      "alreadyInSet": "Уже в сете",
-      "addToSet": "Добавить в сет"
+      "alreadyInSet": "Уже в сете"
     },
 
     "unmatchedDomains": {
-      "title": "Домены не в сетах",
-      "tlsVersion": "Версия TLS",
-      "addToSet": "Добавить в сет"
+      "title": "Домены не в сетах"
     }
   },
 
   "sets": {
-    "loading": "Загрузка...",
     "setCreated": "Сет создан",
     "setUpdated": "Сет обновлён",
-    "failedToSave": "Не удалось сохранить",
-    "configLoadError": "Не удалось загрузить конфигурацию",
 
     "manager": {
       "title": "Сеты конфигурации",
       "description": "Управление конфигурациями обхода для разных доменов и сценариев",
       "totalSets": "всего сетов",
       "enabled": "активных",
-      "domains": "доменов",
       "searchPlaceholder": "Поиск сетов...",
       "selected": "выбрано",
       "selectAll": "Выбрать все",
       "deselectAll": "Снять выбор",
       "deleteCount": "Удалить",
-      "cancel": "Отмена",
       "select": "Выбрать",
       "createSet": "Создать сет",
       "noMatch": "Нет сетов по запросу",
@@ -444,15 +443,13 @@
       "title": "Удалить сет конфигурации",
       "subtitle": "Это действие нельзя отменить",
       "confirm": "Вы уверены, что хотите удалить",
-      "cancel": "Отмена",
       "deleteSet": "Удалить сет"
     },
 
     "batchDeleteDialog": {
       "title": "Удалить сеты конфигурации",
       "subtitle": "Это действие нельзя отменить",
-      "confirm": "Вы уверены, что хотите удалить следующие сеты?",
-      "deleteButton": "Удалить"
+      "confirm": "Вы уверены, что хотите удалить следующие сеты?"
     },
 
     "compareDialog": {
@@ -461,14 +458,6 @@
     },
 
     "card": {
-      "edit": "Редактировать",
-      "duplicate": "Дублировать",
-      "compare": "Сравнить",
-      "delete": "Удалить",
-      "enable": "Включить",
-      "disable": "Отключить",
-      "domains": "доменов",
-      "ips": "IP",
       "noTargets": "Цели не настроены",
       "manual": "вручную",
       "geosite": "geosite",
@@ -480,13 +469,9 @@
     },
 
     "editor": {
-      "back": "Назад",
       "namePlaceholder": "Название сета...",
       "newSet": "Новый сет",
-      "cancel": "Отмена",
-      "saving": "Сохранение...",
       "createSet": "Создать сет",
-      "saveChanges": "Сохранить",
       "tabs": {
         "targets": "Цели",
         "tcp": "TCP",

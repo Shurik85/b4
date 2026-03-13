@@ -29,6 +29,17 @@
     "coreRestartWarning": "Core settings require <strong>B4</strong> restart to take effect",
     "discardChanges": "Discard changes",
     "discardConfirm": "Are you sure you want to discard all unsaved changes? This action cannot be undone.",
+    "back": "Back",
+    "edit": "Edit",
+    "enable": "Enable",
+    "disable": "Disable",
+    "duplicate": "Duplicate",
+    "compare": "Compare",
+    "domains": "domains",
+    "ips": "IPs",
+    "addToSet": "Add to set",
+    "tlsVersion": "TLS Version",
+    "noData": "No data",
 
     "nav": {
       "dashboard": "Dashboard",
@@ -336,7 +347,8 @@
       "uploadedSuccess": "Uploaded payload for {{domain}}"
     },
 
-    "ResetDialog": {      "title": "Reset Configuration",
+    "ResetDialog": {
+      "title": "Reset Configuration",
       "subtitle": "Restore default settings",
       "resettingTitle": "Resetting Configuration",
       "pleaseWait": "Please wait...",
@@ -359,7 +371,6 @@
   "dashboard": {
     "loading": "Loading dashboard...",
     "connectionRate": "Connection Rate",
-    "noData": "No data",
 
     "metrics": {
       "connections": "Connections",
@@ -383,7 +394,6 @@
       "resetting": "Resetting...",
       "resetTitle": "Reset Statistics",
       "resetConfirm": "Reset all statistics? This will clear all connection counters, device activity, and domain statistics. The service will continue running.",
-      "cancel": "Cancel",
       "reset": "Reset"
     },
 
@@ -394,39 +404,29 @@
 
     "deviceActivity": {
       "title": "Device Activity",
-      "domains": "domains",
       "conn": "conn",
-      "tlsVersion": "TLS Version",
-      "alreadyInSet": "Already in a set",
-      "addToSet": "Add to set"
+      "alreadyInSet": "Already in a set"
     },
 
     "unmatchedDomains": {
-      "title": "Domains Not In Any Set",
-      "tlsVersion": "TLS Version",
-      "addToSet": "Add to set"
+      "title": "Domains Not In Any Set"
     }
   },
 
   "sets": {
-    "loading": "Loading...",
     "setCreated": "Set created",
     "setUpdated": "Set updated",
-    "failedToSave": "Failed to save",
-    "configLoadError": "Failed to load configuration",
 
     "manager": {
       "title": "Configuration Sets",
       "description": "Manage bypass configurations for different domains and scenarios",
       "totalSets": "total sets",
       "enabled": "enabled",
-      "domains": "domains",
       "searchPlaceholder": "Search sets...",
       "selected": "selected",
       "selectAll": "Select All",
       "deselectAll": "Deselect All",
       "deleteCount": "Delete",
-      "cancel": "Cancel",
       "select": "Select",
       "createSet": "Create Set",
       "noMatch": "No sets match",
@@ -443,15 +443,13 @@
       "title": "Delete Configuration Set",
       "subtitle": "This action cannot be undone",
       "confirm": "Are you sure you want to delete",
-      "cancel": "Cancel",
       "deleteSet": "Delete Set"
     },
 
     "batchDeleteDialog": {
       "title": "Delete Configuration Sets",
       "subtitle": "This action cannot be undone",
-      "confirm": "Are you sure you want to delete the following sets?",
-      "deleteButton": "Delete"
+      "confirm": "Are you sure you want to delete the following sets?"
     },
 
     "compareDialog": {
@@ -460,14 +458,6 @@
     },
 
     "card": {
-      "edit": "Edit",
-      "duplicate": "Duplicate",
-      "compare": "Compare",
-      "delete": "Delete",
-      "enable": "Enable",
-      "disable": "Disable",
-      "domains": "domains",
-      "ips": "IPs",
       "noTargets": "No targets configured",
       "manual": "manual",
       "geosite": "geosite",
@@ -479,13 +469,9 @@
     },
 
     "editor": {
-      "back": "Back",
       "namePlaceholder": "Set name...",
       "newSet": "New Set",
-      "cancel": "Cancel",
-      "saving": "Saving...",
       "createSet": "Create Set",
-      "saveChanges": "Save Changes",
       "tabs": {
         "targets": "Targets",
         "tcp": "TCP",

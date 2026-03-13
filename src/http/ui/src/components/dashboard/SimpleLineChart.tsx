@@ -62,7 +62,7 @@ export const SimpleLineChart = ({
 
   if (data.length === 0)
     return (
-      <Typography sx={{ color: colors.text.secondary }}>{t("dashboard.noData")}</Typography>
+      <Typography sx={{ color: colors.text.secondary }}>{t("core.noData")}</Typography>
     );
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);

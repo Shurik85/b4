@@ -194,7 +194,7 @@ export const DeviceActivity = ({
                   sx={{ flexShrink: 0 }}
                 >
                   <Chip
-                    label={`${domainCount} ${t("dashboard.deviceActivity.domains")}`}
+                    label={`${domainCount} ${t("core.domains")}`}
                     size="small"
                     sx={{
                       bgcolor: `${colors.secondary}15`,
@@ -303,7 +303,7 @@ const DomainRow = ({
         alignItems="center"
         sx={{ minWidth: 0, flex: 1 }}
       >
-        {tls && <B4Badge label={tls} color="secondary" title={t("dashboard.deviceActivity.tlsVersion")} />}
+        {tls && <B4Badge label={tls} color="secondary" title={t("core.tlsVersion")} />}
         <Typography variant="overline">{domain}</Typography>
         <B4Badge label={formatNumber(count)} />
       </Stack>
@@ -314,7 +314,7 @@ const DomainRow = ({
         </Tooltip>
       ) : (
         <>
-          <Tooltip title={t("dashboard.deviceActivity.addToSet")}>
+          <Tooltip title={t("core.addToSet")}>
             <IconButton
               size="small"
               onClick={(e) => {

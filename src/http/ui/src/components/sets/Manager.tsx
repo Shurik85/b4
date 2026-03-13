@@ -332,7 +332,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
               />
               <StatItem
                 value={summaryStats.totalDomains.toLocaleString()}
-                label={t("sets.manager.domains")}
+                label={t("core.domains")}
                 color={colors.secondary}
                 icon={<DomainIcon sx={{ fontSize: 16 }} />}
               />
@@ -393,7 +393,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                     {t("sets.manager.deleteCount")} ({selectedIds.size})
                   </Button>
                   <Button size="small" onClick={handleExitSelectionMode}>
-                    {t("sets.manager.cancel")}
+                    {t("core.cancel")}
                   </Button>
                 </>
               ) : (
@@ -525,7 +525,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
             <Button
               onClick={() => setDeleteDialog({ open: false, setId: null })}
             >
-              {t("sets.deleteDialog.cancel")}
+              {t("core.cancel")}
             </Button>
             <Box sx={{ flex: 1 }} />
             <Button onClick={handleDeleteSet} variant="contained" color="error">
@@ -548,14 +548,14 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
         onClose={() => setBatchDeleteDialog(false)}
         actions={
           <>
-            <Button onClick={() => setBatchDeleteDialog(false)}>{t("sets.manager.cancel")}</Button>
+            <Button onClick={() => setBatchDeleteDialog(false)}>{t("core.cancel")}</Button>
             <Box sx={{ flex: 1 }} />
             <Button
               onClick={handleBatchDelete}
               variant="contained"
               color="error"
             >
-              {t("sets.batchDeleteDialog.deleteButton")} ({selectedIds.size})
+              {t("core.delete")} ({selectedIds.size})
             </Button>
           </>
         }

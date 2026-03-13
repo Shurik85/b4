@@ -204,7 +204,7 @@ export const SetCard = ({
             </Box>
           )}
 
-          <Tooltip title={set.enabled ? t("sets.card.disable") : t("sets.card.enable")}>
+          <Tooltip title={set.enabled ? t("core.disable") : t("core.enable")}>
             <Switch
               size="small"
               checked={set.enabled}
@@ -243,19 +243,19 @@ export const SetCard = ({
             <ListItemIcon>
               <EditIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>{t("sets.card.edit")}</ListItemText>
+            <ListItemText>{t("core.edit")}</ListItemText>
           </MenuItem>
           <MenuItem onClick={() => handleAction(onDuplicate)}>
             <ListItemIcon>
               <CopyIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>{t("sets.card.duplicate")}</ListItemText>
+            <ListItemText>{t("core.duplicate")}</ListItemText>
           </MenuItem>
           <MenuItem onClick={() => handleAction(onCompare)}>
             <ListItemIcon>
               <CompareIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>{t("sets.card.compare")}</ListItemText>
+            <ListItemText>{t("core.compare")}</ListItemText>
           </MenuItem>
           <Divider />
           <MenuItem
@@ -265,7 +265,7 @@ export const SetCard = ({
             <ListItemIcon>
               <ClearIcon fontSize="small" sx={{ color: colors.secondary }} />
             </ListItemIcon>
-            <ListItemText>{t("sets.card.delete")}</ListItemText>
+            <ListItemText>{t("core.delete")}</ListItemText>
           </MenuItem>
         </Menu>
       </Box>
@@ -425,7 +425,7 @@ export const SetCard = ({
                   {domainCount.toLocaleString()}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {t("sets.card.domains")}
+                  {t("core.domains")}
                 </Typography>
               </Stack>
             </Tooltip>
@@ -449,7 +449,7 @@ export const SetCard = ({
                   {ipCount.toLocaleString()}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {t("sets.card.ips")}
+                  {t("core.ips")}
                 </Typography>
               </Stack>
             </Tooltip>
