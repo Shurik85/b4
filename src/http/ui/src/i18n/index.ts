@@ -1,27 +1,21 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import LanguageDetector from "i18next-browser-languagedetector";
 
 import en from "./en.json";
 import ru from "./ru.json";
 
-await i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources: {
-      en: { translation: en },
-      ru: { translation: ru },
-    },
-    fallbackLng: "en",
-    interpolation: {
-      escapeValue: false,
-    },
-    detection: {
-      order: ["localStorage", "navigator"],
-      lookupLocalStorage: "b4-language",
-      caches: ["localStorage"],
-    },
-  });
+const cachedLang = localStorage.getItem("b4-language") || "en";
+
+void i18n.use(initReactI18next).init({
+  resources: {
+    en: { translation: en },
+    ru: { translation: ru },
+  },
+  lng: cachedLang,
+  fallbackLng: "en",
+  interpolation: {
+    escapeValue: false,
+  },
+});
 
 export default i18n;

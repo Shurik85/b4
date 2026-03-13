@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { B4Config } from "@models/config";
 import { Grid, Stack } from "@mui/material";
 import { ApiIcon } from "@b4.icons";
@@ -9,38 +10,39 @@ export interface ApiSettingsProps {
 }
 
 export const ApiSettings = ({ config, onChange }: ApiSettingsProps) => {
+  const { t } = useTranslation();
+
   return (
     <Stack spacing={3}>
       <B4Alert icon={<ApiIcon />}>
-        Here you can setup API settings for different services that can be used
-        by B4.
+        {t("settings.Api.alert")}
       </B4Alert>
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Section
-            title="IPINFO.IO Settings"
-            description="Configure your IPINFO.IO API token here."
+            title={t("settings.Api.ipinfoTitle")}
+            description={t("settings.Api.ipinfoDescription")}
             icon={<ApiIcon />}
           >
             <B4TextField
-              label="Token"
+              label={t("settings.Api.token")}
               value={config.system.api.ipinfo_token}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 onChange("system.api.ipinfo_token", e.target.value)
               }
               helperText={
                 <>
-                  Get the token from{" "}
+                  {t("settings.Api.tokenHelp")}{" "}
                   <a
                     href="https://ipinfo.io/dashboard/token"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    IPINFO.IO Dashboard
+                    {t("settings.Api.tokenHelpLink")}
                   </a>
                 </>
               }
-              placeholder="abcd1234efgh"
+              placeholder={t("settings.Api.tokenPlaceholder")}
             />
           </B4Section>
         </Grid>

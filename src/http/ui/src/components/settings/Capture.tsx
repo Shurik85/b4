@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Grid,
   Stack,
@@ -25,6 +26,7 @@ import { useCaptures, Capture } from "@b4.capture";
 import { colors, radius } from "@design";
 
 export const CaptureSettings = () => {
+  const { t } = useTranslation();
   const { showError, showSuccess } = useSnackbar();
   const [probeForm, setProbeForm] = useState({ domain: "" });
   const [uploadForm, setUploadForm] = useState<{
@@ -36,7 +38,7 @@ export const CaptureSettings = () => {
     captures,
     loading,
     loadCaptures,
-    generate, // NEW: instant generation
+    generate,
     deleteCapture,
     clearAll,
     upload,
@@ -62,35 +64,33 @@ export const CaptureSettings = () => {
       const result = await generate(capturedDomain, "tls");
 
       if (result.already_captured) {
-        showSuccess(`Already have payload for ${capturedDomain}`);
+        showSuccess(t("settings.Capture.alreadyCaptured", { domain: capturedDomain }));
       } else {
-        showSuccess(
-          `Generated optimized payload for ${capturedDomain} (SNI-first for DPI bypass)`,
-        );
+        showSuccess(t("settings.Capture.generateSuccess", { domain: capturedDomain }));
         setProbeForm({ domain: "" });
       }
     } catch (error) {
       console.error("Failed to generate:", error);
-      showError("Failed to generate payload");
+      showError(t("settings.Capture.generateFailed"));
     }
   };
 
   const handleDelete = async (capture: Capture) => {
     try {
       await deleteCapture(capture.protocol, capture.domain);
-      showSuccess(`Deleted ${capture.domain}`);
+      showSuccess(t("settings.Capture.deleteSuccess", { domain: capture.domain }));
     } catch {
-      showError("Failed to delete payload");
+      showError(t("settings.Capture.deleteFailed"));
     }
   };
 
   const handleClear = async () => {
-    if (!confirm("Delete all captured payloads?")) return;
+    if (!confirm(t("settings.Capture.clearConfirm"))) return;
     try {
       await clearAll();
-      showSuccess("All payloads cleared");
+      showSuccess(t("settings.Capture.allCleared"));
     } catch {
-      showError("Failed to clear payloads");
+      showError(t("settings.Capture.clearFailed"));
     }
   };
 
@@ -104,16 +104,16 @@ export const CaptureSettings = () => {
 
     try {
       await upload(uploadForm.file, uploadForm.domain.toLowerCase(), "tls");
-      showSuccess(`Uploaded payload for ${uploadForm.domain}`);
+      showSuccess(t("settings.Capture.uploadedSuccess", { domain: uploadForm.domain }));
       setUploadForm({ domain: "", file: null });
     } catch {
-      showError("Failed to upload payload");
+      showError(t("settings.Capture.uploadFailed"));
     }
   };
 
   const copyHex = (hexData: string) => {
     void navigator.clipboard.writeText(hexData);
-    showSuccess("Hex data copied to clipboard");
+    showSuccess(t("settings.Capture.hexCopied"));
   };
 
   return (
@@ -121,11 +121,10 @@ export const CaptureSettings = () => {
       {/* Info */}
       <B4Alert icon={<CaptureIcon />}>
         <Typography variant="subtitle2" gutterBottom>
-          Generate optimized TLS ClientHello with SNI-first extension order
+          {t("settings.Capture.alert")}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Instant generation for DPI bypass. One payload per domain. Use in
-          Faking → Captured Payload
+          {t("settings.Capture.alertSub")}
         </Typography>
       </B4Alert>
 
@@ -133,13 +132,13 @@ export const CaptureSettings = () => {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Section
-            title="Upload Custom Payload"
-            description="Upload your own binary payload file (max 64KB)"
+            title={t("settings.Capture.uploadTitle")}
+            description={t("settings.Capture.uploadDescription")}
             icon={<UploadIcon />}
           >
             <Stack spacing={2}>
               <B4TextField
-                label="Name/Domain"
+                label={t("settings.Capture.nameDomain")}
                 value={uploadForm.domain}
                 onChange={(e: { target: { value: string } }) =>
                   setUploadForm({
@@ -148,7 +147,7 @@ export const CaptureSettings = () => {
                   })
                 }
                 placeholder="youtube.com"
-                helperText="Name associated with the uploaded payload"
+                helperText={t("settings.Capture.nameDomainHelp")}
                 disabled={loading}
               />
               <Stack direction="row" spacing={1} alignItems="center">
@@ -159,7 +158,7 @@ export const CaptureSettings = () => {
                   disabled={loading}
                   sx={{ flexShrink: 0 }}
                 >
-                  {uploadForm.file ? uploadForm.file.name : "Choose File..."}
+                  {uploadForm.file ? uploadForm.file.name : t("settings.Capture.chooseFile")}
                   <input
                     type="file"
                     hidden
@@ -185,7 +184,7 @@ export const CaptureSettings = () => {
                   }}
                   disabled={loading || !uploadForm.file || !uploadForm.domain}
                 >
-                  {loading ? "Uploading..." : "Upload"}
+                  {loading ? t("settings.Geo.uploading") : t("core.upload")}
                 </Button>
               </Stack>
             </Stack>
@@ -194,13 +193,13 @@ export const CaptureSettings = () => {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Section
-            title="Generate Payload"
-            description="Instantly generate optimized TLS ClientHello"
+            title={t("settings.Capture.generateTitle")}
+            description={t("settings.Capture.generateDescription")}
             icon={<CaptureIcon />}
           >
             <Stack spacing={2}>
               <B4TextField
-                label="Domain"
+                label={t("settings.Capture.domain")}
                 value={probeForm.domain}
                 onChange={(e: { target: { value: string } }) =>
                   setProbeForm({ domain: e.target.value.toLowerCase() })
@@ -211,7 +210,7 @@ export const CaptureSettings = () => {
                   }
                 }}
                 placeholder="max.ru"
-                helperText="Enter domain to generate payload for"
+                helperText={t("settings.Capture.domainHelp")}
                 disabled={loading}
               />
               <Stack direction="row" spacing={1}>
@@ -224,9 +223,9 @@ export const CaptureSettings = () => {
                   onClick={() => void generateCapture()}
                   disabled={loading || !probeForm.domain}
                 >
-                  {loading ? "Generating..." : "Generate"}
+                  {loading ? t("settings.Capture.generating") : t("core.generate")}
                 </Button>
-                <Tooltip title="Refresh list">
+                <Tooltip title={t("settings.Capture.refreshList")}>
                   <IconButton
                     onClick={() => {
                       loadCaptures().catch(() => {});
@@ -237,7 +236,7 @@ export const CaptureSettings = () => {
                   </IconButton>
                 </Tooltip>
                 {captures.length > 0 && (
-                  <Tooltip title="Clear all captures">
+                  <Tooltip title={t("settings.Capture.clearAll")}>
                     <IconButton
                       onClick={() => void handleClear()}
                       color="error"
@@ -256,10 +255,8 @@ export const CaptureSettings = () => {
       {/* Generated Payloads - Flat grid like SetCards */}
       {captures.length > 0 && (
         <B4Section
-          title="Generated Payloads"
-          description={`${captures.length} optimized payload${
-            captures.length === 1 ? "" : "s"
-          } ready for use (SNI-first for DPI bypass)`}
+          title={t("settings.Capture.generatedTitle")}
+          description={t("settings.Capture.generatedDesc", { count: captures.length })}
           icon={<DownloadIcon />}
         >
           <Grid container spacing={3}>
@@ -295,19 +292,18 @@ export const CaptureSettings = () => {
             sx={{ fontSize: 48, color: colors.text.secondary, mb: 2 }}
           />
           <Typography variant="h6" color="text.secondary">
-            No generated payloads yet
+            {t("settings.Capture.emptyTitle")}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Enter a domain above and click Generate to create an optimized
-            payload
+            {t("settings.Capture.emptyDesc")}
           </Typography>
         </Paper>
       )}
 
       {/* Hex Dialog */}
       <B4Dialog
-        title="Payload Hex Data"
-        subtitle="Copy for use in Faking → Custom Payload"
+        title={t("settings.Capture.hexTitle")}
+        subtitle={t("settings.Capture.hexSubtitle")}
         icon={<CaptureIcon />}
         open={hexDialog.open}
         onClose={() => setHexDialog({ open: false, capture: null })}
@@ -323,7 +319,7 @@ export const CaptureSettings = () => {
               setHexDialog({ open: false, capture: null });
             }}
           >
-            Copy & Close
+            {t("settings.Capture.copyClose")}
           </Button>
         }
       >
@@ -369,6 +365,8 @@ const CaptureCard = ({
   onDownload,
   onDelete,
 }: CaptureCardProps) => {
+  const { t } = useTranslation();
+
   return (
     <Paper
       elevation={0}
@@ -430,18 +428,18 @@ const CaptureCard = ({
           borderTop: `1px solid ${colors.border.light}`,
         }}
       >
-        <Tooltip title="View/Copy hex">
+        <Tooltip title={t("settings.Capture.viewHex")}>
           <IconButton size="small" onClick={onViewHex}>
             <CopyIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Download .bin">
+        <Tooltip title={t("settings.Capture.downloadBin")}>
           <IconButton size="small" onClick={onDownload}>
             <DownloadIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Box sx={{ flex: 1 }} />
-        <Tooltip title="Delete">
+        <Tooltip title={t("core.delete")}>
           <IconButton size="small" onClick={onDelete}>
             <ClearIcon fontSize="small" />
           </IconButton>

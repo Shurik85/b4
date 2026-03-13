@@ -185,6 +185,7 @@ type WebServerConfig struct {
 	TLSKey      string `json:"tls_key" bson:"tls_key"`
 	Username    string `json:"username" bson:"username"`
 	Password    string `json:"password" bson:"password"`
+	Language    string `json:"language" bson:"language"`
 	IsEnabled   bool   `json:"-" bson:"-"`
 }
 

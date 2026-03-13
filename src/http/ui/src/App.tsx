@@ -53,7 +53,6 @@ import { LogsPage } from "@b4.logs";
 import { SetsPage } from "@b4.sets";
 import { SettingsPage } from "@b4.settings";
 import { SnackbarProvider } from "@context/SnackbarProvider";
-import { LanguageSwitcher } from "@common/LanguageSwitcher";
 
 const DRAWER_WIDTH = 240;
 
@@ -96,14 +95,14 @@ export default function App() {
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path.startsWith("/dashboard")) return t("core.pages.dashboard");
-    if (path.startsWith("/sets")) return t("core.pages.sets");
-    if (path.startsWith("/connections")) return t("core.pages.connections");
-    if (path.startsWith("/test")) return t("core.pages.test");
-    if (path.startsWith("/logs")) return t("core.pages.logs");
-    if (path.startsWith("/detector")) return t("core.pages.detector");
-    if (path.startsWith("/settings")) return t("core.pages.settings");
-    return t("core.pages.default");
+    if (path.startsWith("/dashboard")) return t("core.nav.dashboard");
+    if (path.startsWith("/sets")) return t("core.nav.sets");
+    if (path.startsWith("/connections")) return t("core.nav.connections");
+    if (path.startsWith("/discovery")) return t("core.nav.discovery");
+    if (path.startsWith("/logs")) return t("core.nav.logs");
+    if (path.startsWith("/detector")) return t("core.nav.detector");
+    if (path.startsWith("/settings")) return t("core.nav.settings");
+    return t("core.nav.discovery");
   };
 
   const isNavItemSelected = (navPath: string) => {
@@ -180,7 +179,6 @@ export default function App() {
               })}
             </List>
             <Box sx={{ flexGrow: 1 }} />
-            <LanguageSwitcher />
             <Version />
           </Drawer>
 

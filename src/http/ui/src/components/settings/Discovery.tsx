@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Box, Grid, IconButton } from "@mui/material";
 import { AddIcon, DiscoveryIcon } from "@b4.icons";
 import { B4Config } from "@models/config";
@@ -20,6 +21,7 @@ interface CheckerSettingsProps {
 }
 
 export const CheckerSettings = ({ config, onChange }: CheckerSettingsProps) => {
+  const { t } = useTranslation();
   const [newDns, setNewDns] = useState("");
 
   const handleAddDns = () => {
@@ -42,14 +44,14 @@ export const CheckerSettings = ({ config, onChange }: CheckerSettingsProps) => {
 
   return (
     <B4Section
-      title="Testing Configuration"
-      description="Configure testing behavior and output"
+      title={t("settings.Checker.title")}
+      description={t("settings.Checker.description")}
       icon={<DiscoveryIcon />}
     >
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, lg: 6 }}>
           <B4Slider
-            label="Discovery Timeout"
+            label={t("settings.Checker.discoveryTimeout")}
             value={config.system.checker.discovery_timeout || 5}
             onChange={(value) =>
               onChange("system.checker.discovery_timeout", value)
@@ -58,12 +60,12 @@ export const CheckerSettings = ({ config, onChange }: CheckerSettingsProps) => {
             max={30}
             step={1}
             valueSuffix=" sec"
-            helperText="Timeout per preset during discovery"
+            helperText={t("settings.Checker.discoveryTimeoutHelp")}
           />
         </Grid>
         <Grid size={{ xs: 12, lg: 6 }}>
           <B4Slider
-            label="Config Propagation Delay"
+            label={t("settings.Checker.configPropagation")}
             value={config.system.checker.config_propagate_ms || 1500}
             onChange={(value) =>
               onChange("system.checker.config_propagate_ms", value)
@@ -72,26 +74,26 @@ export const CheckerSettings = ({ config, onChange }: CheckerSettingsProps) => {
             max={5000}
             step={100}
             valueSuffix=" ms"
-            helperText="Delay for config to propagate to workers (increase on slow devices)"
+            helperText={t("settings.Checker.configPropagationHelp")}
           />
         </Grid>
         <Grid size={{ xs: 12, lg: 6 }}>
           <B4TextField
-            label="Reference Domain"
+            label={t("settings.Checker.referenceDomain")}
             value={config.system.checker.reference_domain || "yandex.ru"}
             onChange={(e) =>
               onChange("system.checker.reference_domain", e.target.value)
             }
             placeholder="yandex.ru"
-            helperText="Fast domain to measure your network baseline speed"
+            helperText={t("settings.Checker.referenceDomainHelp")}
           />
         </Grid>
 
-        <B4FormHeader label="DNS Configuration" />
+        <B4FormHeader label={t("settings.Checker.dnsConfig")} />
         <Grid size={{ xs: 12, md: 6 }}>
           <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
             <B4TextField
-              label="Add DNS Server"
+              label={t("settings.Checker.addDns")}
               value={newDns}
               onChange={(e) => setNewDns(e.target.value)}
               onKeyDown={(e) => {
@@ -101,7 +103,7 @@ export const CheckerSettings = ({ config, onChange }: CheckerSettingsProps) => {
                 }
               }}
               placeholder="e.g., 8.8.8.8"
-              helperText="Additional DNS servers to test"
+              helperText={t("settings.Checker.addDnsHelp")}
             />
             <IconButton
               onClick={handleAddDns}
@@ -120,7 +122,7 @@ export const CheckerSettings = ({ config, onChange }: CheckerSettingsProps) => {
           getKey={(d) => d}
           getLabel={(d) => d}
           onDelete={handleRemoveDns}
-          title="Active DNS servers to test:"
+          title={t("settings.Checker.activeDns")}
           gridSize={{ xs: 12, md: 6 }}
         />
       </Grid>

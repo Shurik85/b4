@@ -210,6 +210,7 @@ export interface WebServerConfig {
   tls_key: string;
   username: string;
   password: string;
+  language: string;
 }
 export interface TableConfig {
   monitor_interval: number;

@@ -38,17 +38,6 @@
       "connections": "Connections",
       "logs": "Logs",
       "settings": "Settings"
-    },
-
-    "pages": {
-      "dashboard": "System Dashboard",
-      "sets": "Sets",
-      "connections": "Connections",
-      "test": "DPI Bypass Test",
-      "logs": "Log Viewer",
-      "detector": "DPI Detector",
-      "settings": "Settings",
-      "default": "B4"
     }
   },
 
@@ -155,7 +144,8 @@
       "password": "Password",
       "passwordHelp": "Password for logging into the web UI",
       "authPartialWarning": "Authentication is only enabled when both username and password are set. Partial credentials will be ignored.",
-      "authHttpWarning": "Authentication credentials will be sent over unencrypted HTTP. Configure TLS certificates above for secure HTTPS transport."
+      "authHttpWarning": "Authentication credentials will be sent over unencrypted HTTP. Configure TLS certificates above for secure HTTPS transport.",
+      "languageHelp": "Web interface display language"
     },
 
     "Socks5": {
@@ -231,6 +221,119 @@
       "failedSubtitle": "An error occurred",
       "doNotClose": "Please wait, do not close this window...",
       "restartButton": "Restart Service"
+    },
+
+    "Api": {
+      "alert": "Here you can setup API settings for different services that can be used by B4.",
+      "ipinfoTitle": "IPINFO.IO Settings",
+      "ipinfoDescription": "Configure your IPINFO.IO API token here.",
+      "token": "Token",
+      "tokenHelp": "Get the token from",
+      "tokenHelpLink": "IPINFO.IO Dashboard",
+      "tokenPlaceholder": "abcd1234efgh"
+    },
+
+    "Checker": {
+      "title": "Testing Configuration",
+      "description": "Configure testing behavior and output",
+      "discoveryTimeout": "Discovery Timeout",
+      "discoveryTimeoutHelp": "Timeout per preset during discovery",
+      "configPropagation": "Config Propagation Delay",
+      "configPropagationHelp": "Delay for config to propagate to workers (increase on slow devices)",
+      "referenceDomain": "Reference Domain",
+      "referenceDomainHelp": "Fast domain to measure your network baseline speed",
+      "dnsConfig": "DNS Configuration",
+      "addDns": "Add DNS Server",
+      "addDnsHelp": "Additional DNS servers to test",
+      "activeDns": "Active DNS servers to test:"
+    },
+
+    "Geo": {
+      "alert": "GeoSite and GeoIP database files for domain and IP categorization.",
+      "alertSub": "Each database can be downloaded independently from different sources.",
+      "title": "Geo Databases",
+      "description": "Download and manage geodat files",
+      "destDir": "Destination Directory",
+      "destDirHelp": "Directory where .dat files will be saved",
+      "geositeDb": "Geosite Database",
+      "geoipDb": "GeoIP Database",
+      "active": "Active",
+      "notFound": "Not Found",
+      "notConfigured": "Not configured",
+      "sourceLocal": "Local upload",
+      "notSet": "Not set",
+      "source": "Source",
+      "selectGeositeSource": "Select a geosite source",
+      "selectGeoipSource": "Select a geoip source",
+      "customUrl": "Custom URL...",
+      "customUrlLabel": "Custom URL",
+      "customUrlHelp": "Full URL to the .dat file",
+      "updating": "Updating...",
+      "update": "Update",
+      "uploading": "Uploading...",
+      "downloadingGeosite": "Downloading geosite.dat...",
+      "downloadingGeoip": "Downloading geoip.dat...",
+      "downloadSuccess": "Downloaded successfully",
+      "uploadingGeosite": "Uploading geosite.dat...",
+      "uploadingGeoip": "Uploading geoip.dat...",
+      "uploadSuccess": "Uploaded successfully",
+      "selectSource": "Please select a source or enter a URL",
+      "unknown": "Unknown"
+    },
+
+    "Backup": {
+      "alert": "Create a backup of your B4 configuration directory or restore from a previous backup. Backups include configuration, discovery history, detector history, device aliases, and captured payloads. Geodat files (.dat) and OUI database are excluded.",
+      "downloadTitle": "Download Backup",
+      "downloadDescription": "Generate and download a tar.gz archive of your B4 configuration",
+      "downloadInfo": "The backup will include all files from the configuration directory except geodat (.dat) files and the OUI database.",
+      "generating": "Generating...",
+      "downloadButton": "Download Backup",
+      "downloadSuccess": "Backup downloaded successfully",
+      "downloadFailed": "Failed to download backup",
+      "restoreTitle": "Restore Backup",
+      "restoreDescription": "Upload a previously downloaded backup to restore your configuration",
+      "restoreInfo": "Upload a .tar.gz backup file. Files will be extracted into the configuration directory. A service restart is recommended after restoring.",
+      "restoring": "Restoring...",
+      "restoreButton": "Upload & Restore",
+      "restoreSuccess": "Backup restored successfully. Restart B4 to apply changes.",
+      "restoreFailed": "Failed to restore backup"
+    },
+
+    "Capture": {
+      "alert": "Generate optimized TLS ClientHello with SNI-first extension order",
+      "alertSub": "Instant generation for DPI bypass. One payload per domain. Use in Faking → Captured Payload",
+      "uploadTitle": "Upload Custom Payload",
+      "uploadDescription": "Upload your own binary payload file (max 64KB)",
+      "nameDomain": "Name/Domain",
+      "nameDomainHelp": "Name associated with the uploaded payload",
+      "chooseFile": "Choose File...",
+      "uploadFailed": "Failed to upload payload",
+      "generateTitle": "Generate Payload",
+      "generateDescription": "Instantly generate optimized TLS ClientHello",
+      "domain": "Domain",
+      "domainHelp": "Enter domain to generate payload for",
+      "generating": "Generating...",
+      "refreshList": "Refresh list",
+      "clearAll": "Clear all captures",
+      "clearConfirm": "Delete all captured payloads?",
+      "allCleared": "All payloads cleared",
+      "clearFailed": "Failed to clear payloads",
+      "generateFailed": "Failed to generate payload",
+      "alreadyCaptured": "Already have payload for {{domain}}",
+      "generateSuccess": "Generated optimized payload for {{domain}} (SNI-first for DPI bypass)",
+      "deleteSuccess": "Deleted {{domain}}",
+      "deleteFailed": "Failed to delete payload",
+      "generatedTitle": "Generated Payloads",
+      "generatedDesc": "{{count}} optimized payload(s) ready for use (SNI-first for DPI bypass)",
+      "emptyTitle": "No generated payloads yet",
+      "emptyDesc": "Enter a domain above and click Generate to create an optimized payload",
+      "hexTitle": "Payload Hex Data",
+      "hexSubtitle": "Copy for use in Faking → Custom Payload",
+      "copyClose": "Copy & Close",
+      "hexCopied": "Hex data copied to clipboard",
+      "viewHex": "View/Copy hex",
+      "downloadBin": "Download .bin",
+      "uploadedSuccess": "Uploaded payload for {{domain}}"
     },
 
     "ResetDialog": {

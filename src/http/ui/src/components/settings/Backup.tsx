@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Grid, Stack, Typography, Box } from "@mui/material";
 import { BackupIcon, DownloadIcon, UploadIcon } from "@b4.icons";
 import { B4Section, B4Alert } from "@b4.elements";
@@ -8,6 +9,7 @@ import { colors } from "@design";
 import { getAuthToken } from "@context/AuthProvider";
 
 export const BackupSettings = () => {
+  const { t } = useTranslation();
   const { showError, showSuccess } = useSnackbar();
   const [downloading, setDownloading] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -43,10 +45,10 @@ export const BackupSettings = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      showSuccess("Backup downloaded successfully");
+      showSuccess(t("settings.Backup.downloadSuccess"));
     } catch (error) {
       showError(
-        error instanceof Error ? error.message : "Failed to download backup",
+        error instanceof Error ? error.message : t("settings.Backup.downloadFailed"),
       );
     } finally {
       setDownloading(false);
@@ -80,11 +82,11 @@ export const BackupSettings = () => {
         );
       }
 
-      showSuccess("Backup restored successfully. Restart B4 to apply changes.");
+      showSuccess(t("settings.Backup.restoreSuccess"));
       setShowRestartDialog(true);
     } catch (error) {
       showError(
-        error instanceof Error ? error.message : "Failed to restore backup",
+        error instanceof Error ? error.message : t("settings.Backup.restoreFailed"),
       );
     } finally {
       setRestoring(false);
@@ -104,23 +106,19 @@ export const BackupSettings = () => {
   return (
     <Stack spacing={3}>
       <B4Alert icon={<BackupIcon />}>
-        Create a backup of your B4 configuration directory or restore from a
-        previous backup. Backups include configuration, discovery history,
-        detector history, device aliases, and captured payloads. Geodat files
-        (.dat) and OUI database are excluded.
+        {t("settings.Backup.alert")}
       </B4Alert>
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Section
-            title="Download Backup"
-            description="Generate and download a tar.gz archive of your B4 configuration"
+            title={t("settings.Backup.downloadTitle")}
+            description={t("settings.Backup.downloadDescription")}
             icon={<DownloadIcon />}
           >
             <Stack spacing={2}>
               <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                The backup will include all files from the configuration
-                directory except geodat (.dat) files and the OUI database.
+                {t("settings.Backup.downloadInfo")}
               </Typography>
               <Box>
                 <Button
@@ -131,7 +129,7 @@ export const BackupSettings = () => {
                   }}
                   disabled={downloading}
                 >
-                  {downloading ? "Generating..." : "Download Backup"}
+                  {downloading ? t("settings.Backup.generating") : t("settings.Backup.downloadButton")}
                 </Button>
               </Box>
             </Stack>
@@ -140,15 +138,13 @@ export const BackupSettings = () => {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Section
-            title="Restore Backup"
-            description="Upload a previously downloaded backup to restore your configuration"
+            title={t("settings.Backup.restoreTitle")}
+            description={t("settings.Backup.restoreDescription")}
             icon={<UploadIcon />}
           >
             <Stack spacing={2}>
               <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                Upload a .tar.gz backup file. Files will be extracted into the
-                configuration directory. A service restart is recommended after
-                restoring.
+                {t("settings.Backup.restoreInfo")}
               </Typography>
               <Box>
                 <input
@@ -164,7 +160,7 @@ export const BackupSettings = () => {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={restoring}
                 >
-                  {restoring ? "Restoring..." : "Upload & Restore"}
+                  {restoring ? t("settings.Backup.restoring") : t("settings.Backup.restoreButton")}
                 </Button>
               </Box>
             </Stack>

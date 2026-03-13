@@ -13,9 +13,9 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 import {
   ApiIcon,
@@ -86,7 +86,7 @@ enum TABS {
 
 export function SettingsPage() {
   const { showError, showSuccess } = useSnackbar();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [config, setConfig] = useState<B4Config | null>(null);
   const [originalConfig, setOriginalConfig] = useState<B4Config | null>(null);
   const [loading, setLoading] = useState(true);
@@ -225,19 +225,27 @@ export function SettingsPage() {
     };
   }, [config, originalConfig, hasChanges]);
 
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+
   const loadConfig = useCallback(async () => {
     try {
       setLoading(true);
       const data = await configApi.get();
       setConfig(data);
       setOriginalConfig(structuredClone(data));
+      const lang = data.system.web_server.language;
+      if (lang && lang !== i18n.language) {
+        void i18n.changeLanguage(lang);
+        localStorage.setItem("b4-language", lang);
+      }
     } catch (error) {
       console.error("Error loading configuration:", error);
-      showError(t("core.configLoadError"));
+      showErrorRef.current("Failed to load configuration");
     } finally {
       setLoading(false);
     }
-  }, [showError, t]);
+  }, []);
 
   useEffect(() => {
     loadConfig().catch(() => {});
@@ -367,7 +375,7 @@ export function SettingsPage() {
             <Stack direction="row" spacing={1}>
               {categoryHasChanges[TABS.GENERAL] && (
                 <B4Alert severity="warning" sx={{ py: 0, px: spacing.sm }}>
-                  {t("core.coreRestartWarning")}
+                  <Trans i18nKey="core.coreRestartWarning" components={{ strong: <strong /> }} />
                 </B4Alert>
               )}
               <Button

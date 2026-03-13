@@ -13,6 +13,7 @@ import {
 import { DomainIcon, DownloadIcon, SuccessIcon, UploadIcon } from "@b4.icons";
 import { B4Alert, B4Section, B4TextField } from "@b4.elements";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { colors } from "@design";
 import { geodatApi, GeodatSource, GeoFileInfo } from "@b4.settings";
 
@@ -53,19 +54,20 @@ const GeoFileCard = ({
   onDownload,
   onUpload,
 }: GeoFileCardProps) => {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatFileSize = (bytes?: number): string => {
-    if (!bytes) return "Unknown";
+    if (!bytes) return t("settings.Geo.unknown");
     const mb = bytes / (1024 * 1024);
     return `${mb.toFixed(2)} MB`;
   };
 
   const formatDate = (dateStr?: string): string => {
-    if (!dateStr) return "Unknown";
+    if (!dateStr) return t("settings.Geo.unknown");
     try {
       return new Date(dateStr).toLocaleString();
     } catch {
-      return "Unknown";
+      return t("settings.Geo.unknown");
     }
   };
 
@@ -95,7 +97,7 @@ const GeoFileCard = ({
             <Chip
               size="small"
               icon={<SuccessIcon />}
-              label="Active"
+              label={t("settings.Geo.active")}
               sx={{
                 bgcolor: colors.accent.secondary,
                 color: colors.secondary,
@@ -104,7 +106,7 @@ const GeoFileCard = ({
           ) : (
             <Chip
               size="small"
-              label="Not Found"
+              label={t("settings.Geo.notFound")}
               sx={{ bgcolor: colors.accent.tertiary }}
             />
           )}
@@ -119,7 +121,7 @@ const GeoFileCard = ({
             wordBreak: "break-all",
           }}
         >
-          {configPath || "Not configured"}
+          {configPath || t("settings.Geo.notConfigured")}
         </Typography>
 
         <Typography
@@ -127,7 +129,7 @@ const GeoFileCard = ({
           color="text.secondary"
           sx={{ wordBreak: "break-all" }}
         >
-          Source: {configUrl || (fileInfo.exists ? "Local upload" : "Not set")}
+          {t("settings.Geo.source")}: {configUrl || (fileInfo.exists ? t("settings.Geo.sourceLocal") : t("settings.Geo.notSet"))}
         </Typography>
 
         {fileInfo.exists && (
@@ -146,10 +148,10 @@ const GeoFileCard = ({
         {/* Source selection */}
         <B4TextField
           select
-          label="Source"
+          label={t("settings.Geo.source")}
           value={selectedSource}
           onChange={(e) => onSourceChange(e.target.value)}
-          helperText={`Select a ${sourceUrlKey === "geosite_url" ? "geosite" : "geoip"} source`}
+          helperText={sourceUrlKey === "geosite_url" ? t("settings.Geo.selectGeositeSource") : t("settings.Geo.selectGeoipSource")}
         >
           {sources.map((source) => (
             <MenuItem key={source.name} value={source.name}>
@@ -157,18 +159,18 @@ const GeoFileCard = ({
             </MenuItem>
           ))}
           <MenuItem value={CUSTOM_SOURCE}>
-            <em>Custom URL...</em>
+            <em>{t("settings.Geo.customUrl")}</em>
           </MenuItem>
         </B4TextField>
 
         {/* Custom URL (conditional) */}
         {selectedSource === CUSTOM_SOURCE && (
           <B4TextField
-            label="Custom URL"
+            label={t("settings.Geo.customUrlLabel")}
             value={customURL}
             onChange={(e) => onCustomURLChange(e.target.value)}
             placeholder={`https://example.com/${sourceUrlKey === "geosite_url" ? "geosite" : "geoip"}.dat`}
-            helperText="Full URL to the .dat file"
+            helperText={t("settings.Geo.customUrlHelp")}
           />
         )}
 
@@ -192,7 +194,7 @@ const GeoFileCard = ({
               !selectedSource
             }
           >
-            {downloading ? "Updating..." : "Update"}
+            {downloading ? t("settings.Geo.updating") : t("settings.Geo.update")}
           </Button>
           <Button
             variant="outlined"
@@ -207,7 +209,7 @@ const GeoFileCard = ({
             onClick={() => fileInputRef.current?.click()}
             disabled={downloading || uploading}
           >
-            {uploading ? "Uploading..." : "Upload"}
+            {uploading ? t("settings.Geo.uploading") : t("core.upload")}
           </Button>
           <input
             ref={fileInputRef}
@@ -247,6 +249,7 @@ export interface GeoSettingsProps {
 }
 
 export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
+  const { t } = useTranslation();
   const [sources, setSources] = useState<GeodatSource[]>([]);
   const [destPath, setDestPath] = useState<string>("/etc/b4");
 
@@ -372,16 +375,16 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
         : geositeSources.find((s) => s.name === geositeSource)?.geosite_url;
 
     if (!url) {
-      setGeositeStatus("Please select a source or enter a URL");
+      setGeositeStatus(t("settings.Geo.selectSource"));
       return;
     }
 
     setGeositeDownloading(true);
-    setGeositeStatus("Downloading geosite.dat...");
+    setGeositeStatus(t("settings.Geo.downloadingGeosite"));
 
     try {
       await geodatApi.download(destPath, url);
-      setGeositeStatus("Downloaded successfully");
+      setGeositeStatus(t("settings.Geo.downloadSuccess"));
       loadConfig();
       void checkFileStatus();
       setTimeout(() => setGeositeStatus(""), 5000);
@@ -399,16 +402,16 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
         : geoipSources.find((s) => s.name === geoipSource)?.geoip_url;
 
     if (!url) {
-      setGeoipStatus("Please select a source or enter a URL");
+      setGeoipStatus(t("settings.Geo.selectSource"));
       return;
     }
 
     setGeoipDownloading(true);
-    setGeoipStatus("Downloading geoip.dat...");
+    setGeoipStatus(t("settings.Geo.downloadingGeoip"));
 
     try {
       await geodatApi.download(destPath, undefined, url);
-      setGeoipStatus("Downloaded successfully");
+      setGeoipStatus(t("settings.Geo.downloadSuccess"));
       loadConfig();
       void checkFileStatus();
       setTimeout(() => setGeoipStatus(""), 5000);
@@ -421,10 +424,10 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
 
   const handleGeositeUpload = async (file: File) => {
     setGeositeUploading(true);
-    setGeositeStatus("Uploading geosite.dat...");
+    setGeositeStatus(t("settings.Geo.uploadingGeosite"));
     try {
       await geodatApi.upload(file, "geosite", destPath);
-      setGeositeStatus("Uploaded successfully");
+      setGeositeStatus(t("settings.Geo.uploadSuccess"));
       setGeositeSource("");
       loadConfig();
       void checkFileStatus();
@@ -438,10 +441,10 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
 
   const handleGeoipUpload = async (file: File) => {
     setGeoipUploading(true);
-    setGeoipStatus("Uploading geoip.dat...");
+    setGeoipStatus(t("settings.Geo.uploadingGeoip"));
     try {
       await geodatApi.upload(file, "geoip", destPath);
-      setGeoipStatus("Uploaded successfully");
+      setGeoipStatus(t("settings.Geo.uploadSuccess"));
       setGeoipSource("");
       loadConfig();
       void checkFileStatus();
@@ -457,30 +460,30 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
     <Stack spacing={3}>
       <B4Alert>
         <Typography variant="subtitle2" gutterBottom>
-          GeoSite and GeoIP database files for domain and IP categorization.
+          {t("settings.Geo.alert")}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Each database can be downloaded independently from different sources.
+          {t("settings.Geo.alertSub")}
         </Typography>
       </B4Alert>
 
       <B4Section
-        title="Geo Databases"
-        description="Download and manage geodat files"
+        title={t("settings.Geo.title")}
+        description={t("settings.Geo.description")}
         icon={<DomainIcon />}
       >
         <B4TextField
-          label="Destination Directory"
+          label={t("settings.Geo.destDir")}
           value={destPath}
           onChange={(e) => setDestPath(e.target.value)}
           placeholder="/etc/b4"
-          helperText="Directory where .dat files will be saved"
+          helperText={t("settings.Geo.destDirHelp")}
         />
 
         <Grid container spacing={2} sx={{ mt: 1 }}>
           <Grid size={{ xs: 12, md: 6 }}>
             <GeoFileCard
-              title="Geosite Database"
+              title={t("settings.Geo.geositeDb")}
               fileInfo={geositeInfo}
               configPath={config.system.geo.sitedat_path}
               configUrl={config.system.geo.sitedat_url}
@@ -499,7 +502,7 @@ export const GeoSettings = ({ config, loadConfig }: GeoSettingsProps) => {
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <GeoFileCard
-              title="GeoIP Database"
+              title={t("settings.Geo.geoipDb")}
               fileInfo={geoipInfo}
               configPath={config.system.geo.ipdat_path}
               configUrl={config.system.geo.ipdat_url}

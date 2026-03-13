@@ -447,7 +447,9 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 	isSTUN = stun.IsSTUNMessage(payload)
 
-	if host == "" {
+	isQUIC := quic.IsInitial(payload)
+
+	if host == "" && isQUIC {
 		if h, ok := sni.ParseQUICClientHelloSNI(payload); ok {
 			host = h
 		}
@@ -466,7 +468,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if !matchedQUIC && (matchedIP || matchedPort) && set.UDP.FilterQUIC == "all" {
-		if quic.IsInitial(payload) {
+		if isQUIC {
 			matchedQUIC = true
 		}
 	}
@@ -480,7 +482,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	matched = shouldHandle
 
 	udpTLS := ""
-	if matchedQUIC {
+	if matchedQUIC || isQUIC {
 		udpTLS = "1.3" // QUIC is always TLS 1.3
 	}
 
