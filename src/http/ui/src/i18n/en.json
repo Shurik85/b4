@@ -952,6 +952,21 @@
       "googleWarning": "Google DNS (8.8.8.8) is commonly poisoned by Russian ISPs. Consider Quad9 (9.9.9.9) or Cloudflare (1.1.1.1) instead."
     },
 
+    "importExport": {
+      "sectionTitle": "Import/Export Set configuration",
+      "importSuccess": "Configuration imported successfully! Review your changes in the other tabs, then click <strong>Save</strong> to apply.",
+      "infoAlert": "Copy JSON to share this set, or paste a configuration to import it.",
+      "jsonLabel": "Set Configuration JSON",
+      "jsonHelper": "Paste or type a set configuration JSON to import it.",
+      "copyJson": "Copy JSON",
+      "import": "Import",
+      "deviceFilterWarning": "This set has source device filters configured. They are excluded from export as they are device-specific.",
+      "copiedToClipboard": "Copied to clipboard",
+      "copyFailed": "Failed to copy to clipboard",
+      "invalidFields": "Invalid set configuration: missing required fields",
+      "invalidJson": "Invalid JSON format"
+    },
+
     "editor": {
       "namePlaceholder": "Set name...",
       "newSet": "New Set",

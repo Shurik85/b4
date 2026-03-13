@@ -3,6 +3,7 @@ import { Button, Stack, Typography } from "@mui/material";
 import { ImportExportIcon, CopyIcon, DownloadIcon, CheckCircleIcon } from "@b4.icons";
 import { B4Alert, B4Section, B4TextField } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { useTranslation, Trans } from "react-i18next";
 
 import { B4SetConfig } from "@models/config";
 import { createDefaultSet } from "@models/defaults";
@@ -101,6 +102,7 @@ export const ImportExportSettings = ({
   config,
   onImport,
 }: ImportExportSettingsProps) => {
+  const { t } = useTranslation();
   const [jsonValue, setJsonValue] = useState("");
   const [importSuccess, setImportSuccess] = useState(false);
   const { showSuccess, showError } = useSnackbar();
@@ -193,7 +195,7 @@ export const ImportExportSettings = ({
         !parsed.faking ||
         !parsed.targets
       ) {
-        showError("Invalid set configuration: missing required fields");
+        showError(t("sets.importExport.invalidFields"));
         return false;
       }
 
@@ -202,7 +204,7 @@ export const ImportExportSettings = ({
       setImportSuccess(true);
       return true;
     } catch {
-      showError("Invalid JSON format");
+      showError(t("sets.importExport.invalidJson"));
       return false;
     }
   };
@@ -221,7 +223,7 @@ export const ImportExportSettings = ({
   const handleCopy = () => {
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(jsonValue).then(
-        () => showSuccess("Copied to clipboard"),
+        () => showSuccess(t("sets.importExport.copiedToClipboard")),
         () => fallbackCopy(jsonValue),
       );
     } else {
@@ -238,31 +240,30 @@ export const ImportExportSettings = ({
     textarea.select();
     try {
       document.execCommand("copy");
-      showSuccess("Copied to clipboard");
+      showSuccess(t("sets.importExport.copiedToClipboard"));
     } catch {
-      showError("Failed to copy to clipboard");
+      showError(t("sets.importExport.copyFailed"));
     }
     document.body.removeChild(textarea);
   };
 
   return (
     <B4Section
-      title="Import/Export Set configuration"
+      title={t("sets.importExport.sectionTitle")}
       icon={<ImportExportIcon />}
     >
       {importSuccess ? (
         <B4Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
-          Configuration imported successfully! Review your changes in the other
-          tabs, then click <strong>Save</strong> to apply.
+          <Trans i18nKey="sets.importExport.importSuccess" />
         </B4Alert>
       ) : (
         <B4Alert severity="info" sx={{ mb: 2 }}>
-          Copy JSON to share this set, or paste a configuration to import it.
+          {t("sets.importExport.infoAlert")}
         </B4Alert>
       )}
       <Stack spacing={2}>
         <B4TextField
-          label="Set Configuration JSON"
+          label={t("sets.importExport.jsonLabel")}
           value={jsonValue}
           onFocus={(e) =>
             (e.target as HTMLTextAreaElement).select()
@@ -274,7 +275,7 @@ export const ImportExportSettings = ({
           onPaste={handlePaste}
           multiline
           rows={10}
-          helperText="Paste or type a set configuration JSON to import it."
+          helperText={t("sets.importExport.jsonHelper")}
         />
         <Stack direction="row" spacing={2} alignItems="center">
           <Button
@@ -282,19 +283,18 @@ export const ImportExportSettings = ({
             startIcon={<CopyIcon />}
             onClick={handleCopy}
           >
-            Copy JSON
+            {t("sets.importExport.copyJson")}
           </Button>
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
             onClick={handleImport}
           >
-            Import
+            {t("sets.importExport.import")}
           </Button>
           {hasSourceDevices && (
             <Typography variant="caption" color="warning.main">
-              This set has source device filters configured. They are excluded
-              from export as they are device-specific.
+              {t("sets.importExport.deviceFilterWarning")}
             </Typography>
           )}
         </Stack>
