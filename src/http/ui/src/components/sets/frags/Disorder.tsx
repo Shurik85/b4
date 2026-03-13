@@ -12,32 +12,7 @@ import {
 } from "@b4.elements";
 import { colors } from "@design";
 import { useState } from "react";
-
-const SEQ_OVERLAP_PRESETS = [
-  { label: "None", value: "none", pattern: [] },
-  {
-    label: "TLS 1.2 Header",
-    value: "tls12",
-    pattern: ["16", "03", "03", "00", "00"],
-  },
-  {
-    label: "TLS 1.1 Header",
-    value: "tls11",
-    pattern: ["16", "03", "02", "00", "00"],
-  },
-  {
-    label: "TLS 1.0 Header",
-    value: "tls10",
-    pattern: ["16", "03", "01", "00", "00"],
-  },
-  {
-    label: "HTTP GET",
-    value: "http_get",
-    pattern: ["47", "45", "54", "20", "2F"],
-  },
-  { label: "Zeros", value: "zeros", pattern: ["00"] },
-  { label: "Custom", value: "custom", pattern: [] },
-];
+import { useTranslation } from "react-i18next";
 
 interface DisorderSettingsProps {
   config: B4SetConfig;
@@ -47,17 +22,44 @@ interface DisorderSettingsProps {
   ) => void;
 }
 
-const shuffleModeOptions: { label: string; value: DisorderShuffleMode }[] = [
-  { label: "Full Shuffle", value: "full" },
-  { label: "Reverse Order", value: "reverse" },
-];
-
 export const DisorderSettings = ({
   config,
   onChange,
 }: DisorderSettingsProps) => {
+  const { t } = useTranslation();
   const disorder = config.fragmentation.disorder;
   const middleSni = config.fragmentation.middle_sni;
+
+  const SEQ_OVERLAP_PRESETS = [
+    { label: t("sets.tcp.splitting.disorder.presetNone"), value: "none", pattern: [] },
+    {
+      label: t("sets.tcp.splitting.disorder.presetTls12"),
+      value: "tls12",
+      pattern: ["16", "03", "03", "00", "00"],
+    },
+    {
+      label: t("sets.tcp.splitting.disorder.presetTls11"),
+      value: "tls11",
+      pattern: ["16", "03", "02", "00", "00"],
+    },
+    {
+      label: t("sets.tcp.splitting.disorder.presetTls10"),
+      value: "tls10",
+      pattern: ["16", "03", "01", "00", "00"],
+    },
+    {
+      label: t("sets.tcp.splitting.disorder.presetHttpGet"),
+      value: "http_get",
+      pattern: ["47", "45", "54", "20", "2F"],
+    },
+    { label: t("sets.tcp.splitting.disorder.presetZeros"), value: "zeros", pattern: ["00"] },
+    { label: t("sets.tcp.splitting.disorder.presetCustom"), value: "custom", pattern: [] },
+  ];
+
+  const shuffleModeOptions: { label: string; value: DisorderShuffleMode }[] = [
+    { label: t("sets.tcp.splitting.disorder.shuffleFull"), value: "full" },
+    { label: t("sets.tcp.splitting.disorder.shuffleReverse"), value: "reverse" },
+  ];
 
   const [customMode, setCustomMode] = useState(false);
   const [newByte, setNewByte] = useState("");
@@ -121,27 +123,26 @@ export const DisorderSettings = ({
 
   return (
     <>
-      <B4FormHeader label="Disorder Strategy" />
+      <B4FormHeader label={t("sets.tcp.splitting.disorder.header")} />
       <B4Alert sx={{ m: 0 }}>
-        Disorder sends real TCP segments out of order with timing jitter. No
-        fake packets — exploits DPI that expects sequential data.
+        {t("sets.tcp.splitting.disorder.alert")}
       </B4Alert>
 
       {/* SNI Split Toggle */}
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Switch
-          label="SNI-Based Splitting"
+          label={t("sets.tcp.splitting.disorder.sniSplit")}
           checked={middleSni}
           onChange={(checked: boolean) =>
             onChange("fragmentation.middle_sni", checked)
           }
-          description="Split around SNI hostname for targeted disruption"
+          description={t("sets.tcp.splitting.disorder.sniSplitDesc")}
         />
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Select
-          label="Shuffle Mode"
+          label={t("sets.tcp.splitting.disorder.shuffleMode")}
           value={disorder.shuffle_mode}
           options={shuffleModeOptions}
           onChange={(e) =>
@@ -150,7 +151,7 @@ export const DisorderSettings = ({
               e.target.value as string,
             )
           }
-          helperText="How to reorder segments"
+          helperText={t("sets.tcp.splitting.disorder.shuffleHelper")}
         />
       </Grid>
 
@@ -170,7 +171,7 @@ export const DisorderSettings = ({
             component="div"
             sx={{ mb: 1 }}
           >
-            SEGMENT ORDER EXAMPLE
+            {t("sets.tcp.splitting.disorder.segOrderExample")}
           </Typography>
           <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
             <Box sx={{ display: "flex", gap: 0.5, fontFamily: "monospace" }}>
@@ -216,20 +217,20 @@ export const DisorderSettings = ({
             sx={{ mt: 1, display: "block" }}
           >
             {disorder.shuffle_mode === "full"
-              ? "Segments sent in random order (example shown)"
-              : "Segments sent in reverse order"}
+              ? t("sets.tcp.splitting.disorder.segRandomOrder")
+              : t("sets.tcp.splitting.disorder.segReverseOrder")}
           </Typography>
         </Box>
       </Grid>
 
-      <B4FormHeader label="Timing Jitter" sx={{ mb: 0 }} />
+      <B4FormHeader label={t("sets.tcp.splitting.disorder.timingHeader")} sx={{ mb: 0 }} />
       <B4Alert sx={{ m: 0 }}>
-        Random delay between segments. Used when TCP Seg2Delay is 0.
+        {t("sets.tcp.splitting.disorder.timingAlert")}
       </B4Alert>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Slider
-          label="Min Jitter"
+          label={t("sets.tcp.splitting.disorder.minJitter")}
           value={disorder.min_jitter_us}
           onChange={(value: number) =>
             onChange("fragmentation.disorder.min_jitter_us", value)
@@ -237,13 +238,13 @@ export const DisorderSettings = ({
           min={100}
           max={5000}
           step={100}
-          helperText="Minimum delay between segments (μs)"
+          helperText={t("sets.tcp.splitting.disorder.minJitterHelper")}
         />
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Slider
-          label="Max Jitter"
+          label={t("sets.tcp.splitting.disorder.maxJitter")}
           value={disorder.max_jitter_us}
           onChange={(value: number) =>
             onChange("fragmentation.disorder.max_jitter_us", value)
@@ -251,40 +252,39 @@ export const DisorderSettings = ({
           min={500}
           max={10000}
           step={100}
-          helperText="Maximum delay between segments (μs)"
+          helperText={t("sets.tcp.splitting.disorder.maxJitterHelper")}
         />
       </Grid>
 
       {disorder.min_jitter_us >= disorder.max_jitter_us && (
         <B4Alert severity="warning">
-          Max jitter should be greater than min jitter for random variation.
+          {t("sets.tcp.splitting.disorder.jitterWarning")}
         </B4Alert>
       )}
 
-      <B4FormHeader label="Fake Per Segment (multidisorder)" />
+      <B4FormHeader label={t("sets.tcp.splitting.disorder.fakePerSegHeader")} />
 
       <Grid size={{ xs: 12 }}>
         <B4Alert severity="info">
-          Multidisorder: sends fake overlap packets before each real segment,
-          not just the first. Floods DPI reassembly with garbage.
+          {t("sets.tcp.splitting.disorder.fakePerSegAlert")}
         </B4Alert>
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Switch
-          label="Fake Per Segment"
+          label={t("sets.tcp.splitting.disorder.fakePerSeg")}
           checked={disorder.fake_per_segment}
           onChange={(checked: boolean) =>
             onChange("fragmentation.disorder.fake_per_segment", checked)
           }
-          description="Send fake overlap before every segment"
+          description={t("sets.tcp.splitting.disorder.fakePerSegDesc")}
         />
       </Grid>
 
       {disorder.fake_per_segment && (
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Slider
-            label="Fakes Per Segment"
+            label={t("sets.tcp.splitting.disorder.fakesPerSeg")}
             value={disorder.fake_per_seg_count || 1}
             onChange={(value: number) =>
               onChange("fragmentation.disorder.fake_per_seg_count", value)
@@ -292,28 +292,27 @@ export const DisorderSettings = ({
             min={1}
             max={11}
             step={1}
-            helperText="Number of fake packets before each segment"
+            helperText={t("sets.tcp.splitting.disorder.fakesPerSegHelper")}
           />
         </Grid>
       )}
 
-      <B4FormHeader label="Sequence Overlap (seqovl)" />
+      <B4FormHeader label={t("sets.tcp.splitting.disorder.seqOverlapHeader")} />
 
       <B4Alert sx={{ m: 0 }}>
-        Prepends fake bytes with decreased TCP sequence number. DPI sees fake
-        protocol header, server discards overlap.
+        {t("sets.tcp.splitting.disorder.seqOverlapAlert")}
       </B4Alert>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Select
-          label="Overlap Pattern"
+          label={t("sets.tcp.splitting.disorder.overlapPattern")}
           value={getCurrentPreset()}
           options={SEQ_OVERLAP_PRESETS.map((p) => ({
             label: p.label,
             value: p.value,
           }))}
           onChange={(e) => handlePresetChange(e.target.value as string)}
-          helperText="Fake bytes DPI will see"
+          helperText={t("sets.tcp.splitting.disorder.overlapPatternHelper")}
         />
       </Grid>
       {seqPattern.length > 0 && (
@@ -332,7 +331,7 @@ export const DisorderSettings = ({
               component="div"
               sx={{ mb: 1 }}
             >
-              SEQOVL VISUALIZATION
+              {t("sets.tcp.splitting.disorder.seqovlViz")}
             </Typography>
             <Box
               sx={{
@@ -363,7 +362,7 @@ export const DisorderSettings = ({
                   flex: 1,
                 }}
               >
-                Real TLS ClientHello...
+                {t("sets.tcp.splitting.disorder.seqovlReal")}
               </Box>
             </Box>
             <Typography
@@ -371,8 +370,7 @@ export const DisorderSettings = ({
               color="text.secondary"
               sx={{ mt: 1, display: "block" }}
             >
-              DPI sees fake header at decreased seq#, server reassembles
-              correctly
+              {t("sets.tcp.splitting.disorder.seqovlNote")}
             </Typography>
           </Box>
         </Grid>
@@ -382,11 +380,11 @@ export const DisorderSettings = ({
           <Grid size={{ xs: 12, md: 6 }}>
             <Box sx={{ display: "flex", gap: 1 }}>
               <B4TextField
-                label="Add Byte (hex)"
+                label={t("sets.tcp.splitting.disorder.addByteLabel")}
                 value={newByte}
                 onChange={(e) => setNewByte(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-                placeholder="e.g., 16 or 0x16"
+                placeholder={t("sets.tcp.splitting.disorder.addBytePlaceholder")}
                 size="small"
               />
               <B4PlusButton
@@ -401,7 +399,7 @@ export const DisorderSettings = ({
             getKey={(item) => `${item.byte}-${item.index}`}
             getLabel={(item) => `0x${item.byte}`}
             onDelete={(item) => handleRemoveByte(item.index)}
-            emptyMessage="Add hex bytes for custom pattern"
+            emptyMessage={t("sets.tcp.splitting.disorder.addByteEmpty")}
             gridSize={{ xs: 12, md: 6 }}
             showEmpty
           />

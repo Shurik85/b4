@@ -5,6 +5,7 @@ import { B4SetConfig } from "@models/config";
 import { colors } from "@design";
 import { B4Alert } from "@components/common/B4Alert";
 import { B4FormHeader } from "@b4.elements";
+import { useTranslation } from "react-i18next";
 
 interface TcpIpSettingsProps {
   config: B4SetConfig;
@@ -12,28 +13,30 @@ interface TcpIpSettingsProps {
 }
 
 export const TcpIpSettings = ({ config, onChange }: TcpIpSettingsProps) => {
+  const { t } = useTranslation();
+
   const getSplitModeDescription = () => {
     if (config.fragmentation.middle_sni) {
       if (config.fragmentation.sni_position > 0) {
-        return "3 segments: split at fixed position AND middle of SNI";
+        return t("sets.tcp.splitting.tcpIp.splitMode3seg");
       }
-      return "2 segments: split at middle of SNI hostname";
+      return t("sets.tcp.splitting.tcpIp.splitModeSni");
     }
-    return `2 segments: split at byte ${config.fragmentation.sni_position} of TLS payload`;
+    return t("sets.tcp.splitting.tcpIp.splitModeFixed", { pos: config.fragmentation.sni_position });
   };
 
   return (
     <>
-      <B4FormHeader label="Where to Split" />
+      <B4FormHeader label={t("sets.tcp.splitting.tcpIp.whereToSplit")} />
 
       <Grid size={{ xs: 12 }}>
         <B4Switch
-          label="Smart SNI Split"
+          label={t("sets.tcp.splitting.tcpIp.smartSniSplit")}
           checked={config.fragmentation.middle_sni}
           onChange={(checked: boolean) =>
             onChange("fragmentation.middle_sni", checked)
           }
-          description="Automatically split in the middle of the SNI hostname (recommended)"
+          description={t("sets.tcp.splitting.tcpIp.smartSniSplitDesc")}
         />
       </Grid>
 
@@ -53,7 +56,7 @@ export const TcpIpSettings = ({ config, onChange }: TcpIpSettingsProps) => {
             component="div"
             sx={{ mb: 1 }}
           >
-            TCP PACKET STRUCTURE EXAMPLE
+            {t("sets.tcp.splitting.tcpIp.packetStructViz")}
           </Typography>
           <Box
             sx={{
@@ -145,12 +148,12 @@ export const TcpIpSettings = ({ config, onChange }: TcpIpSettingsProps) => {
           gutterBottom
           component="div"
         >
-          Manual override — use if Smart SNI Split doesn't work for your ISP
+          {t("sets.tcp.splitting.tcpIp.manualOverride")}
         </Typography>
         <Grid container spacing={2} sx={{ mt: 1 }}>
           <Grid size={{ xs: 12, md: 12 }}>
             <B4Slider
-              label="Fixed Split Position"
+              label={t("sets.tcp.splitting.tcpIp.fixedSplitPos")}
               value={config.fragmentation.sni_position}
               onChange={(value: number) =>
                 onChange("fragmentation.sni_position", value)
@@ -158,14 +161,14 @@ export const TcpIpSettings = ({ config, onChange }: TcpIpSettingsProps) => {
               min={0}
               max={50}
               step={1}
-              helperText="Bytes from TLS payload start (0 = disabled)"
+              helperText={t("sets.tcp.splitting.tcpIp.fixedSplitPosHelper")}
             />
           </Grid>
         </Grid>
         {config.fragmentation.sni_position > 0 &&
           config.fragmentation.middle_sni && (
             <B4Alert severity="info" sx={{ mt: 2 }}>
-              Both enabled → packet splits into 3 segments
+              {t("sets.tcp.splitting.tcpIp.bothEnabled")}
             </B4Alert>
           )}
       </Grid>

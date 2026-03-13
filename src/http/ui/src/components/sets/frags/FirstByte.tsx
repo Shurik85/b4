@@ -2,19 +2,21 @@ import { Grid, Box, Typography } from "@mui/material";
 import { colors } from "@design";
 import { B4SetConfig } from "@models/config";
 import { B4Alert, B4FormHeader } from "@b4.elements";
+import { useTranslation, Trans } from "react-i18next";
 
 interface FirstByteSettingsProps {
   config: B4SetConfig;
 }
 
 export const FirstByteSettings = ({ config }: FirstByteSettingsProps) => {
+  const { t } = useTranslation();
+
   return (
     <>
-      <B4FormHeader label="First-Byte Desync" />
+      <B4FormHeader label={t("sets.tcp.splitting.firstByte.header")} />
 
       <B4Alert severity="info" sx={{ m: 0 }}>
-        Sends just 1 byte, waits, then sends the rest. Exploits DPI timeout —
-        incomplete TLS record can't be parsed.
+        {t("sets.tcp.splitting.firstByte.alert")}
       </B4Alert>
 
       <Grid size={{ xs: 12 }}>
@@ -32,7 +34,7 @@ export const FirstByteSettings = ({ config }: FirstByteSettingsProps) => {
             component="div"
             sx={{ mb: 1 }}
           >
-            TIMING ATTACK
+            {t("sets.tcp.splitting.firstByte.timingViz")}
           </Typography>
           <Box
             sx={{
@@ -85,7 +87,7 @@ export const FirstByteSettings = ({ config }: FirstByteSettingsProps) => {
                 textAlign: "center",
               }}
             >
-              Rest of TLS ClientHello...
+              {t("sets.tcp.splitting.firstByte.restOfPayload")}
             </Box>
           </Box>
           <Typography
@@ -93,17 +95,14 @@ export const FirstByteSettings = ({ config }: FirstByteSettingsProps) => {
             color="text.secondary"
             sx={{ mt: 1, display: "block" }}
           >
-            DPI sees 1 byte (TLS record type), waits for more, times out before
-            SNI arrives
+            {t("sets.tcp.splitting.firstByte.vizNote")}
           </Typography>
         </Box>
       </Grid>
 
       <Grid size={{ xs: 12 }}>
         <B4Alert severity="success" sx={{ m: 0 }}>
-          No configuration needed. Delay controlled by{" "}
-          <strong>Seg2 Delay</strong> in TCP tab (minimum 100ms applied
-          automatically).
+          <Trans i18nKey="sets.tcp.splitting.firstByte.noConfigNeeded" />
         </B4Alert>
       </Grid>
     </>

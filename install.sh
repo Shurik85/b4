@@ -250,13 +250,53 @@ is_little_endian() {
 }
 
 is_softfloat() {
+    if [ -f /etc/openwrt_release ]; then
+        _sf_owrt_arch=$(sed -n "s/^DISTRIB_ARCH=['\"\`]*\([^'\"\`]*\).*/\1/p" /etc/openwrt_release 2>/dev/null)
+        if [ -n "$_sf_owrt_arch" ]; then
+            case "$_sf_owrt_arch" in
+                *_softfloat* | *_nofpu* | *soft*) return 0 ;;
+            esac
+            if echo "$_sf_owrt_arch" | grep -qE '_[a-z]*[0-9]+k?f$'; then
+                return 1
+            fi
+            case "$_sf_owrt_arch" in
+                mips_* | mipsel_* | mips64_* | mips64el_*) return 0 ;;
+            esac
+        fi
+    fi
     if command_exists opkg; then
         _sf_opkg_arch="$(opkg print-architecture 2>/dev/null)"
         echo "$_sf_opkg_arch" | grep -qi "softfloat\|_nofpu\|soft_float" && return 0
-        echo "$_sf_opkg_arch" | grep -qi "mips" && return 1
+        if echo "$_sf_opkg_arch" | grep -qiE "mips(el|64|64el)?_[a-z]*[0-9]+k?f( |$)"; then
+            return 1
+        fi
+        echo "$_sf_opkg_arch" | grep -qi "mips" && return 0
     fi
     if [ -f /proc/cpuinfo ]; then
         grep -qi "nofpu\|no fpu\|soft.float" /proc/cpuinfo 2>/dev/null && return 0
+    fi
+    _sf_elf_bin=""
+    for _sf_b in /bin/sh /bin/busybox /bin/ls; do
+        [ -f "$_sf_b" ] && _sf_elf_bin="$_sf_b" && break
+    done
+    if [ -n "$_sf_elf_bin" ]; then
+        _sf_ei_class=$(dd if="$_sf_elf_bin" bs=1 skip=4 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+        _sf_ei_data=$(dd if="$_sf_elf_bin" bs=1 skip=5 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+        _sf_flags_off=""
+        [ "$_sf_ei_class" = "1" ] && _sf_flags_off=36
+        [ "$_sf_ei_class" = "2" ] && _sf_flags_off=48
+        if [ -n "$_sf_flags_off" ]; then
+            if [ "$_sf_ei_data" = "1" ]; then
+                _sf_check_off=$(( _sf_flags_off + 1 ))
+            else
+                _sf_check_off=$(( _sf_flags_off + 2 ))
+            fi
+            _sf_flag_byte=$(dd if="$_sf_elf_bin" bs=1 skip="$_sf_check_off" count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+            if [ -n "$_sf_flag_byte" ]; then
+                [ $(( _sf_flag_byte & 8 )) -ne 0 ] && return 0
+                return 1
+            fi
+        fi
     fi
     if command_exists file; then
         _sf_file_out="$(file /bin/sh 2>/dev/null)"
@@ -2853,9 +2893,29 @@ action_sysinfo() {
                 log_detail "FPU" "${GREEN}available${NC}"
             fi
         fi
+        if [ -f /etc/openwrt_release ]; then
+            _owrt_arch=$(sed -n "s/^DISTRIB_ARCH=['\"\`]*\([^'\"\`]*\).*/\1/p" /etc/openwrt_release 2>/dev/null)
+            [ -n "$_owrt_arch" ] && log_detail "OpenWrt arch" "$_owrt_arch"
+        fi
         if command_exists opkg; then
             _opkg_arch=$(opkg print-architecture 2>/dev/null | grep -i "mips" | head -1 | awk '{print $2}')
             [ -n "$_opkg_arch" ] && log_detail "opkg arch" "$_opkg_arch"
+        fi
+        _elf_bin=""
+        for _eb in /bin/sh /bin/busybox /bin/ls; do
+            [ -f "$_eb" ] && _elf_bin="$_eb" && break
+        done
+        if [ -n "$_elf_bin" ]; then
+            _ei_data=$(dd if="$_elf_bin" bs=1 skip=5 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+            case "$_ei_data" in
+                1) log_detail "ELF endian" "little-endian" ;;
+                2) log_detail "ELF endian" "big-endian" ;;
+            esac
+        fi
+        if is_softfloat; then
+            log_detail "Float ABI" "${YELLOW}soft-float${NC}"
+        else
+            log_detail "Float ABI" "hard-float"
         fi
         ;;
     esac

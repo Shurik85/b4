@@ -1,14 +1,16 @@
 import { Grid, Box, Typography } from "@mui/material";
 import { colors } from "@design";
 import { B4Alert, B4FormHeader } from "@b4.elements";
+import { useTranslation, Trans } from "react-i18next";
 
 export const ExtSplitSettings = () => {
+  const { t } = useTranslation();
+
   return (
     <>
-      <B4FormHeader label="Extension Split" />
+      <B4FormHeader label={t("sets.tcp.splitting.extSplit.header")} />
       <B4Alert severity="info" sx={{ m: 0 }}>
-        Automatically splits TLS ClientHello just before the SNI extension. DPI
-        sees incomplete extension list and fails to parse SNI.
+        {t("sets.tcp.splitting.extSplit.alert")}
       </B4Alert>
 
       <Grid size={{ xs: 12 }}>
@@ -26,7 +28,7 @@ export const ExtSplitSettings = () => {
             component="div"
             sx={{ mb: 1 }}
           >
-            TLS CLIENTHELLO STRUCTURE
+            {t("sets.tcp.splitting.extSplit.structureViz")}
           </Typography>
           <Box
             sx={{
@@ -118,15 +120,14 @@ export const ExtSplitSettings = () => {
             color="text.secondary"
             sx={{ mt: 1, display: "block" }}
           >
-            Split happens at the yellow line — before SNI extension starts
+            {t("sets.tcp.splitting.extSplit.splitNote")}
           </Typography>
         </Box>
       </Grid>
 
       <Grid size={{ xs: 12 }}>
         <B4Alert severity="success" sx={{ m: 0 }}>
-          No configuration needed. Uses <strong>Reverse Order</strong> toggle
-          above and <strong>Seg2 Delay</strong> from TCP tab.
+          <Trans i18nKey="sets.tcp.splitting.extSplit.noConfigNeeded" />
         </B4Alert>
       </Grid>
     </>

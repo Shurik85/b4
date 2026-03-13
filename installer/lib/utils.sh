@@ -206,17 +206,68 @@ is_little_endian() {
 }
 
 is_softfloat() {
-    # On OpenWrt/Entware, check opkg architecture (most reliable)
+    # On OpenWrt, DISTRIB_ARCH is the most reliable indicator
+    # Convention: mips_24kc / mips_74kc = soft-float, mips_24kf = hard-float ('f' = FPU)
+    if [ -f /etc/openwrt_release ]; then
+        _sf_owrt_arch=$(sed -n "s/^DISTRIB_ARCH=['\"\`]*\([^'\"\`]*\).*/\1/p" /etc/openwrt_release 2>/dev/null)
+        if [ -n "$_sf_owrt_arch" ]; then
+            case "$_sf_owrt_arch" in
+                *_softfloat* | *_nofpu* | *soft*) return 0 ;;
+            esac
+            # CPU model ending in 'f' (e.g. 24kf, 74kf) = hard-float
+            if echo "$_sf_owrt_arch" | grep -qE '_[a-z]*[0-9]+k?f$'; then
+                return 1
+            fi
+            # MIPS without 'f' suffix = soft-float on OpenWrt
+            case "$_sf_owrt_arch" in
+                mips_* | mipsel_* | mips64_* | mips64el_*) return 0 ;;
+            esac
+        fi
+    fi
+    # On OpenWrt/Entware, check opkg architecture
     if command_exists opkg; then
         _sf_opkg_arch="$(opkg print-architecture 2>/dev/null)"
         echo "$_sf_opkg_arch" | grep -qi "softfloat\|_nofpu\|soft_float" && return 0
-        echo "$_sf_opkg_arch" | grep -qi "mips" && return 1
+        # Same convention: CPU model with 'f' suffix = hard-float
+        if echo "$_sf_opkg_arch" | grep -qiE "mips(el|64|64el)?_[a-z]*[0-9]+k?f( |$)"; then
+            return 1
+        fi
+        # MIPS in opkg without explicit hard-float = soft-float
+        echo "$_sf_opkg_arch" | grep -qi "mips" && return 0
     fi
     # Check /proc/cpuinfo for soft-float indicators
     if [ -f /proc/cpuinfo ]; then
         grep -qi "nofpu\|no fpu\|soft.float" /proc/cpuinfo 2>/dev/null && return 0
     fi
-    # Check ELF soft-float flag via file or readelf if available
+    # Check ELF header for MIPS soft-float flag (EF_MIPS_SOFT_FLOAT = 0x800)
+    _sf_elf_bin=""
+    for _sf_b in /bin/sh /bin/busybox /bin/ls; do
+        [ -f "$_sf_b" ] && _sf_elf_bin="$_sf_b" && break
+    done
+    if [ -n "$_sf_elf_bin" ]; then
+        _sf_ei_class=$(dd if="$_sf_elf_bin" bs=1 skip=4 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+        _sf_ei_data=$(dd if="$_sf_elf_bin" bs=1 skip=5 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+        # e_flags offset: 36 for 32-bit ELF, 48 for 64-bit ELF
+        _sf_flags_off=""
+        [ "$_sf_ei_class" = "1" ] && _sf_flags_off=36
+        [ "$_sf_ei_class" = "2" ] && _sf_flags_off=48
+        if [ -n "$_sf_flags_off" ]; then
+            # EF_MIPS_SOFT_FLOAT = 0x800 (bit 11)
+            # In little-endian e_flags: bit 11 is in byte at offset+1, bit 3
+            # In big-endian e_flags: bit 11 is in byte at offset+2, bit 3
+            if [ "$_sf_ei_data" = "1" ]; then
+                _sf_check_off=$(( _sf_flags_off + 1 ))
+            else
+                _sf_check_off=$(( _sf_flags_off + 2 ))
+            fi
+            _sf_flag_byte=$(dd if="$_sf_elf_bin" bs=1 skip="$_sf_check_off" count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+            if [ -n "$_sf_flag_byte" ]; then
+                [ $(( _sf_flag_byte & 8 )) -ne 0 ] && return 0
+                return 1
+            fi
+        fi
+    fi
+    # Fallback: check via file or readelf if available
     if command_exists file; then
         _sf_file_out="$(file /bin/sh 2>/dev/null)"
         echo "$_sf_file_out" | grep -qi "soft.float" && return 0

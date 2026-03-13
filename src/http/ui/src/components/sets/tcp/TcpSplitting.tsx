@@ -12,6 +12,7 @@ import { DisorderSettings } from "../frags/Disorder";
 import { ExtSplitSettings } from "../frags/ExtSplit";
 import { FirstByteSettings } from "../frags/FirstByte";
 import { TcpIpSettings } from "../frags/TcpIp";
+import { useTranslation } from "react-i18next";
 
 interface TcpSplittingProps {
   config: B4SetConfig;
@@ -21,35 +22,36 @@ interface TcpSplittingProps {
   ) => void;
 }
 
-const fragmentationOptions: { label: string; value: FragmentationStrategy }[] =
-  [
-    { label: "Combo", value: "combo" },
-    { label: "Hybrid", value: "hybrid" },
-    { label: "Disorder", value: "disorder" },
-    { label: "Extension Split", value: "extsplit" },
-    { label: "First-Byte Desync", value: "firstbyte" },
-    { label: "TCP Segmentation", value: "tcp" },
-    { label: "IP Fragmentation", value: "ip" },
-    { label: "TLS Record Splitting", value: "tls" },
-    { label: "OOB (Out-of-Band)", value: "oob" },
-    { label: "Disabled", value: "none" },
-  ];
-
 export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
+  const { t } = useTranslation();
   const strategy = config.fragmentation.strategy;
   const isTcpOrIp = strategy === "tcp" || strategy === "ip";
   const isOob = strategy === "oob";
   const isTls = strategy === "tls";
   const isActive = strategy !== "none";
 
+  const fragmentationOptions: { label: string; value: FragmentationStrategy }[] =
+    [
+      { label: t("sets.tcp.splitting.strategyCombo"), value: "combo" },
+      { label: t("sets.tcp.splitting.strategyHybrid"), value: "hybrid" },
+      { label: t("sets.tcp.splitting.strategyDisorder"), value: "disorder" },
+      { label: t("sets.tcp.splitting.strategyExtSplit"), value: "extsplit" },
+      { label: t("sets.tcp.splitting.strategyFirstByte"), value: "firstbyte" },
+      { label: t("sets.tcp.splitting.strategyTcp"), value: "tcp" },
+      { label: t("sets.tcp.splitting.strategyIp"), value: "ip" },
+      { label: t("sets.tcp.splitting.strategyTls"), value: "tls" },
+      { label: t("sets.tcp.splitting.strategyOob"), value: "oob" },
+      { label: t("sets.tcp.splitting.strategyNone"), value: "none" },
+    ];
+
   return (
     <>
-      <B4FormHeader label="Splitting Strategy" />
+      <B4FormHeader label={t("sets.tcp.splitting.header")} />
       <Grid container spacing={3}>
         {/* Strategy Selection */}
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Select
-            label="Method"
+            label={t("sets.tcp.splitting.method")}
             value={strategy}
             options={fragmentationOptions}
             onChange={(e) =>
@@ -60,12 +62,12 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Switch
-            label="Reverse Fragment Order"
+            label={t("sets.tcp.splitting.reverseOrder")}
             checked={config.fragmentation.reverse_order}
             onChange={(checked: boolean) =>
               onChange("fragmentation.reverse_order", checked)
             }
-            description="Send second fragment first"
+            description={t("sets.tcp.splitting.reverseOrderDesc")}
           />
         </Grid>
 
@@ -84,16 +86,15 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
 
         {isOob && (
           <>
-            <B4FormHeader label="OOB (Out-of-Band) Strategy" />
+            <B4FormHeader label={t("sets.tcp.splitting.oobHeader")} />
 
             <B4Alert>
-              Inserts a byte with TCP URG flag. Server ignores it, but stateful
-              DPI gets confused.
+              {t("sets.tcp.splitting.oobAlert")}
             </B4Alert>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <B4Slider
-                label="Insert Position"
+                label={t("sets.tcp.splitting.oobPosition")}
                 value={config.fragmentation.oob_position || 1}
                 onChange={(value: number) =>
                   onChange("fragmentation.oob_position", value)
@@ -101,14 +102,14 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
                 min={1}
                 max={50}
                 step={1}
-                helperText="Bytes before OOB insertion"
+                helperText={t("sets.tcp.splitting.oobPositionHelper")}
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <Box>
                 <Typography variant="body2" gutterBottom>
-                  OOB Byte:{" "}
+                  {t("sets.tcp.splitting.oobByte")}{" "}
                   <code>
                     {String.fromCharCode(config.fragmentation.oob_char || 120)}
                   </code>{" "}
@@ -126,16 +127,15 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
         {/* TLS Record Settings */}
         {isTls && (
           <>
-            <B4FormHeader label="TLS Record Splitting Strategy" />
+            <B4FormHeader label={t("sets.tcp.splitting.tlsRecHeader")} />
 
             <B4Alert>
-              Splits ClientHello into multiple TLS records. DPI expecting
-              single-record handshake fails to match.
+              {t("sets.tcp.splitting.tlsRecAlert")}
             </B4Alert>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <B4Slider
-                label="Record Split Position"
+                label={t("sets.tcp.splitting.tlsRecPosition")}
                 value={config.fragmentation.tlsrec_pos || 1}
                 onChange={(value: number) =>
                   onChange("fragmentation.tlsrec_pos", value)
@@ -143,7 +143,7 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
                 min={1}
                 max={100}
                 step={1}
-                helperText="First TLS record size in bytes"
+                helperText={t("sets.tcp.splitting.tlsRecPositionHelper")}
               />
             </Grid>
           </>
@@ -151,8 +151,7 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
 
         {!isActive && (
           <B4Alert severity="warning">
-            Fragmentation disabled. Only fake packets (if enabled) will be used
-            for bypass.
+            {t("sets.tcp.splitting.disabledWarning")}
           </B4Alert>
         )}
       </Grid>

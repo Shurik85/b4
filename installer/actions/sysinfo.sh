@@ -34,9 +34,30 @@ action_sysinfo() {
                 log_detail "FPU" "${GREEN}available${NC}"
             fi
         fi
+        if [ -f /etc/openwrt_release ]; then
+            _owrt_arch=$(sed -n "s/^DISTRIB_ARCH=['\"\`]*\([^'\"\`]*\).*/\1/p" /etc/openwrt_release 2>/dev/null)
+            [ -n "$_owrt_arch" ] && log_detail "OpenWrt arch" "$_owrt_arch"
+        fi
         if command_exists opkg; then
             _opkg_arch=$(opkg print-architecture 2>/dev/null | grep -i "mips" | head -1 | awk '{print $2}')
             [ -n "$_opkg_arch" ] && log_detail "opkg arch" "$_opkg_arch"
+        fi
+        # Show ELF endianness and float from a system binary
+        _elf_bin=""
+        for _eb in /bin/sh /bin/busybox /bin/ls; do
+            [ -f "$_eb" ] && _elf_bin="$_eb" && break
+        done
+        if [ -n "$_elf_bin" ]; then
+            _ei_data=$(dd if="$_elf_bin" bs=1 skip=5 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+            case "$_ei_data" in
+                1) log_detail "ELF endian" "little-endian" ;;
+                2) log_detail "ELF endian" "big-endian" ;;
+            esac
+        fi
+        if is_softfloat; then
+            log_detail "Float ABI" "${YELLOW}soft-float${NC}"
+        else
+            log_detail "Float ABI" "hard-float"
         fi
         ;;
     esac

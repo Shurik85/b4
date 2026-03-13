@@ -3,6 +3,7 @@ import { B4Slider, B4Switch, B4Select } from "@b4.fields";
 import { B4SetConfig, ComboShuffleMode } from "@models/config";
 import { colors } from "@design";
 import { B4Alert, B4FormHeader } from "@b4.elements";
+import { useTranslation } from "react-i18next";
 
 interface ComboSettingsProps {
   config: B4SetConfig;
@@ -12,15 +13,16 @@ interface ComboSettingsProps {
   ) => void;
 }
 
-const shuffleModeOptions: { label: string; value: ComboShuffleMode }[] = [
-  { label: "Middle Only", value: "middle" },
-  { label: "Full Shuffle", value: "full" },
-  { label: "Reverse Order", value: "reverse" },
-];
-
 export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
+  const { t } = useTranslation();
   const combo = config.fragmentation.combo;
   const middleSni = config.fragmentation.middle_sni;
+
+  const shuffleModeOptions: { label: string; value: ComboShuffleMode }[] = [
+    { label: t("sets.tcp.splitting.combo.shuffleMiddle"), value: "middle" },
+    { label: t("sets.tcp.splitting.combo.shuffleFull"), value: "full" },
+    { label: t("sets.tcp.splitting.combo.shuffleReverse"), value: "reverse" },
+  ];
 
   const enabledSplits = [
     combo.first_byte_split && "1st byte",
@@ -30,26 +32,25 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
 
   return (
     <>
-      <B4FormHeader label="Combo Strategy" />
+      <B4FormHeader label={t("sets.tcp.splitting.combo.header")} />
 
       <Grid size={{ xs: 12 }}>
         <B4Alert severity="info">
-          Combo combines multiple split points and sends segments out of order
-          with timing jitter to confuse stateful DPI.
+          {t("sets.tcp.splitting.combo.alert")}
         </B4Alert>
       </Grid>
 
       {/* Decoy Settings */}
-      <B4FormHeader label="Decoy Packet" />
+      <B4FormHeader label={t("sets.tcp.splitting.combo.decoyHeader")} />
 
       <Grid size={{ xs: 12 }}>
         <B4Switch
-          label="Enable Decoy"
+          label={t("sets.tcp.splitting.combo.decoyEnable")}
           checked={combo.decoy_enabled}
           onChange={(checked: boolean) =>
             onChange("fragmentation.combo.decoy_enabled", checked)
           }
-          description="Send fake ClientHello with whitelisted SNI before real traffic"
+          description={t("sets.tcp.splitting.combo.decoyDesc")}
         />
       </Grid>
 
@@ -69,7 +70,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
               component="div"
               sx={{ mb: 1 }}
             >
-              HOW DECOY WORKS
+              {t("sets.tcp.splitting.combo.decoyHow")}
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -77,7 +78,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
                   variant="caption"
                   sx={{ minWidth: 80, color: colors.text.secondary }}
                 >
-                  Sent 1st:
+                  {t("sets.tcp.splitting.combo.decoySent1st")}
                 </Typography>
                 <Box
                   sx={{
@@ -89,13 +90,13 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
                     border: `2px dashed ${colors.secondary}`,
                   }}
                 >
-                  FAKE payload (low TTL)
+                  {t("sets.tcp.splitting.combo.decoyFakePayload")}
                 </Box>
                 <Typography
                   variant="caption"
                   sx={{ color: colors.secondary, ml: 1 }}
                 >
-                  → DPI sees, dies before server
+                  {t("sets.tcp.splitting.combo.decoyFakeNote")}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -103,7 +104,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
                   variant="caption"
                   sx={{ minWidth: 80, color: colors.text.secondary }}
                 >
-                  Sent 2nd:
+                  {t("sets.tcp.splitting.combo.decoySent2nd")}
                 </Typography>
                 <Box
                   sx={{
@@ -121,14 +122,14 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
                       border: `2px solid ${colors.secondary}`,
                     }}
                   >
-                    REAL (fragmented)
+                    {t("sets.tcp.splitting.combo.decoyRealPayload")}
                   </Box>
                 </Box>
                 <Typography
                   variant="caption"
                   sx={{ color: colors.secondary, ml: 1 }}
                 >
-                  → Server receives
+                  {t("sets.tcp.splitting.combo.decoyRealNote")}
                 </Typography>
               </Box>
             </Box>
@@ -137,38 +138,38 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
       )}
 
       {/* Split Points */}
-      <B4FormHeader label="Split Points" />
+      <B4FormHeader label={t("sets.tcp.splitting.combo.splitPoints")} />
 
       <Grid size={{ xs: 12, md: 4 }}>
         <B4Switch
-          label="First Byte"
+          label={t("sets.tcp.splitting.combo.firstByte")}
           checked={combo.first_byte_split}
           onChange={(checked: boolean) =>
             onChange("fragmentation.combo.first_byte_split", checked)
           }
-          description="Split after 1st byte (timing desync)"
+          description={t("sets.tcp.splitting.combo.firstByteDesc")}
         />
       </Grid>
 
       <Grid size={{ xs: 12, md: 4 }}>
         <B4Switch
-          label="Extension Split"
+          label={t("sets.tcp.splitting.combo.extensionSplit")}
           checked={combo.extension_split}
           onChange={(checked: boolean) =>
             onChange("fragmentation.combo.extension_split", checked)
           }
-          description="Split before SNI extension"
+          description={t("sets.tcp.splitting.combo.extensionSplitDesc")}
         />
       </Grid>
 
       <Grid size={{ xs: 12, md: 4 }}>
         <B4Switch
-          label="SNI Split"
+          label={t("sets.tcp.splitting.combo.sniSplit")}
           checked={middleSni}
           onChange={(checked: boolean) =>
             onChange("fragmentation.middle_sni", checked)
           }
-          description="Split in middle of SNI hostname"
+          description={t("sets.tcp.splitting.combo.sniSplitDesc")}
         />
       </Grid>
 
@@ -188,7 +189,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
             component="div"
             sx={{ mb: 1 }}
           >
-            SEGMENT VISUALIZATION
+            {t("sets.tcp.splitting.combo.segmentViz")}
           </Typography>
           <Box
             sx={{
@@ -271,10 +272,11 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
             sx={{ mt: 1, display: "block" }}
           >
             {enabledSplits.length > 0
-              ? `Active splits: ${enabledSplits.join(" → ")} → creates ${
-                  enabledSplits.length + 1
-                } segments`
-              : "No splits enabled - packet sent as single segment"}
+              ? t("sets.tcp.splitting.combo.activeSplits", {
+                  splits: enabledSplits.join(" → "),
+                  count: enabledSplits.length + 1,
+                })
+              : t("sets.tcp.splitting.combo.noSplits")}
           </Typography>
         </Box>
       </Grid>
@@ -282,7 +284,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
       {/* Shuffle Mode */}
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Select
-          label="Shuffle Mode"
+          label={t("sets.tcp.splitting.combo.shuffleMode")}
           value={combo.shuffle_mode}
           options={shuffleModeOptions}
           onChange={(e) =>
@@ -291,26 +293,26 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
               e.target.value as string,
             )
           }
-          helperText="How to reorder segments before sending"
+          helperText={t("sets.tcp.splitting.combo.shuffleHelper")}
         />
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Alert sx={{ my: 0 }}>
           {combo.shuffle_mode === "middle" &&
-            "Middle: Keep first & last in place, shuffle middle segments"}
+            t("sets.tcp.splitting.combo.shuffleMiddleDesc")}
           {combo.shuffle_mode === "full" &&
-            "Full: Randomly shuffle all segments"}
+            t("sets.tcp.splitting.combo.shuffleFullDesc")}
           {combo.shuffle_mode === "reverse" &&
-            "Reverse: Send segments in reverse order"}
+            t("sets.tcp.splitting.combo.shuffleReverseDesc")}
         </B4Alert>
       </Grid>
 
-      <B4FormHeader label="Timing Settings" />
+      <B4FormHeader label={t("sets.tcp.splitting.combo.timingHeader")} />
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Slider
-          label="First Segment Delay"
+          label={t("sets.tcp.splitting.combo.firstDelay")}
           value={combo.first_delay_ms}
           onChange={(value: number) =>
             onChange("fragmentation.combo.first_delay_ms", value)
@@ -318,13 +320,13 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           min={10}
           max={500}
           step={10}
-          helperText="Delay after first segment (ms)"
+          helperText={t("sets.tcp.splitting.combo.firstDelayHelper")}
         />
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Slider
-          label="Jitter Max"
+          label={t("sets.tcp.splitting.combo.jitterMax")}
           value={combo.jitter_max_us}
           onChange={(value: number) =>
             onChange("fragmentation.combo.jitter_max_us", value)
@@ -332,34 +334,33 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           min={100}
           max={10000}
           step={100}
-          helperText="Max random delay between other segments (μs)"
+          helperText={t("sets.tcp.splitting.combo.jitterMaxHelper")}
         />
       </Grid>
 
-      <B4FormHeader label="Fake Per Segment (multidisorder)" />
+      <B4FormHeader label={t("sets.tcp.splitting.combo.fakePerSegHeader")} />
 
       <Grid size={{ xs: 12 }}>
         <B4Alert severity="info">
-          sends fake overlap packets before each real segment, not just the
-          first. Floods DPI reassembly with garbage.
+          {t("sets.tcp.splitting.combo.fakePerSegAlert")}
         </B4Alert>
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Switch
-          label="Fake Per Segment"
+          label={t("sets.tcp.splitting.combo.fakePerSeg")}
           checked={combo.fake_per_segment}
           onChange={(checked: boolean) =>
             onChange("fragmentation.combo.fake_per_segment", checked)
           }
-          description="Send fake overlap before every segment"
+          description={t("sets.tcp.splitting.combo.fakePerSegDesc")}
         />
       </Grid>
 
       {combo.fake_per_segment && (
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Slider
-            label="Fakes Per Segment"
+            label={t("sets.tcp.splitting.combo.fakesPerSeg")}
             value={combo.fake_per_seg_count || 1}
             onChange={(value: number) =>
               onChange("fragmentation.combo.fake_per_seg_count", value)
@@ -367,15 +368,14 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
             min={1}
             max={11}
             step={1}
-            helperText="Number of fake packets before each segment"
+            helperText={t("sets.tcp.splitting.combo.fakesPerSegHelper")}
           />
         </Grid>
       )}
 
       {!combo.first_byte_split && !combo.extension_split && !middleSni && (
         <B4Alert severity="warning">
-          No split points enabled. Enable at least one for Combo to work
-          effectively.
+          {t("sets.tcp.splitting.combo.noSplitPointsWarning")}
         </B4Alert>
       )}
     </>
