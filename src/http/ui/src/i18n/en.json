@@ -476,6 +476,23 @@
       "sniFakingOn": "SNI Faking ON",
       "sniFakingOff": "SNI Faking OFF",
       "dnsOff": "DNS OFF"
+    },
+
+    "editor": {
+      "back": "Back",
+      "namePlaceholder": "Set name...",
+      "newSet": "New Set",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "createSet": "Create Set",
+      "saveChanges": "Save Changes",
+      "tabs": {
+        "targets": "Targets",
+        "tcp": "TCP",
+        "udp": "UDP",
+        "dns": "DNS",
+        "importExport": "Import/Export"
+      }
     }
   }
 }

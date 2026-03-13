@@ -35,6 +35,7 @@ import { SetStats } from "./Manager";
 import { TargetSettings } from "./Target";
 import { TcpTabContainer } from "./tcp/TcpTabContainer";
 import { UdpSettings } from "./Udp";
+import { useTranslation } from "react-i18next";
 
 interface TabPanelProps {
   children?: ReactNode;
@@ -94,6 +95,7 @@ export const SetEditorPage = ({
     IMPORT_EXPORT,
   }
 
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TABS>(TABS.TARGETS);
   const [editedSet, setEditedSet] = useState<B4SetConfig | null>(initialSet);
@@ -174,14 +176,14 @@ export const SetEditorPage = ({
                 onClick={handleBack}
                 size="small"
               >
-                Back
+                {t("sets.editor.back")}
               </Button>
               <B4TextField
                 value={editedSet.name}
                 onChange={(e) => {
                   handleChange("name", e.target.value);
                 }}
-                placeholder="Set name..."
+                placeholder={t("sets.editor.namePlaceholder")}
                 required
                 size="small"
                 sx={{
@@ -201,7 +203,7 @@ export const SetEditorPage = ({
                     textTransform: "uppercase",
                   }}
                 >
-                  New Set
+                  {t("sets.editor.newSet")}
                 </Typography>
               )}
             </Stack>
@@ -213,7 +215,7 @@ export const SetEditorPage = ({
                 onClick={handleBack}
                 disabled={saving}
               >
-                Cancel
+                {t("sets.editor.cancel")}
               </Button>
               <Button
                 size="small"
@@ -225,9 +227,9 @@ export const SetEditorPage = ({
                 disabled={!editedSet.name.trim() || saving}
                 sx={{ minWidth: 140 }}
               >
-                {saving && "Saving..."}
-                {!saving && isNew && "Create Set"}
-                {!saving && !isNew && "Save Changes"}
+                {saving && t("sets.editor.saving")}
+                {!saving && isNew && t("sets.editor.createSet")}
+                {!saving && !isNew && t("sets.editor.saveChanges")}
               </Button>
             </Stack>
           </Stack>
@@ -239,11 +241,11 @@ export const SetEditorPage = ({
               setActiveTab(v);
             }}
           >
-            <B4Tab icon={<DomainIcon />} label="Targets" inline />
-            <B4Tab icon={<TcpIcon />} label="TCP" inline />
-            <B4Tab icon={<UdpIcon />} label="UDP" inline />
-            <B4Tab icon={<DnsIcon />} label="DNS" inline />
-            <B4Tab icon={<ImportExportIcon />} label="Import/Export" inline />
+            <B4Tab icon={<DomainIcon />} label={t("sets.editor.tabs.targets")} inline />
+            <B4Tab icon={<TcpIcon />} label={t("sets.editor.tabs.tcp")} inline />
+            <B4Tab icon={<UdpIcon />} label={t("sets.editor.tabs.udp")} inline />
+            <B4Tab icon={<DnsIcon />} label={t("sets.editor.tabs.dns")} inline />
+            <B4Tab icon={<ImportExportIcon />} label={t("sets.editor.tabs.importExport")} inline />
           </B4Tabs>
         </Box>
       </Paper>

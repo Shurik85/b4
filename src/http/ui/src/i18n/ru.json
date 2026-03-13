@@ -477,6 +477,23 @@
       "sniFakingOn": "SNI Faking ВКЛ",
       "sniFakingOff": "SNI Faking ВЫКЛ",
       "dnsOff": "DNS ВЫКЛ"
+    },
+
+    "editor": {
+      "back": "Назад",
+      "namePlaceholder": "Название сета...",
+      "newSet": "Новый сет",
+      "cancel": "Отмена",
+      "saving": "Сохранение...",
+      "createSet": "Создать сет",
+      "saveChanges": "Сохранить",
+      "tabs": {
+        "targets": "Цели",
+        "tcp": "TCP",
+        "udp": "UDP",
+        "dns": "DNS",
+        "importExport": "Импорт/Экспорт"
+      }
     }
   }
 }
