@@ -930,6 +930,28 @@
       "seg2delayHelper": "Delay between segments. Use a range for random delay per packet."
     },
 
+    "dns": {
+      "sectionTitle": "DNS Redirect",
+      "sectionDescription": "Redirect DNS queries to bypass ISP DNS poisoning",
+      "alert": "Some ISPs intercept DNS queries (especially to 8.8.8.8) and return fake IPs for blocked domains. DNS redirect transparently rewrites your DNS queries to use an unpoisoned resolver.",
+      "enable": "Enable DNS Redirect",
+      "enableDesc": "Redirect DNS queries for domains in this set to specified DNS server",
+      "fragmentQuery": "Fragment DNS Queries",
+      "fragmentQueryDesc": "Split DNS packets using IP fragmentation to bypass DPI that pattern-matches domain names in queries",
+      "serverIp": "DNS Server IP",
+      "serverIpPlaceholder": "e.g., 9.9.9.9",
+      "serverIpHelper": "Select below or enter custom IP",
+      "recommendedServers": "Recommended DNS Servers",
+      "howItWorks": "HOW IT WORKS",
+      "vizApp": "App",
+      "vizQueryFor": "→ DNS query for",
+      "vizPoisoned": "poisoned DNS",
+      "vizSelectDns": "select DNS",
+      "vizRealIp": "→ Real IP",
+      "noServerWarning": "Select or enter a DNS server IP to enable redirect.",
+      "googleWarning": "Google DNS (8.8.8.8) is commonly poisoned by Russian ISPs. Consider Quad9 (9.9.9.9) or Cloudflare (1.1.1.1) instead."
+    },
+
     "editor": {
       "namePlaceholder": "Set name...",
       "newSet": "New Set",

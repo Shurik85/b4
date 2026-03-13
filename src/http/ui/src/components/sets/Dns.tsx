@@ -25,6 +25,7 @@ import {
 import { B4SetConfig } from "@models/config";
 import { colors } from "@design";
 import dns from "@assets/dns.json";
+import { useTranslation } from "react-i18next";
 
 interface DnsEntry {
   name: string;
@@ -47,8 +48,9 @@ const POPULAR_DNS = (dns as DnsEntry[]).sort((a, b) =>
 );
 
 export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
-  const dns = config.dns || { enabled: false, target_dns: "" };
-  const selectedServer = POPULAR_DNS.find((d) => d.ip === dns.target_dns);
+  const { t } = useTranslation();
+  const dnsConfig = config.dns || { enabled: false, target_dns: "" };
+  const selectedServer = POPULAR_DNS.find((d) => d.ip === dnsConfig.target_dns);
 
   const handleServerSelect = (ip: string) => {
     onChange("dns.target_dns", ip);
@@ -56,46 +58,43 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
 
   return (
     <B4Section
-      title="DNS Redirect"
-      description="Redirect DNS queries to bypass ISP DNS poisoning"
+      title={t("sets.dns.sectionTitle")}
+      description={t("sets.dns.sectionDescription")}
       icon={<DnsIcon />}
     >
       <Grid container spacing={3}>
         <B4Alert severity="info" sx={{ m: 0 }}>
-          Some ISPs intercept DNS queries (especially to 8.8.8.8) and return
-          fake IPs for blocked domains. DNS redirect transparently rewrites your
-          DNS queries to use an unpoisoned resolver.
+          {t("sets.dns.alert")}
         </B4Alert>
 
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Switch
-            label="Enable DNS Redirect"
-            checked={dns.enabled}
+            label={t("sets.dns.enable")}
+            checked={dnsConfig.enabled}
             onChange={(checked: boolean) => onChange("dns.enabled", checked)}
-            description="Redirect DNS queries for domains in this set to specified DNS server"
+            description={t("sets.dns.enableDesc")}
           />
         </Grid>
 
-        {dns.enabled && (
+        {dnsConfig.enabled && (
           <>
-            {/* Custom IP input */}
             <Grid size={{ xs: 12, md: 6 }}>
               <B4Switch
-                label="Fragment DNS Queries"
-                checked={dns.fragment_query || false}
+                label={t("sets.dns.fragmentQuery")}
+                checked={dnsConfig.fragment_query || false}
                 onChange={(checked: boolean) =>
                   onChange("dns.fragment_query", checked)
                 }
-                description="Split DNS packets using IP fragmentation to bypass DPI that pattern-matches domain names in queries"
+                description={t("sets.dns.fragmentQueryDesc")}
               />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <B4TextField
-                label="DNS Server IP"
-                value={dns.target_dns}
+                label={t("sets.dns.serverIp")}
+                value={dnsConfig.target_dns}
                 onChange={(e) => onChange("dns.target_dns", e.target.value)}
-                placeholder="e.g., 9.9.9.9"
-                helperText="Select below or enter custom IP"
+                placeholder={t("sets.dns.serverIpPlaceholder")}
+                helperText={t("sets.dns.serverIpHelper")}
               />
             </Grid>
 
@@ -134,7 +133,7 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
             {/* DNS server list */}
             <Grid size={{ xs: 12 }}>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Recommended DNS Servers
+                {t("sets.dns.recommendedServers")}
               </Typography>
               <Box
                 sx={{
@@ -151,7 +150,7 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
                   ).map((server) => (
                     <ListItemButton
                       key={server.ip}
-                      selected={dns.target_dns === server.ip}
+                      selected={dnsConfig.target_dns === server.ip}
                       onClick={() => handleServerSelect(server.ip)}
                       sx={{
                         borderLeft: server.warn
@@ -166,7 +165,7 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
                     >
                       <ListItemIcon sx={{ minWidth: 36 }}>
                         {(() => {
-                          if (dns.target_dns === server.ip) {
+                          if (dnsConfig.target_dns === server.ip) {
                             return (
                               <CheckIcon
                                 sx={{ color: colors.secondary, fontSize: 20 }}
@@ -255,7 +254,7 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
                   component="div"
                   sx={{ mb: 1 }}
                 >
-                  HOW IT WORKS
+                  {t("sets.dns.howItWorks")}
                 </Typography>
                 <Stack
                   direction="row"
@@ -265,10 +264,10 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
                   useFlexGap
                 >
                   <B4Badge
-                    label="App"
+                    label={t("sets.dns.vizApp")}
                     sx={{ bgcolor: colors.accent.primary }}
                   />
-                  <Typography variant="caption">→ DNS query for</Typography>
+                  <Typography variant="caption">{t("sets.dns.vizQueryFor")}</Typography>
                   <B4Badge
                     label="instagram.com"
                     size="small"
@@ -279,7 +278,7 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
                   />
                   <Typography variant="caption">→</Typography>
                   <B4Badge
-                    label="poisoned DNS"
+                    label={t("sets.dns.vizPoisoned")}
                     size="small"
                     sx={{
                       bgcolor: colors.quaternary,
@@ -288,30 +287,29 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
                   />
                   <Typography variant="caption">→</Typography>
                   <B4Badge
-                    label={dns.target_dns || "select DNS"}
+                    label={dnsConfig.target_dns || t("sets.dns.vizSelectDns")}
                     size="small"
                     sx={{
-                      bgcolor: dns.target_dns
+                      bgcolor: dnsConfig.target_dns
                         ? colors.tertiary
                         : colors.accent.primary,
                     }}
                   />
-                  <Typography variant="caption">→ Real IP</Typography>
+                  <Typography variant="caption">{t("sets.dns.vizRealIp")}</Typography>
                 </Stack>
               </Box>
             </Grid>
 
             {/* Warnings */}
-            {!dns.target_dns && (
+            {!dnsConfig.target_dns && (
               <B4Alert severity="warning" sx={{ m: 0 }}>
-                Select or enter a DNS server IP to enable redirect.
+                {t("sets.dns.noServerWarning")}
               </B4Alert>
             )}
 
-            {dns.target_dns === "8.8.8.8" && (
+            {dnsConfig.target_dns === "8.8.8.8" && (
               <B4Alert severity="warning" sx={{ m: 0 }}>
-                Google DNS (8.8.8.8) is commonly poisoned by Russian ISPs.
-                Consider Quad9 (9.9.9.9) or Cloudflare (1.1.1.1) instead.
+                {t("sets.dns.googleWarning")}
               </B4Alert>
             )}
           </>
