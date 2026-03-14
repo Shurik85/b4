@@ -2,6 +2,10 @@
 # Main entry point — argument parsing and dispatch
 
 main() {
+    if [ ! -t 0 ] && [ -e /dev/tty ]; then
+        exec </dev/tty
+    fi
+
     ACTION="install"
     VERSION=""
     FORCE_ARCH=""
@@ -94,3 +98,4 @@ _show_help() {
 }
 
 main "$@"
+exit 0
