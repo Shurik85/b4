@@ -30,7 +30,7 @@ feature_auth_run() {
     while true; do
         printf "  Password: " >&2
         stty -echo 2>/dev/null || true
-        read -r _auth_pass
+        read -r _auth_pass </dev/tty 2>/dev/null || read -r _auth_pass
         stty echo 2>/dev/null || true
         echo "" >&2
 
@@ -41,7 +41,7 @@ feature_auth_run() {
 
         printf "  Confirm password: " >&2
         stty -echo 2>/dev/null || true
-        read -r _auth_pass2
+        read -r _auth_pass2 </dev/tty 2>/dev/null || read -r _auth_pass2
         stty echo 2>/dev/null || true
         echo "" >&2
 
