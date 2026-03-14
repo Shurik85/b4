@@ -552,11 +552,22 @@ check_exit() {
     esac
 }
 
+_TTY_AVAILABLE=0
+if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    _TTY_AVAILABLE=1
+fi
+
 _INPUT=""
 read_input() {
     prompt="$1"
     default="$2"
     if [ "$QUIET_MODE" -eq 1 ] 2>/dev/null; then
+        _INPUT="$default"
+        return 0
+    fi
+    if [ "$_TTY_AVAILABLE" -eq 0 ]; then
+        log_warn "No interactive terminal available (piped input?). Using defaults. Use -q flag for silent install or run: sudo sh -c \"\$(curl -fsSL URL)\""
+        QUIET_MODE=1
         _INPUT="$default"
         return 0
     fi

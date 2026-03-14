@@ -545,6 +545,12 @@ check_exit() {
     esac
 }
 
+# --- Check if /dev/tty is available for interactive input ---
+_TTY_AVAILABLE=0
+if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    _TTY_AVAILABLE=1
+fi
+
 # --- Read user input (works even when stdin is piped) ---
 # Uses global _INPUT to avoid subshell issues with exit
 _INPUT=""
@@ -553,6 +559,13 @@ read_input() {
     default="$2"
     # In quiet mode, always use default without prompting
     if [ "$QUIET_MODE" -eq 1 ] 2>/dev/null; then
+        _INPUT="$default"
+        return 0
+    fi
+    # If no TTY available (e.g. curl | sh), fall back to quiet mode
+    if [ "$_TTY_AVAILABLE" -eq 0 ]; then
+        log_warn "No interactive terminal available (piped input?). Using defaults. Use -q flag for silent install or run: sudo sh -c \"\$(curl -fsSL URL)\""
+        QUIET_MODE=1
         _INPUT="$default"
         return 0
     fi
