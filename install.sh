@@ -552,9 +552,9 @@ check_exit() {
     esac
 }
 
-_TTY_AVAILABLE=0
-if [ -r /dev/tty ] && [ -w /dev/tty ]; then
-    _TTY_AVAILABLE=1
+_TTY_FD=""
+if exec 3</dev/tty 2>/dev/null; then
+    _TTY_FD=3
 fi
 
 _INPUT=""
@@ -565,14 +565,12 @@ read_input() {
         _INPUT="$default"
         return 0
     fi
-    if [ "$_TTY_AVAILABLE" -eq 0 ]; then
-        log_warn "No interactive terminal available (piped input?). Using defaults. Use -q flag for silent install or run: sudo sh -c \"\$(curl -fsSL URL)\""
-        QUIET_MODE=1
-        _INPUT="$default"
-        return 0
-    fi
     printf "${CYAN}%b${NC}" "$prompt" >&2
-    read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
+    if [ -n "$_TTY_FD" ]; then
+        read _INPUT <&3 || _INPUT="$default"
+    else
+        read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
+    fi
     _INPUT=$(printf '%s' "$_INPUT" | tr -d '\r')
     check_exit "$_INPUT"
     [ -z "$_INPUT" ] && _INPUT="$default"
@@ -1544,7 +1542,7 @@ feature_auth_run() {
     while true; do
         printf "  Password: " >&2
         stty -echo 2>/dev/null || true
-        read -r _auth_pass </dev/tty 2>/dev/null || read -r _auth_pass
+        if [ -n "$_TTY_FD" ]; then read -r _auth_pass <&3; else read -r _auth_pass </dev/tty 2>/dev/null || read -r _auth_pass; fi
         stty echo 2>/dev/null || true
         echo "" >&2
 
@@ -1555,7 +1553,7 @@ feature_auth_run() {
 
         printf "  Confirm password: " >&2
         stty -echo 2>/dev/null || true
-        read -r _auth_pass2 </dev/tty 2>/dev/null || read -r _auth_pass2
+        if [ -n "$_TTY_FD" ]; then read -r _auth_pass2 <&3; else read -r _auth_pass2 </dev/tty 2>/dev/null || read -r _auth_pass2; fi
         stty echo 2>/dev/null || true
         echo "" >&2
 
