@@ -545,12 +545,6 @@ check_exit() {
     esac
 }
 
-# --- Open /dev/tty on fd 3 for interactive input (works with curl | sh) ---
-_TTY_FD=""
-if exec 3</dev/tty 2>/dev/null; then
-    _TTY_FD=3
-fi
-
 # --- Read user input (works even when stdin is piped) ---
 # Uses global _INPUT to avoid subshell issues with exit
 _INPUT=""
@@ -563,11 +557,7 @@ read_input() {
         return 0
     fi
     printf "${CYAN}%b${NC}" "$prompt" >&2
-    if [ -n "$_TTY_FD" ]; then
-        read _INPUT <&3 || _INPUT="$default"
-    else
-        read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
-    fi
+    read _INPUT || _INPUT="$default"
     # Strip carriage returns (some terminals/SSH clients send \r)
     _INPUT=$(printf '%s' "$_INPUT" | tr -d '\r')
     check_exit "$_INPUT"

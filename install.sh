@@ -552,11 +552,6 @@ check_exit() {
     esac
 }
 
-_TTY_FD=""
-if exec 3</dev/tty 2>/dev/null; then
-    _TTY_FD=3
-fi
-
 _INPUT=""
 read_input() {
     prompt="$1"
@@ -566,11 +561,7 @@ read_input() {
         return 0
     fi
     printf "${CYAN}%b${NC}" "$prompt" >&2
-    if [ -n "$_TTY_FD" ]; then
-        read _INPUT <&3 || _INPUT="$default"
-    else
-        read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
-    fi
+    read _INPUT || _INPUT="$default"
     _INPUT=$(printf '%s' "$_INPUT" | tr -d '\r')
     check_exit "$_INPUT"
     [ -z "$_INPUT" ] && _INPUT="$default"
@@ -1542,7 +1533,7 @@ feature_auth_run() {
     while true; do
         printf "  Password: " >&2
         stty -echo 2>/dev/null || true
-        if [ -n "$_TTY_FD" ]; then read -r _auth_pass <&3; else read -r _auth_pass </dev/tty 2>/dev/null || read -r _auth_pass; fi
+        read -r _auth_pass
         stty echo 2>/dev/null || true
         echo "" >&2
 
@@ -1553,7 +1544,7 @@ feature_auth_run() {
 
         printf "  Confirm password: " >&2
         stty -echo 2>/dev/null || true
-        if [ -n "$_TTY_FD" ]; then read -r _auth_pass2 <&3; else read -r _auth_pass2 </dev/tty 2>/dev/null || read -r _auth_pass2; fi
+        read -r _auth_pass2
         stty echo 2>/dev/null || true
         echo "" >&2
 
@@ -3203,6 +3194,10 @@ _sysinfo_show_storage() {
     printf "    %-20s %s available (%s)\n" "$_dir" "${avail:-?}" "$writable" >&2
 }
 main() {
+    if [ ! -t 0 ] && [ -e /dev/tty ]; then
+        exec </dev/tty
+    fi
+
     ACTION="install"
     VERSION=""
     FORCE_ARCH=""
@@ -3210,33 +3205,43 @@ main() {
     for arg in "$@"; do
         case "$arg" in
         --remove | --uninstall | -r)
-            ACTION="remove" ;;
+            ACTION="remove"
+            ;;
         --update | -u)
-            ACTION="update" ;;
+            ACTION="update"
+            ;;
         --sysinfo | --info | -i)
-            ACTION="sysinfo" ;;
+            ACTION="sysinfo"
+            ;;
         --quiet | -q)
-            QUIET_MODE=1 ;;
+            QUIET_MODE=1
+            ;;
         --arch=*)
-            FORCE_ARCH="${arg#*=}" ;;
+            FORCE_ARCH="${arg#*=}"
+            ;;
         --platform=*)
-            B4_PLATFORM="${arg#*=}" ;;
+            B4_PLATFORM="${arg#*=}"
+            ;;
         --bin-dir=*)
-            B4_BIN_DIR="${arg#*=}" ;;
+            B4_BIN_DIR="${arg#*=}"
+            ;;
         --data-dir=*)
-            B4_DATA_DIR="${arg#*=}" ;;
+            B4_DATA_DIR="${arg#*=}"
+            ;;
         --help | -h)
             _show_help
-            exit 0 ;;
+            exit 0
+            ;;
         v* | V*)
-            VERSION="$arg" ;;
+            VERSION="$arg"
+            ;;
         esac
     done
 
     case "$ACTION" in
     install) action_install "$VERSION" "$FORCE_ARCH" ;;
-    remove)  action_remove ;;
-    update)  action_update "$VERSION" "$FORCE_ARCH" ;;
+    remove) action_remove ;;
+    update) action_update "$VERSION" "$FORCE_ARCH" ;;
     sysinfo) action_sysinfo ;;
     esac
 }

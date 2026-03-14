@@ -2,6 +2,10 @@
 # Main entry point — argument parsing and dispatch
 
 main() {
+    if [ ! -t 0 ] && [ -e /dev/tty ]; then
+        exec </dev/tty
+    fi
+
     ACTION="install"
     VERSION=""
     FORCE_ARCH=""
@@ -10,34 +14,44 @@ main() {
     for arg in "$@"; do
         case "$arg" in
         --remove | --uninstall | -r)
-            ACTION="remove" ;;
+            ACTION="remove"
+            ;;
         --update | -u)
-            ACTION="update" ;;
+            ACTION="update"
+            ;;
         --sysinfo | --info | -i)
-            ACTION="sysinfo" ;;
+            ACTION="sysinfo"
+            ;;
         --quiet | -q)
-            QUIET_MODE=1 ;;
+            QUIET_MODE=1
+            ;;
         --arch=*)
-            FORCE_ARCH="${arg#*=}" ;;
+            FORCE_ARCH="${arg#*=}"
+            ;;
         --platform=*)
-            B4_PLATFORM="${arg#*=}" ;;
+            B4_PLATFORM="${arg#*=}"
+            ;;
         --bin-dir=*)
-            B4_BIN_DIR="${arg#*=}" ;;
+            B4_BIN_DIR="${arg#*=}"
+            ;;
         --data-dir=*)
-            B4_DATA_DIR="${arg#*=}" ;;
+            B4_DATA_DIR="${arg#*=}"
+            ;;
         --help | -h)
             _show_help
-            exit 0 ;;
+            exit 0
+            ;;
         v* | V*)
-            VERSION="$arg" ;;
+            VERSION="$arg"
+            ;;
         esac
     done
 
     # Dispatch
     case "$ACTION" in
     install) action_install "$VERSION" "$FORCE_ARCH" ;;
-    remove)  action_remove ;;
-    update)  action_update "$VERSION" "$FORCE_ARCH" ;;
+    remove) action_remove ;;
+    update) action_update "$VERSION" "$FORCE_ARCH" ;;
     sysinfo) action_sysinfo ;;
     esac
 }
