@@ -22,227 +22,227 @@ const (
 )
 
 type ApiConfig struct {
-	IPInfoToken string `json:"ipinfo_token" bson:"ipinfo_token"`
+	IPInfoToken string `json:"ipinfo_token"`
 }
 
 type QueueConfig struct {
-	StartNum          int            `json:"start_num" bson:"start_num"`
-	Threads           int            `json:"threads" bson:"threads"`
-	Mark              uint           `json:"mark" bson:"mark"`
-	IPv4Enabled       bool           `json:"ipv4" bson:"ipv4"`
-	IPv6Enabled       bool           `json:"ipv6" bson:"ipv6"`
-	TCPConnBytesLimit int            `json:"tcp_conn_bytes_limit" bson:"tcp_conn_bytes_limit"`
-	UDPConnBytesLimit int            `json:"udp_conn_bytes_limit" bson:"udp_conn_bytes_limit"`
-	Interfaces        []string       `json:"interfaces" bson:"interfaces"`
-	Devices           DevicesConfig  `json:"devices" bson:"devices"`
-	MSSClamp          MSSClampConfig `json:"mss_clamp" bson:"mss_clamp"`
+	StartNum          int            `json:"start_num"`
+	Threads           int            `json:"threads"`
+	Mark              uint           `json:"mark"`
+	IPv4Enabled       bool           `json:"ipv4"`
+	IPv6Enabled       bool           `json:"ipv6"`
+	TCPConnBytesLimit int            `json:"tcp_conn_bytes_limit"`
+	UDPConnBytesLimit int            `json:"udp_conn_bytes_limit"`
+	Interfaces        []string       `json:"interfaces"`
+	Devices           DevicesConfig  `json:"devices"`
+	MSSClamp          MSSClampConfig `json:"mss_clamp"`
 }
 
 type DevicesConfig struct {
-	Enabled      bool             `json:"enabled" bson:"enabled"`
-	VendorLookup bool             `json:"vendor_lookup" bson:"vendor_lookup"`
-	WhiteIsBlack bool             `json:"wisb" bson:"wisb"`
-	Mac          []string         `json:"mac" bson:"mac"`
-	MSSClamps    []DeviceMSSClamp `json:"mss_clamps" bson:"mss_clamps"`
+	Enabled      bool             `json:"enabled"`
+	VendorLookup bool             `json:"vendor_lookup"`
+	WhiteIsBlack bool             `json:"wisb"`
+	Mac          []string         `json:"mac"`
+	MSSClamps    []DeviceMSSClamp `json:"mss_clamps"`
 }
 
 type TCPConfig struct {
-	ConnBytesLimit int    `json:"conn_bytes_limit" bson:"conn_bytes_limit"`
-	Seg2Delay      int    `json:"seg2delay" bson:"seg2delay"`
-	Seg2DelayMax   int    `json:"seg2delay_max" bson:"seg2delay_max"`
-	SynFake        bool   `json:"syn_fake" bson:"syn_fake"`
-	SynFakeLen     int    `json:"syn_fake_len" bson:"syn_fake_len"`
-	SynTTL         uint8  `json:"syn_ttl" bson:"syn_ttl"`
-	DropSACK       bool   `json:"drop_sack" bson:"drop_sack"`
-	DPortFilter    string `json:"dport_filter" bson:"dport_filter"` // comma separated list of ports and port ranges, e.g. "80,443,5222"
+	ConnBytesLimit int    `json:"conn_bytes_limit"`
+	Seg2Delay      int    `json:"seg2delay"`
+	Seg2DelayMax   int    `json:"seg2delay_max"`
+	SynFake        bool   `json:"syn_fake"`
+	SynFakeLen     int    `json:"syn_fake_len"`
+	SynTTL         uint8  `json:"syn_ttl"`
+	DropSACK       bool   `json:"drop_sack"`
+	DPortFilter    string `json:"dport_filter"` // comma separated list of ports and port ranges, e.g. "80,443,5222"
 
-	Incoming  IncomingConfig  `json:"incoming" bson:"incoming"`
-	Desync    DesyncConfig    `json:"desync" bson:"desync"`
-	Win       WinConfig       `json:"win" bson:"win"`
-	Duplicate DuplicateConfig `json:"duplicate" bson:"duplicate"`
+	Incoming  IncomingConfig  `json:"incoming"`
+	Desync    DesyncConfig    `json:"desync"`
+	Win       WinConfig       `json:"win"`
+	Duplicate DuplicateConfig `json:"duplicate"`
 }
 
 type WinConfig struct {
-	Mode   string `json:"mode" bson:"mode"`     // "off", "oscillate", "zero", "random", "escalate"
-	Values []int  `json:"values" bson:"values"` // Custom window values
+	Mode   string `json:"mode"`   // "off", "oscillate", "zero", "random", "escalate"
+	Values []int  `json:"values"` // Custom window values
 }
 
 type DesyncConfig struct {
-	Mode       string `json:"mode" bson:"mode"`               // "off" "rst", "fin", "ack", "combo", "full"
-	TTL        uint8  `json:"ttl" bson:"ttl"`                 // TTL for desync packets
-	Count      int    `json:"count" bson:"count"`             // Number of desync packets
-	PostDesync bool   `json:"post_desync" bson:"post_desync"` // Send fake RST after ClientHello
+	Mode       string `json:"mode"`        // "off" "rst", "fin", "ack", "combo", "full"
+	TTL        uint8  `json:"ttl"`         // TTL for desync packets
+	Count      int    `json:"count"`       // Number of desync packets
+	PostDesync bool   `json:"post_desync"` // Send fake RST after ClientHello
 }
 
 type IncomingConfig struct {
-	Mode      string `json:"mode" bson:"mode"` // "off", "fake", "reset", "fin", "desync"
-	Min       int    `json:"min" bson:"min"`   // threshold min (KB)
-	Max       int    `json:"max" bson:"max"`   // threshold max (KB), if 0 or eq MinKB -> uses MinKB
-	FakeTTL   uint8  `json:"fake_ttl" bson:"fake_ttl"`
-	FakeCount int    `json:"fake_count" bson:"fake_count"`
-	Strategy  string `json:"strategy" bson:"strategy"` // "badsum", "badseq", "badack",  "rand", "all"
+	Mode      string `json:"mode"`       // "off", "fake", "reset", "fin", "desync"
+	Min       int    `json:"min"`        // threshold min (KB)
+	Max       int    `json:"max"`        // threshold max (KB), if 0 or eq MinKB -> uses MinKB
+	FakeTTL   uint8  `json:"fake_ttl"`
+	FakeCount int    `json:"fake_count"`
+	Strategy  string `json:"strategy"` // "badsum", "badseq", "badack",  "rand", "all"
 }
 
 type UDPConfig struct {
-	Mode           string `json:"mode" bson:"mode"`
-	FakeSeqLength  int    `json:"fake_seq_length" bson:"fake_seq_length"`
-	FakeLen        int    `json:"fake_len" bson:"fake_len"`
-	FakingStrategy string `json:"faking_strategy" bson:"faking_strategy"`
-	DPortFilter    string `json:"dport_filter" bson:"dport_filter"` // can be a comma separated list of ports and port ranges, e.g. "80,443,1000-2000"
-	FilterQUIC     string `json:"filter_quic" bson:"filter_quic"`
-	FilterSTUN     bool   `json:"filter_stun" bson:"filter_stun"`
-	ConnBytesLimit int    `json:"conn_bytes_limit" bson:"conn_bytes_limit"`
-	Seg2Delay      int    `json:"seg2delay" bson:"seg2delay"`
-	Seg2DelayMax   int    `json:"seg2delay_max" bson:"seg2delay_max"`
+	Mode           string `json:"mode"`
+	FakeSeqLength  int    `json:"fake_seq_length"`
+	FakeLen        int    `json:"fake_len"`
+	FakingStrategy string `json:"faking_strategy"`
+	DPortFilter    string `json:"dport_filter"` // can be a comma separated list of ports and port ranges, e.g. "80,443,1000-2000"
+	FilterQUIC     string `json:"filter_quic"`
+	FilterSTUN     bool   `json:"filter_stun"`
+	ConnBytesLimit int    `json:"conn_bytes_limit"`
+	Seg2Delay      int    `json:"seg2delay"`
+	Seg2DelayMax   int    `json:"seg2delay_max"`
 }
 
 type FragmentationConfig struct {
-	Strategy     string `json:"strategy" bson:"strategy"` // Values: "tcp", "ip", "oob", "tls", "disorder",  "extsplit", "firstbyte", "combo", "none"
-	ReverseOrder bool   `json:"reverse_order" bson:"reverse_order"`
+	Strategy     string `json:"strategy"` // Values: "tcp", "ip", "oob", "tls", "disorder",  "extsplit", "firstbyte", "combo", "none"
+	ReverseOrder bool   `json:"reverse_order"`
 
-	TLSRecordPosition int `json:"tlsrec_pos" bson:"tlsrec_pos"` // where to split TLS record
+	TLSRecordPosition int `json:"tlsrec_pos"` // where to split TLS record
 
-	MiddleSNI   bool `json:"middle_sni" bson:"middle_sni"`
-	SNIPosition int  `json:"sni_position" bson:"sni_position"`
+	MiddleSNI   bool `json:"middle_sni"`
+	SNIPosition int  `json:"sni_position"`
 
-	OOBPosition int  `json:"oob_position" bson:"oob_position"` // Position for OOB (0=disabled)
-	OOBChar     byte `json:"oob_char" bson:"oob_char"`         // Character for OOB data
+	OOBPosition int  `json:"oob_position"` // Position for OOB (0=disabled)
+	OOBChar     byte `json:"oob_char"`     // Character for OOB data
 
-	SeqOverlapPattern []string `json:"seq_overlap_pattern" bson:"seq_overlap_pattern"`
-	SeqOverlapBytes   []byte   `json:"-" bson:"-"`
+	SeqOverlapPattern []string `json:"seq_overlap_pattern"`
+	SeqOverlapBytes   []byte   `json:"-"`
 
-	Combo    ComboFragConfig    `json:"combo" bson:"combo"`
-	Disorder DisorderFragConfig `json:"disorder" bson:"disorder"`
+	Combo    ComboFragConfig    `json:"combo"`
+	Disorder DisorderFragConfig `json:"disorder"`
 }
 
 type FakingConfig struct {
-	SNI               bool     `json:"sni" bson:"sni"`
-	TTL               uint8    `json:"ttl" bson:"ttl"`
-	Strategy          string   `json:"strategy" bson:"strategy"`
-	SeqOffset         int32    `json:"seq_offset" bson:"seq_offset"`
-	SNISeqLength      int      `json:"sni_seq_length" bson:"sni_seq_length"`
-	SNIType           int      `json:"sni_type" bson:"sni_type"`
-	CustomPayload     string   `json:"custom_payload" bson:"custom_payload"`
-	PayloadFile       string   `json:"payload_file" bson:"payload_file"`
-	PayloadData       []byte   `json:"-" bson:"-"`
-	TLSMod            []string `json:"tls_mod" bson:"tls_mod"`                       // e.g. ["rnd", "dupsid"]
-	TimestampDecrease uint32   `json:"timestamp_decrease" bson:"timestamp_decrease"` // Amount to decrease TCP timestamp option
+	SNI               bool     `json:"sni"`
+	TTL               uint8    `json:"ttl"`
+	Strategy          string   `json:"strategy"`
+	SeqOffset         int32    `json:"seq_offset"`
+	SNISeqLength      int      `json:"sni_seq_length"`
+	SNIType           int      `json:"sni_type"`
+	CustomPayload     string   `json:"custom_payload"`
+	PayloadFile       string   `json:"payload_file"`
+	PayloadData       []byte   `json:"-"`
+	TLSMod            []string `json:"tls_mod"`            // e.g. ["rnd", "dupsid"]
+	TimestampDecrease uint32   `json:"timestamp_decrease"` // Amount to decrease TCP timestamp option
 
-	SNIMutation SNIMutationConfig `json:"sni_mutation" bson:"sni_mutation"`
-	TCPMD5      bool              `json:"tcp_md5" bson:"tcp_md5"` // Enable TCP MD5 option insertion
+	SNIMutation SNIMutationConfig `json:"sni_mutation"`
+	TCPMD5      bool              `json:"tcp_md5"` // Enable TCP MD5 option insertion
 }
 
 type SNIMutationConfig struct {
-	Mode         string   `json:"mode" bson:"mode"` // "off", "duplicate", "grease", "padding", "reorder", "full"
-	GreaseCount  int      `json:"grease_count" bson:"grease_count"`
-	PaddingSize  int      `json:"padding_size" bson:"padding_size"`
-	FakeExtCount int      `json:"fake_ext_count" bson:"fake_ext_count"`
-	FakeSNIs     []string `json:"fake_snis" bson:"fake_snis"` // Additional SNIs to inject
+	Mode         string   `json:"mode"` // "off", "duplicate", "grease", "padding", "reorder", "full"
+	GreaseCount  int      `json:"grease_count"`
+	PaddingSize  int      `json:"padding_size"`
+	FakeExtCount int      `json:"fake_ext_count"`
+	FakeSNIs     []string `json:"fake_snis"` // Additional SNIs to inject
 }
 
 type TargetsConfig struct {
-	SNIDomains        []string `json:"sni_domains" bson:"sni_domains"`
-	IPs               []string `json:"ip" bson:"ip"`
-	GeoSiteCategories []string `json:"geosite_categories" bson:"geosite_categories"`
-	GeoIpCategories   []string `json:"geoip_categories" bson:"geoip_categories"`
-	SourceDevices     []string `json:"source_devices" bson:"source_devices"`
-	TLSVersion        string   `json:"tls" bson:"tls"` // "1.2", "1.3", or "" (match any)
-	DomainsToMatch    []string `json:"-" bson:"-"`
-	IpsToMatch        []string `json:"-" bson:"-"`
+	SNIDomains        []string `json:"sni_domains"`
+	IPs               []string `json:"ip"`
+	GeoSiteCategories []string `json:"geosite_categories"`
+	GeoIpCategories   []string `json:"geoip_categories"`
+	SourceDevices     []string `json:"source_devices"`
+	TLSVersion        string   `json:"tls"` // "1.2", "1.3", or "" (match any)
+	DomainsToMatch    []string `json:"-"`
+	IpsToMatch        []string `json:"-"`
 }
 
 type SystemConfig struct {
-	Tables    TablesConfig    `json:"tables" bson:"tables"`
-	Logging   Logging         `json:"logging" bson:"logging"`
-	WebServer WebServerConfig `json:"web_server" bson:"web_server"`
-	Socks5    Socks5Config    `json:"socks5" bson:"socks5"`
-	Checker   DiscoveryConfig `json:"checker" bson:"checker"`
-	Geo       GeoDatConfig    `json:"geo" bson:"geo"`
-	API       ApiConfig       `json:"api" bson:"api"`
+	Tables    TablesConfig    `json:"tables"`
+	Logging   Logging         `json:"logging"`
+	WebServer WebServerConfig `json:"web_server"`
+	Socks5    Socks5Config    `json:"socks5"`
+	Checker   DiscoveryConfig `json:"checker"`
+	Geo       GeoDatConfig    `json:"geo"`
+	API       ApiConfig       `json:"api"`
 }
 
 type Socks5Config struct {
-	Enabled        bool   `json:"enabled" bson:"enabled"`
-	Port           int    `json:"port" bson:"port"`
-	BindAddress    string `json:"bind_address" bson:"bind_address"`
-	Username       string `json:"username" bson:"username"`
-	Password       string `json:"password" bson:"password"`
-	UDPTimeout     int    `json:"udp_timeout" bson:"udp_timeout"`
-	UDPReadTimeout int    `json:"udp_read_timeout" bson:"udp_read_timeout"`
+	Enabled        bool   `json:"enabled"`
+	Port           int    `json:"port"`
+	BindAddress    string `json:"bind_address"`
+	Username       string `json:"username"`
+	Password       string `json:"password"`
+	UDPTimeout     int    `json:"udp_timeout"`
+	UDPReadTimeout int    `json:"udp_read_timeout"`
 }
 
 type TablesConfig struct {
-	MonitorInterval     int    `json:"monitor_interval" bson:"monitor_interval"`
-	SkipSetup           bool   `json:"skip_setup" bson:"skip_setup"`
-	Engine              string `json:"engine" bson:"engine"`
-	Masquerade          bool   `json:"masquerade" bson:"masquerade"`
-	MasqueradeInterface string `json:"masquerade_interface" bson:"masquerade_interface"`
+	MonitorInterval     int    `json:"monitor_interval"`
+	SkipSetup           bool   `json:"skip_setup"`
+  Engine              string `json:"engine"`
+	Masquerade          bool   `json:"masquerade"`
+	MasqueradeInterface string `json:"masquerade_interface"`
 }
 
 type WebServerConfig struct {
-	Port        int    `json:"port" bson:"port"`
-	BindAddress string `json:"bind_address" bson:"bind_address"`
-	TLSCert     string `json:"tls_cert" bson:"tls_cert"`
-	TLSKey      string `json:"tls_key" bson:"tls_key"`
-	Username    string `json:"username" bson:"username"`
-	Password    string `json:"password" bson:"password"`
-	Language    string `json:"language" bson:"language"`
-	IsEnabled   bool   `json:"-" bson:"-"`
+	Port        int    `json:"port"`
+	BindAddress string `json:"bind_address"`
+	TLSCert     string `json:"tls_cert"`
+	TLSKey      string `json:"tls_key"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	Language    string `json:"language"`
+	IsEnabled   bool   `json:"-"`
 }
 
 type DiscoveryConfig struct {
-	DiscoveryTimeoutSec int      `yaml:"discovery_timeout" json:"discovery_timeout"`
-	ConfigPropagateMs   int      `yaml:"config_propagate_ms" json:"config_propagate_ms"`
-	ReferenceDomain     string   `yaml:"reference_domain" json:"reference_domain"`
-	ReferenceDNS        []string `yaml:"reference_dns" json:"reference_dns"`
-	ValidationTries     int      `yaml:"validation_tries" json:"validation_tries"`
+	DiscoveryTimeoutSec int      `json:"discovery_timeout"`
+	ConfigPropagateMs   int      `json:"config_propagate_ms"`
+	ReferenceDomain     string   `json:"reference_domain"`
+	ReferenceDNS        []string `json:"reference_dns"`
+	ValidationTries     int      `json:"validation_tries"`
 }
 
 type Logging struct {
-	Level      log.Level `json:"level" bson:"level"`
-	Instaflush bool      `json:"instaflush" bson:"instaflush"`
-	Syslog     bool      `json:"syslog" bson:"syslog"`
-	ErrorFile  string    `json:"error_file" bson:"error_file"`
+	Level      log.Level `json:"level"`
+	Instaflush bool      `json:"instaflush"`
+	Syslog     bool      `json:"syslog"`
+	ErrorFile  string    `json:"error_file"`
 }
 
 type SetConfig struct {
-	Id            string              `json:"id" bson:"id"`
-	Name          string              `json:"name" bson:"name"`
-	TCP           TCPConfig           `json:"tcp" bson:"tcp"`
-	UDP           UDPConfig           `json:"udp" bson:"udp"`
-	Fragmentation FragmentationConfig `json:"fragmentation" bson:"fragmentation"`
-	Faking        FakingConfig        `json:"faking" bson:"faking"`
-	Targets       TargetsConfig       `json:"targets" bson:"targets"`
-	Enabled       bool                `json:"enabled" bson:"enabled"`
-	DNS           DNSConfig           `json:"dns" bson:"dns"`
-	TCPPortRanges []PortRange         `json:"-" bson:"-"`
-	UDPPortRanges []PortRange         `json:"-" bson:"-"`
+	Id            string              `json:"id"`
+	Name          string              `json:"name"`
+	TCP           TCPConfig           `json:"tcp"`
+	UDP           UDPConfig           `json:"udp"`
+	Fragmentation FragmentationConfig `json:"fragmentation"`
+	Faking        FakingConfig        `json:"faking"`
+	Targets       TargetsConfig       `json:"targets"`
+	Enabled       bool                `json:"enabled"`
+	DNS           DNSConfig           `json:"dns"`
+	TCPPortRanges []PortRange         `json:"-"`
+	UDPPortRanges []PortRange         `json:"-"`
 }
 
 type GeoDatConfig struct {
-	GeoSitePath string `json:"sitedat_path" bson:"sitedat_path"`
-	GeoIpPath   string `json:"ipdat_path" bson:"ipdat_path"`
-	GeoSiteURL  string `json:"sitedat_url" bson:"sitedat_url"`
-	GeoIpURL    string `json:"ipdat_url" bson:"ipdat_url"`
+	GeoSitePath string `json:"sitedat_path"`
+	GeoIpPath   string `json:"ipdat_path"`
+	GeoSiteURL  string `json:"sitedat_url"`
+	GeoIpURL    string `json:"ipdat_url"`
 }
 
 type ComboFragConfig struct {
-	FirstByteSplit  bool   `json:"first_byte_split" bson:"first_byte_split"`
-	ExtensionSplit  bool   `json:"extension_split" bson:"extension_split"`
-	ShuffleMode     string `json:"shuffle_mode" bson:"shuffle_mode"` // "middle", "full", "reverse"
-	FirstDelayMs    int    `json:"first_delay_ms" bson:"first_delay_ms"`
-	JitterMaxUs     int    `json:"jitter_max_us" bson:"jitter_max_us"`
-	DecoyEnabled    bool   `json:"decoy_enabled" bson:"decoy_enabled"`
-	FakePerSegment  bool   `json:"fake_per_segment" bson:"fake_per_segment"`
-	FakePerSegCount int    `json:"fake_per_seg_count" bson:"fake_per_seg_count"` // Number of fake packets per segment (default 1)
+	FirstByteSplit  bool   `json:"first_byte_split"`
+	ExtensionSplit  bool   `json:"extension_split"`
+	ShuffleMode     string `json:"shuffle_mode"` // "middle", "full", "reverse"
+	FirstDelayMs    int    `json:"first_delay_ms"`
+	JitterMaxUs     int    `json:"jitter_max_us"`
+	DecoyEnabled    bool   `json:"decoy_enabled"`
+	FakePerSegment  bool   `json:"fake_per_segment"`
+	FakePerSegCount int    `json:"fake_per_seg_count"` // Number of fake packets per segment (default 1)
 }
 
 type DisorderFragConfig struct {
-	ShuffleMode     string `json:"shuffle_mode" bson:"shuffle_mode"` // "full", "reverse"
-	MinJitterUs     int    `json:"min_jitter_us" bson:"min_jitter_us"`
-	MaxJitterUs     int    `json:"max_jitter_us" bson:"max_jitter_us"`
-	FakePerSegment  bool   `json:"fake_per_segment" bson:"fake_per_segment"`
-	FakePerSegCount int    `json:"fake_per_seg_count" bson:"fake_per_seg_count"` // Number of fake packets per segment (default 1)
+	ShuffleMode     string `json:"shuffle_mode"` // "full", "reverse"
+	MinJitterUs     int    `json:"min_jitter_us"`
+	MaxJitterUs     int    `json:"max_jitter_us"`
+	FakePerSegment  bool   `json:"fake_per_segment"`
+	FakePerSegCount int    `json:"fake_per_seg_count"` // Number of fake packets per segment (default 1)
 }
 
 // ResolveSeg2Delay returns a delay value between min and max (inclusive).
@@ -255,22 +255,22 @@ func ResolveSeg2Delay(min, max int) int {
 }
 
 type DNSConfig struct {
-	Enabled       bool   `json:"enabled" bson:"enabled"`
-	TargetDNS     string `json:"target_dns" bson:"target_dns"`
-	FragmentQuery bool   `json:"fragment_query" bson:"fragment_query"`
+	Enabled       bool   `json:"enabled"`
+	TargetDNS     string `json:"target_dns"`
+	FragmentQuery bool   `json:"fragment_query"`
 }
 
 type DuplicateConfig struct {
-	Enabled bool `json:"enabled" bson:"enabled"`
-	Count   int  `json:"count" bson:"count"` // Number of packet copies to send (original is dropped)
+	Enabled bool `json:"enabled"`
+	Count   int  `json:"count"` // Number of packet copies to send (original is dropped)
 }
 
 type MSSClampConfig struct {
-	Enabled bool `json:"enabled" bson:"enabled"`
-	Size    int  `json:"size" bson:"size"` // MSS value in bytes (e.g., 88)
+	Enabled bool `json:"enabled"`
+	Size    int  `json:"size"` // MSS value in bytes (e.g., 88)
 }
 
 type DeviceMSSClamp struct {
-	Mac  string `json:"mac" bson:"mac"`
-	Size int    `json:"size" bson:"size"`
+	Mac  string `json:"mac"`
+	Size int    `json:"size"`
 }
