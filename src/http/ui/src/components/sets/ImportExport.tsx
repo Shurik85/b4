@@ -6,7 +6,7 @@ import { useSnackbar } from "@context/SnackbarProvider";
 import { useTranslation, Trans } from "react-i18next";
 
 import { B4SetConfig } from "@models/config";
-import { createDefaultSet } from "@models/defaults";
+import { createDefaultSet, defaultRoutingConfig } from "@models/defaults";
 
 type Obj = Record<string, unknown>;
 
@@ -171,15 +171,7 @@ export const ImportExportSettings = ({
       }
     }
 
-    const routingDefaults = {
-      enabled: false,
-      egress_interface: "",
-      fwmark: 0,
-      table: 0,
-      source_interfaces: [],
-      ip_ttl_seconds: 3600,
-    };
-    set.routing = { ...routingDefaults, ...(set.routing as Record<string, unknown>) };
+    set.routing = { ...defaultRoutingConfig, ...(set.routing as Record<string, unknown>) };
 
     return set as unknown as B4SetConfig;
   }

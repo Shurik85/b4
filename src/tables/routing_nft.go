@@ -135,20 +135,15 @@ func (b *routeNftBackend) deleteJumpRules(baseChain, targetChain string, _ bool)
 	}
 }
 
-func (b *routeNftBackend) addSNATRule(chain string, mark uint32, iface, srcAddr string, v6 bool) {
+func (b *routeNftBackend) addMasqueradeRule(chain string, mark uint32, iface string, v6 bool) {
 	markHex := fmt.Sprintf("0x%x", mark)
 	hostCTMask := fmt.Sprintf("0x%x", hostRouteCTMark)
-	af := "ip"
-	if v6 {
-		af = "ip6"
-	}
-	runLogged("routing: add auto-snat rule",
+	runLogged("routing: add masquerade rule",
 		"nft", "add", "rule", "inet", routeNftTable, chain,
 		"meta", "mark", markHex,
 		"ct", "mark", "&", hostCTMask, "==", hostCTMask,
 		"oifname", iface,
-		af, "saddr", "!=", srcAddr,
-		"snat", "to", srcAddr,
+		"masquerade",
 	)
 }
 

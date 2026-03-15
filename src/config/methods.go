@@ -134,6 +134,10 @@ func (c *Config) Validate() error {
 		if set.Routing.IPTTLSeconds <= 0 {
 			set.Routing.IPTTLSeconds = DefaultSetConfig.Routing.IPTTLSeconds
 		}
+		set.Routing.EgressInterface = sanitizeIfaceName(set.Routing.EgressInterface)
+		for i, src := range set.Routing.SourceInterfaces {
+			set.Routing.SourceInterfaces[i] = sanitizeIfaceName(src)
+		}
 
 		if len(set.Fragmentation.SeqOverlapPattern) > 0 {
 			set.Fragmentation.SeqOverlapBytes = make([]byte, len(set.Fragmentation.SeqOverlapPattern))
@@ -767,4 +771,15 @@ func mergeAndNormalizePorts(ports []string) []string {
 		}
 	}
 	return result
+}
+
+// sanitizeIfaceName strips any characters not valid in a Linux interface name.
+func sanitizeIfaceName(name string) string {
+	var b strings.Builder
+	for _, c := range name {
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' {
+			b.WriteRune(c)
+		}
+	}
+	return b.String()
 }

@@ -99,7 +99,10 @@ func consumeDNSPendingRoute(key string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	r := v.(pendingDNSRoute)
+	r, ok2 := v.(pendingDNSRoute)
+	if !ok2 {
+		return "", false
+	}
 	if time.Now().After(r.expires) {
 		return "", false
 	}

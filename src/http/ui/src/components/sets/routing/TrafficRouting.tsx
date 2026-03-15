@@ -1,18 +1,10 @@
 import { Box, Grid, MenuItem, Typography } from "@mui/material";
 import { B4Alert, B4Badge, B4Switch, B4TextField } from "@b4.elements";
-import { B4SetConfig, RoutingConfig } from "@models/config";
+import { B4SetConfig } from "@models/config";
+import { defaultRoutingConfig } from "@models/defaults";
 import { colors } from "@design";
 import { useTranslation } from "react-i18next";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-
-const defaultRouting: RoutingConfig = {
-  enabled: false,
-  egress_interface: "",
-  fwmark: 0,
-  table: 0,
-  source_interfaces: [],
-  ip_ttl_seconds: 3600,
-};
 
 interface TrafficRoutingProps {
   config: B4SetConfig;
@@ -29,7 +21,7 @@ export const TrafficRouting = ({
   onChange,
 }: TrafficRoutingProps) => {
   const { t } = useTranslation();
-  const routing = config.routing ?? defaultRouting;
+  const routing = config.routing ?? defaultRoutingConfig;
   const selectedIfaceAvailable = availableIfaces.includes(
     routing.egress_interface,
   );
@@ -146,7 +138,7 @@ export const TrafficRouting = ({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Internet
+                  {t("sets.routing.flowInternet")}
                 </Box>
               </Box>
               <Typography
@@ -172,6 +164,17 @@ export const TrafficRouting = ({
             </Typography>
 
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {(routing.source_interfaces || [])
+                .filter((iface) => !availableIfaces.includes(iface))
+                .map((iface) => (
+                  <B4Badge
+                    key={iface}
+                    label={`${iface} (${t("sets.routing.staleIface")})`}
+                    onClick={() => toggleSourceIface(iface)}
+                    variant="filled"
+                    color="error"
+                  />
+                ))}
               {availableIfaces.map((iface) => {
                 const selected = (routing.source_interfaces || []).includes(
                   iface,

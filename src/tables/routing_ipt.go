@@ -161,7 +161,7 @@ func (b *routeIptBackend) deleteJumpRules(baseChain, targetChain string, isMangl
 		if !hasBinary(cmd) {
 			continue
 		}
-		for {
+		for i := 0; i < 100; i++ {
 			_, err := run(cmd, "-w", "-t", table, "-D", baseChain, "-j", targetChain)
 			if err != nil {
 				break
@@ -170,7 +170,7 @@ func (b *routeIptBackend) deleteJumpRules(baseChain, targetChain string, isMangl
 	}
 }
 
-func (b *routeIptBackend) addSNATRule(chain string, mark uint32, iface, srcAddr string, v6 bool) {
+func (b *routeIptBackend) addMasqueradeRule(chain string, mark uint32, iface string, v6 bool) {
 	cmd := b.iptFor(v6)
 	if !hasBinary(cmd) {
 		return
@@ -178,13 +178,12 @@ func (b *routeIptBackend) addSNATRule(chain string, mark uint32, iface, srcAddr 
 	markHex := fmt.Sprintf("0x%x", mark)
 	ctMask := fmt.Sprintf("0x%x/0x%x", hostRouteCTMark, hostRouteCTMark)
 
-	runLogged("routing: add auto-snat rule",
+	runLogged("routing: add masquerade rule",
 		cmd, "-w", "-t", "nat", "-A", chain,
 		"-m", "mark", "--mark", markHex,
 		"-m", "connmark", "--mark", ctMask,
 		"-o", iface,
-		"!", "-s", srcAddr,
-		"-j", "SNAT", "--to-source", srcAddr,
+		"-j", "MASQUERADE",
 	)
 }
 

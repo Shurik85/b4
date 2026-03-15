@@ -1,5 +1,14 @@
 import { v4 as uuidv4 } from "uuid";
-import { B4SetConfig } from "./config";
+import { B4SetConfig, RoutingConfig } from "./config";
+
+export const defaultRoutingConfig: RoutingConfig = {
+  enabled: false,
+  egress_interface: "",
+  fwmark: 0,
+  table: 0,
+  source_interfaces: [],
+  ip_ttl_seconds: 3600,
+};
 
 export function createDefaultSet(setCount: number): B4SetConfig {
   return {
@@ -47,14 +56,7 @@ export function createDefaultSet(setCount: number): B4SetConfig {
       target_dns: "",
       fragment_query: false,
     } as B4SetConfig["dns"],
-    routing: {
-      enabled: false,
-      egress_interface: "",
-      fwmark: 0,
-      table: 0,
-      source_interfaces: [],
-      ip_ttl_seconds: 3600,
-    } as B4SetConfig["routing"],
+    routing: { ...defaultRoutingConfig },
     fragmentation: {
       strategy: "tcp",
       reverse_order: true,

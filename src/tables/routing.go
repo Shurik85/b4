@@ -40,7 +40,7 @@ type routeBackend interface {
 	addMarkRule(chain string, v6 bool, setName string, mark uint32, sourceIface string, tagHostConntrack bool)
 	ensureJumpRule(baseChain, targetChain string, isMangle bool)
 	deleteJumpRules(baseChain, targetChain string, isMangle bool)
-	addSNATRule(chain string, mark uint32, iface, srcAddr string, v6 bool)
+	addMasqueradeRule(chain string, mark uint32, iface string, v6 bool)
 	flushIPSet(name string)
 	destroyIPSet(name string)
 	clearAll()
@@ -313,7 +313,7 @@ func routeEnsureRule(be routeBackend, cfg *config.Config, set *config.SetConfig,
 	be.ensureJumpRule("OUTPUT", st.chainOut, true)
 	be.ensureJumpRule("POSTROUTING", st.chainSNAT, false)
 
-	routeAddSNATRules(be, set.Routing.EgressInterface, st.chainSNAT, st.mark, cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
+	routeAddMasqueradeRules(be, set.Routing.EgressInterface, st.chainSNAT, st.mark, cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
 	routeEnsurePolicyRouting(set.Routing.EgressInterface, st.mark, st.table, cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
 	return nil
 }
@@ -328,16 +328,12 @@ func routeAddMarkRules(be routeBackend, chain string, v6 bool, setName string, m
 	}
 }
 
-func routeAddSNATRules(be routeBackend, iface, chain string, mark uint32, ipv4, ipv6 bool) {
+func routeAddMasqueradeRules(be routeBackend, iface, chain string, mark uint32, ipv4, ipv6 bool) {
 	if ipv4 {
-		if addr := routeGetIfaceAddr(iface, false); addr != "" {
-			be.addSNATRule(chain, mark, iface, addr, false)
-		}
+		be.addMasqueradeRule(chain, mark, iface, false)
 	}
 	if ipv6 {
-		if addr := routeGetIfaceAddr(iface, true); addr != "" {
-			be.addSNATRule(chain, mark, iface, addr, true)
-		}
+		be.addMasqueradeRule(chain, mark, iface, true)
 	}
 }
 
@@ -489,7 +485,7 @@ func routeResolveIDs(cfg *config.Config, set *config.SetConfig) (uint32, int) {
 
 	mark := uint32(0x66)
 	table := 100
-	for {
+	for i := 0; i < 4096; i++ {
 		_, markUsed := usedMarks[mark]
 		_, tableUsed := usedTables[table]
 		if !markUsed && !tableUsed {
@@ -503,7 +499,7 @@ func routeResolveIDs(cfg *config.Config, set *config.SetConfig) (uint32, int) {
 }
 
 func routeDelRuleLoop(ipv6 bool, mark, table string) {
-	for {
+	for i := 0; i < 100; i++ {
 		var err error
 		if ipv6 {
 			_, err = run("ip", "-6", "rule", "del", "fwmark", mark, "lookup", table)
