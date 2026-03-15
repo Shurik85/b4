@@ -327,7 +327,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		// Must come before the generic connbytes-limited TCP rule.
 		dupIPv4, dupIPv6 := cfg.CollectDuplicateIPs()
 		var dupIPs []string
-		if ipt == "iptables" {
+		if strings.HasPrefix(ipt, "iptables") {
 			dupIPs = dupIPv4
 		} else {
 			dupIPs = dupIPv6

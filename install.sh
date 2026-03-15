@@ -3107,10 +3107,10 @@ action_sysinfo() {
         if nft add table inet _b4_test 2>/dev/null; then
             nft delete table inet _b4_test 2>/dev/null || true
             printf "    ${GREEN}found${NC}   nft ${DIM}(nftables — functional)${NC}\n" >&2
+            _fw_found=1
         else
             printf "    ${YELLOW}found${NC}   nft ${DIM}(nftables — ${RED}not functional${NC}${DIM})${NC}\n" >&2
         fi
-        _fw_found=1
     fi
     if command_exists iptables; then
         _ipt_ver=$(iptables --version 2>/dev/null)
