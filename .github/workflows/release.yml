@@ -105,8 +105,10 @@ jobs:
           path: src/http/ui/dist
 
       - name: Build using Makefile
+        env:
+          ARCH: ${{ matrix.arch }}
         run: |
-          make linux-${{ matrix.arch }} VERSION="$VERSION"
+          make linux-${ARCH} VERSION="$VERSION"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -198,11 +200,14 @@ jobs:
 
       - name: Determine tags
         id: tags
+        env:
+          REPO: ${{ github.repository }}
+          PRERELEASE: ${{ inputs.prerelease }}
         run: |
-          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          TAGS="lavrushin/b4:${{ env.VERSION }}"
-          TAGS="${TAGS},ghcr.io/${REPO_LOWER}:${{ env.VERSION }}"
-          if [ "${{ inputs.prerelease }}" != "true" ]; then
+          REPO_LOWER=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          TAGS="lavrushin/b4:${VERSION}"
+          TAGS="${TAGS},ghcr.io/${REPO_LOWER}:${VERSION}"
+          if [ "$PRERELEASE" != "true" ]; then
             TAGS="${TAGS},lavrushin/b4:latest"
             TAGS="${TAGS},ghcr.io/${REPO_LOWER}:latest"
           fi

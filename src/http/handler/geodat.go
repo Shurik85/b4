@@ -174,6 +174,10 @@ func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+var deniedPathPrefixes = []string{
+	"/proc", "/sys", "/dev", "/boot", "/run",
+}
+
 func validateDestinationPath(destPath string) error {
 	cleaned := filepath.Clean(destPath)
 	if !filepath.IsAbs(cleaned) {
@@ -181,6 +185,11 @@ func validateDestinationPath(destPath string) error {
 	}
 	if strings.Contains(cleaned, "..") {
 		return fmt.Errorf("destination path must not contain '..'")
+	}
+	for _, prefix := range deniedPathPrefixes {
+		if cleaned == prefix || strings.HasPrefix(cleaned, prefix+"/") {
+			return fmt.Errorf("destination path must not be under %s", prefix)
+		}
 	}
 	return nil
 }
