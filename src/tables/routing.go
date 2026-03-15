@@ -59,9 +59,9 @@ func getRouteBackend(cfg *config.Config) routeBackend {
 	}
 	be := detectFirewallBackend(cfg)
 	nft := &routeNftBackend{}
-	ipt := &routeIptBackend{}
+	ipt := &routeIptBackend{legacy: be == backendIPTablesLegacy}
 	switch be {
-	case "nftables":
+	case backendNFTables:
 		if nft.available() {
 			routeEngine = nft
 		}
@@ -150,23 +150,34 @@ func RoutingHandleDNS(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
 	}
 }
 
-// RoutingClearAll removes all routing rules, chains, and sets.
 func RoutingClearAll() {
 	routeMu.Lock()
 	defer routeMu.Unlock()
 
-	if routeEngine != nil {
-		for _, st := range routeRuleCache {
-			routeCleanupRule(routeEngine, st)
+	be := routeEngine
+	if be == nil {
+		nft := &routeNftBackend{}
+		if nft.available() {
+			nft.clearAll()
 		}
-		routeEngine.clearAll()
+		// Try both iptables and iptables-legacy for best-effort cleanup.
+		for _, legacy := range []bool{false, true} {
+			ipt := &routeIptBackend{legacy: legacy}
+			if ipt.available() {
+				ipt.clearAll()
+			}
+		}
+	} else {
+		for _, st := range routeRuleCache {
+			routeCleanupRule(be, st)
+		}
+		be.clearAll()
 	}
 	routeRuleCache = make(map[string]routeState)
 	routeIfaceAuto = make(map[string]routeState)
 	routeEngine = nil
 }
 
-// RoutingSyncConfig reconciles routing state with the current config.
 func RoutingSyncConfig(cfg *config.Config) {
 	if cfg == nil {
 		return
@@ -336,6 +347,8 @@ func routeCleanupRule(be routeBackend, st routeState) {
 	if hasBinary("ip") {
 		routeDelRuleLoop(false, markStr, tableStr)
 		routeDelRuleLoop(true, markStr, tableStr)
+		runLogged("routing: flush route table v4", "ip", "route", "flush", "table", tableStr)
+		runLogged("routing: flush route table v6", "ip", "-6", "route", "flush", "table", tableStr)
 	}
 
 	be.deleteJumpRules("PREROUTING", st.chainPre, true)
@@ -535,14 +548,25 @@ func routeBuildChainNames(setID string) (string, string, string) {
 }
 
 func routeSanitizeSetID(setID string) string {
-	s := strings.ReplaceAll(strings.ToLower(setID), "-", "")
-	if len(s) > 20 {
-		s = s[:20]
+	var b strings.Builder
+	for _, c := range strings.ToLower(setID) {
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' {
+			b.WriteRune(c)
+		}
 	}
+	s := b.String()
 	if s == "" {
 		s = "default"
 	}
-	return s
+
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(setID))
+	suffix := fmt.Sprintf("_%x", h.Sum32()%0xFFFF)
+	maxPrefix := 27 - len(suffix) // keep total <= 27 chars (nft limit is 31, prefix "b4r_" + "_v4" = 8)
+	if len(s) > maxPrefix {
+		s = s[:maxPrefix]
+	}
+	return s + suffix
 }
 
 func routeQueueBypassMark(cfg *config.Config) uint32 {

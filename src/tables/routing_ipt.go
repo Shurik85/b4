@@ -5,19 +5,39 @@ import (
 	"strings"
 )
 
-type routeIptBackend struct{}
-
-func (b *routeIptBackend) name() string { return "iptables" }
-
-func (b *routeIptBackend) available() bool {
-	return hasBinary("iptables") && hasBinary("ipset")
+type routeIptBackend struct {
+	legacy bool
 }
 
-func iptCmd(v6 bool) string {
-	if v6 {
-		return "ip6tables"
+func (b *routeIptBackend) name() string { return b.ipt4() }
+
+func (b *routeIptBackend) ipt4() string {
+	if b.legacy {
+		return backendIPTablesLegacy
 	}
-	return "iptables"
+	return backendIPTables
+}
+
+func (b *routeIptBackend) ipt6() string {
+	if b.legacy {
+		return "ip6tables-legacy"
+	}
+	return "ip6tables"
+}
+
+func (b *routeIptBackend) iptBoth() []string {
+	return []string{b.ipt4(), b.ipt6()}
+}
+
+func (b *routeIptBackend) iptFor(v6 bool) string {
+	if v6 {
+		return b.ipt6()
+	}
+	return b.ipt4()
+}
+
+func (b *routeIptBackend) available() bool {
+	return hasBinary(b.ipt4()) && hasBinary("ipset")
 }
 
 func iptTable(isMangle bool) string {
@@ -48,7 +68,7 @@ func (b *routeIptBackend) addElement(setName, ip string, ttlSec int) {
 
 func (b *routeIptBackend) ensureChain(chain string, isMangle bool) error {
 	table := iptTable(isMangle)
-	for _, cmd := range []string{"iptables", "ip6tables"} {
+	for _, cmd := range b.iptBoth() {
 		if !hasBinary(cmd) {
 			continue
 		}
@@ -62,7 +82,7 @@ func (b *routeIptBackend) ensureChain(chain string, isMangle bool) error {
 
 func (b *routeIptBackend) flushChain(chain string, isMangle bool) {
 	table := iptTable(isMangle)
-	for _, cmd := range []string{"iptables", "ip6tables"} {
+	for _, cmd := range b.iptBoth() {
 		if !hasBinary(cmd) {
 			continue
 		}
@@ -72,7 +92,7 @@ func (b *routeIptBackend) flushChain(chain string, isMangle bool) {
 
 func (b *routeIptBackend) deleteChain(chain string, isMangle bool) {
 	table := iptTable(isMangle)
-	for _, cmd := range []string{"iptables", "ip6tables"} {
+	for _, cmd := range b.iptBoth() {
 		if !hasBinary(cmd) {
 			continue
 		}
@@ -83,7 +103,7 @@ func (b *routeIptBackend) deleteChain(chain string, isMangle bool) {
 
 func (b *routeIptBackend) addBypassRule(chain string, mark uint32) {
 	markHex := fmt.Sprintf("0x%x", mark)
-	for _, cmd := range []string{"iptables", "ip6tables"} {
+	for _, cmd := range b.iptBoth() {
 		if !hasBinary(cmd) {
 			continue
 		}
@@ -94,8 +114,11 @@ func (b *routeIptBackend) addBypassRule(chain string, mark uint32) {
 }
 
 func (b *routeIptBackend) addMarkRule(chain string, v6 bool, setName string, mark uint32, sourceIface string, tagHostConntrack bool) {
-	cmd := iptCmd(v6)
-	markHex := fmt.Sprintf("0x%x/%x", mark, mark)
+	cmd := b.iptFor(v6)
+	if !hasBinary(cmd) {
+		return
+	}
+	markHex := fmt.Sprintf("0x%x/0x%x", mark, mark)
 
 	args := []string{"-w", "-t", "mangle", "-A", chain}
 	if sourceIface != "" {
@@ -117,7 +140,7 @@ func (b *routeIptBackend) addMarkRule(chain string, v6 bool, setName string, mar
 func (b *routeIptBackend) ensureJumpRule(baseChain, targetChain string, isMangle bool) {
 	table := iptTable(isMangle)
 	b.deleteJumpRules(baseChain, targetChain, isMangle)
-	for _, cmd := range []string{"iptables", "ip6tables"} {
+	for _, cmd := range b.iptBoth() {
 		if !hasBinary(cmd) {
 			continue
 		}
@@ -128,7 +151,7 @@ func (b *routeIptBackend) ensureJumpRule(baseChain, targetChain string, isMangle
 
 func (b *routeIptBackend) deleteJumpRules(baseChain, targetChain string, isMangle bool) {
 	table := iptTable(isMangle)
-	for _, cmd := range []string{"iptables", "ip6tables"} {
+	for _, cmd := range b.iptBoth() {
 		if !hasBinary(cmd) {
 			continue
 		}
@@ -142,7 +165,10 @@ func (b *routeIptBackend) deleteJumpRules(baseChain, targetChain string, isMangl
 }
 
 func (b *routeIptBackend) addSNATRule(chain string, mark uint32, iface, srcAddr string, v6 bool) {
-	cmd := iptCmd(v6)
+	cmd := b.iptFor(v6)
+	if !hasBinary(cmd) {
+		return
+	}
 	markHex := fmt.Sprintf("0x%x", mark)
 	ctMask := fmt.Sprintf("0x%x/0x%x", hostRouteCTMark, hostRouteCTMark)
 
@@ -172,7 +198,7 @@ func (b *routeIptBackend) destroyIPSet(name string) {
 
 func (b *routeIptBackend) clearAll() {
 	for _, table := range []string{"mangle", "nat"} {
-		for _, cmd := range []string{"iptables", "ip6tables"} {
+		for _, cmd := range b.iptBoth() {
 			if !hasBinary(cmd) {
 				continue
 			}

@@ -12,7 +12,13 @@ import (
 	"github.com/daniellavrushin/b4/log"
 )
 
-const backendIPTablesLegacy = "iptables-legacy"
+const (
+	backendNFTables        = "nftables"
+	backendIPTables        = "iptables"
+	backendIP6Tables       = "ip6tables"
+	backendIPTablesLegacy  = "iptables-legacy"
+	backendIP6TablesLegacy = "ip6tables-legacy"
+)
 
 var modulesLoaded sync.Once
 
@@ -31,7 +37,7 @@ func AddRules(cfg *config.Config) error {
 	metrics := handler.GetMetricsCollector()
 	metrics.TablesStatus = backend
 
-	if backend == "nftables" {
+	if backend == backendNFTables {
 		nft := NewNFTablesManager(cfg)
 		return nft.Apply()
 	}
@@ -45,7 +51,7 @@ func ClearRules(cfg *config.Config) error {
 
 	backend := detectFirewallBackend(cfg)
 
-	if backend == "nftables" {
+	if backend == backendNFTables {
 		nft := NewNFTablesManager(cfg)
 		return nft.Clear()
 	}
@@ -83,10 +89,10 @@ func getSysctlOrProc(name string) string {
 func detectFirewallBackend(cfg *config.Config) string {
 	if b := cfg.System.Tables.Engine; b != "" {
 		switch strings.ToLower(b) {
-		case "nftables", "nft":
-			return "nftables"
-		case "iptables":
-			return "iptables"
+		case backendNFTables, "nft":
+			return backendNFTables
+		case backendIPTables:
+			return backendIPTables
 		case backendIPTablesLegacy:
 			return backendIPTablesLegacy
 		default:
@@ -95,11 +101,11 @@ func detectFirewallBackend(cfg *config.Config) string {
 	}
 
 	if nftWorking() {
-		return "nftables"
+		return backendNFTables
 	}
 
-	if hasBinary("iptables") {
-		out, _ := run("iptables", "--version")
+	if hasBinary(backendIPTables) {
+		out, _ := run(backendIPTables, "--version")
 		if strings.Contains(out, "nf_tables") {
 			if hasBinary(backendIPTablesLegacy) {
 				log.Infof("nftables not functional, iptables is nft-variant; using %s", backendIPTablesLegacy)
@@ -107,14 +113,14 @@ func detectFirewallBackend(cfg *config.Config) string {
 			}
 			log.Warnf("nftables not functional and %s not found; attempting iptables (nft-variant)", backendIPTablesLegacy)
 		}
-		return "iptables"
+		return backendIPTables
 	}
 
 	if hasBinary(backendIPTablesLegacy) {
 		return backendIPTablesLegacy
 	}
 
-	return "iptables"
+	return backendIPTables
 }
 
 func nftWorking() bool {

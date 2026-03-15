@@ -108,20 +108,20 @@ func TestIPTablesManager_BinaryNames(t *testing.T) {
 
 	t.Run("standard binaries", func(t *testing.T) {
 		manager := NewIPTablesManager(&cfg, false)
-		if manager.iptablesBin() != "iptables" {
+		if manager.iptablesBin() != backendIPTables {
 			t.Errorf("expected iptables, got %s", manager.iptablesBin())
 		}
-		if manager.ip6tablesBin() != "ip6tables" {
+		if manager.ip6tablesBin() != backendIP6Tables {
 			t.Errorf("expected ip6tables, got %s", manager.ip6tablesBin())
 		}
 	})
 
 	t.Run("legacy binaries", func(t *testing.T) {
 		manager := NewIPTablesManager(&cfg, true)
-		if manager.iptablesBin() != "iptables-legacy" {
+		if manager.iptablesBin() != backendIPTablesLegacy {
 			t.Errorf("expected iptables-legacy, got %s", manager.iptablesBin())
 		}
-		if manager.ip6tablesBin() != "ip6tables-legacy" {
+		if manager.ip6tablesBin() != backendIP6TablesLegacy {
 			t.Errorf("expected ip6tables-legacy, got %s", manager.ip6tablesBin())
 		}
 	})
@@ -329,8 +329,8 @@ func TestLoadSysctlSnapshot_NoFile(t *testing.T) {
 func TestDetectFirewallBackend_ConfigOverride(t *testing.T) {
 	t.Run("force nftables", func(t *testing.T) {
 		cfg := config.NewConfig()
-		cfg.System.Tables.Engine = "nftables"
-		if got := detectFirewallBackend(&cfg); got != "nftables" {
+		cfg.System.Tables.Engine = backendNFTables
+		if got := detectFirewallBackend(&cfg); got != backendNFTables {
 			t.Errorf("expected nftables, got %s", got)
 		}
 	})
@@ -338,23 +338,23 @@ func TestDetectFirewallBackend_ConfigOverride(t *testing.T) {
 	t.Run("force nft shorthand", func(t *testing.T) {
 		cfg := config.NewConfig()
 		cfg.System.Tables.Engine = "nft"
-		if got := detectFirewallBackend(&cfg); got != "nftables" {
+		if got := detectFirewallBackend(&cfg); got != backendNFTables {
 			t.Errorf("expected nftables, got %s", got)
 		}
 	})
 
 	t.Run("force iptables", func(t *testing.T) {
 		cfg := config.NewConfig()
-		cfg.System.Tables.Engine = "iptables"
-		if got := detectFirewallBackend(&cfg); got != "iptables" {
+		cfg.System.Tables.Engine = backendIPTables
+		if got := detectFirewallBackend(&cfg); got != backendIPTables {
 			t.Errorf("expected iptables, got %s", got)
 		}
 	})
 
 	t.Run("force iptables-legacy", func(t *testing.T) {
 		cfg := config.NewConfig()
-		cfg.System.Tables.Engine = "iptables-legacy"
-		if got := detectFirewallBackend(&cfg); got != "iptables-legacy" {
+		cfg.System.Tables.Engine = backendIPTablesLegacy
+		if got := detectFirewallBackend(&cfg); got != backendIPTablesLegacy {
 			t.Errorf("expected iptables-legacy, got %s", got)
 		}
 	})
@@ -382,7 +382,7 @@ func TestDetectFirewallBackend_ConfigOverride(t *testing.T) {
 		cfg.System.Tables.Engine = ""
 		// Should not panic, should return some valid backend
 		got := detectFirewallBackend(&cfg)
-		if got != "nftables" && got != "iptables" && got != backendIPTablesLegacy {
+		if got != backendNFTables && got != backendIPTables && got != backendIPTablesLegacy {
 			t.Errorf("unexpected backend: %s", got)
 		}
 	})
@@ -439,12 +439,6 @@ func TestChunkPorts(t *testing.T) {
 	})
 }
 
-func TestBackendIPTablesLegacyConstant(t *testing.T) {
-	if backendIPTablesLegacy != "iptables-legacy" {
-		t.Errorf("backendIPTablesLegacy = %q, want iptables-legacy", backendIPTablesLegacy)
-	}
-}
-
 func TestMonitor_BackendPropagation(t *testing.T) {
 	t.Run("auto-detect backend stored", func(t *testing.T) {
 		cfg := config.NewConfig()
@@ -457,16 +451,16 @@ func TestMonitor_BackendPropagation(t *testing.T) {
 
 	t.Run("config engine override propagates to monitor", func(t *testing.T) {
 		cfg := config.NewConfig()
-		cfg.System.Tables.Engine = "iptables"
+		cfg.System.Tables.Engine = backendIPTables
 		monitor := NewMonitor(&cfg)
-		if monitor.backend != "iptables" {
-			t.Errorf("expected iptables, got %s", monitor.backend)
+		if monitor.backend != backendIPTables {
+			t.Errorf("expected %s, got %s", backendIPTables, monitor.backend)
 		}
 	})
 
 	t.Run("legacy engine override propagates to monitor", func(t *testing.T) {
 		cfg := config.NewConfig()
-		cfg.System.Tables.Engine = "iptables-legacy"
+		cfg.System.Tables.Engine = backendIPTablesLegacy
 		monitor := NewMonitor(&cfg)
 		if monitor.backend != backendIPTablesLegacy {
 			t.Errorf("expected %s, got %s", backendIPTablesLegacy, monitor.backend)

@@ -14,7 +14,7 @@ const (
 
 type routeNftBackend struct{}
 
-func (b *routeNftBackend) name() string    { return "nftables" }
+func (b *routeNftBackend) name() string    { return backendNFTables }
 func (b *routeNftBackend) available() bool { return hasBinary("nft") }
 
 func (b *routeNftBackend) ensureBase() error {

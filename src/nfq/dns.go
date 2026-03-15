@@ -22,32 +22,28 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 			matcher := w.getMatcher()
 			if matchedSet, set := matcher.MatchSNIWithSource(domain, srcMac); matchedSet {
 				if txidOK && set.Routing.Enabled {
+					var clientIP, dnsServerIP net.IP
 					if ipVersion == IPv4 {
-						storeDNSPendingRoute(
-							dnsRouteKeyRequest(
-								ipVersion,
-								net.IP(raw[12:16]),
-								sport,
-								net.IP(raw[16:20]),
-								dport,
-								txid,
-								domain,
-							),
-							set.Id,
-						)
+						clientIP = net.IP(raw[12:16])
+						dnsServerIP = net.IP(raw[16:20])
 					} else if ipVersion == IPv6 {
+						clientIP = net.IP(raw[8:24])
+						dnsServerIP = net.IP(raw[24:40])
+					}
+					if clientIP != nil {
 						storeDNSPendingRoute(
-							dnsRouteKeyRequest(
-								ipVersion,
-								net.IP(raw[8:24]),
-								sport,
-								net.IP(raw[24:40]),
-								dport,
-								txid,
-								domain,
-							),
+							dnsRouteKeyRequest(ipVersion, clientIP, sport, dnsServerIP, dport, txid, domain),
 							set.Id,
 						)
+
+						if set.DNS.Enabled && set.DNS.TargetDNS != "" {
+							if redirectIP := net.ParseIP(set.DNS.TargetDNS); redirectIP != nil {
+								storeDNSPendingRoute(
+									dnsRouteKeyRequest(ipVersion, clientIP, sport, redirectIP, dport, txid, domain),
+									set.Id,
+								)
+							}
+						}
 					}
 				}
 				if !(set.DNS.Enabled && set.DNS.TargetDNS != "") {

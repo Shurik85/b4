@@ -79,7 +79,7 @@ func (m *Monitor) monitorLoop() {
 }
 
 func (m *Monitor) checkRules() bool {
-	if m.backend == "nftables" {
+	if m.backend == backendNFTables {
 		return m.checkNFTablesRules()
 	}
 	return m.checkIPTablesRules()
@@ -87,11 +87,11 @@ func (m *Monitor) checkRules() bool {
 
 func (m *Monitor) checkIPTablesRules() bool {
 	legacy := m.backend == backendIPTablesLegacy
-	ipt4 := "iptables"
-	ipt6 := "ip6tables"
+	ipt4 := backendIPTables
+	ipt6 := backendIP6Tables
 	if legacy {
-		ipt4 = "iptables-legacy"
-		ipt6 = "ip6tables-legacy"
+		ipt4 = backendIPTablesLegacy
+		ipt6 = backendIP6TablesLegacy
 	}
 	ipts := []string{}
 	if m.cfg.Queue.IPv4Enabled && hasBinary(ipt4) {

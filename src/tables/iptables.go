@@ -25,16 +25,16 @@ func NewIPTablesManager(cfg *config.Config, useLegacy bool) *IPTablesManager {
 
 func (im *IPTablesManager) iptablesBin() string {
 	if im.useLegacy {
-		return "iptables-legacy"
+		return backendIPTablesLegacy
 	}
-	return "iptables"
+	return backendIPTables
 }
 
 func (im *IPTablesManager) ip6tablesBin() string {
 	if im.useLegacy {
-		return "ip6tables-legacy"
+		return backendIP6TablesLegacy
 	}
-	return "ip6tables"
+	return backendIP6Tables
 }
 
 // hasMultiportSupport checks if iptables multiport module is available

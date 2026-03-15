@@ -19,9 +19,9 @@ type pendingDNSRoute struct {
 }
 
 var (
-	dnsRoutePending    sync.Map
-	dnsRouteCleanOnce  sync.Once
-	dnsRouteCleanStop  chan struct{}
+	dnsRoutePending   sync.Map
+	dnsRouteCleanMu   sync.Mutex
+	dnsRouteCleanStop chan struct{}
 )
 
 func dnsRouteKeyRequest(
@@ -58,32 +58,35 @@ func dnsRouteKeyResponse(
 }
 
 func startDNSRouteCleanup() {
-	dnsRouteCleanOnce.Do(func() {
-		dnsRouteCleanStop = make(chan struct{})
-		go func() {
-			ticker := time.NewTicker(60 * time.Second)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					cleanupDNSPendingRoutes(time.Now())
-				case <-dnsRouteCleanStop:
-					return
-				}
+	dnsRouteCleanMu.Lock()
+	defer dnsRouteCleanMu.Unlock()
+	if dnsRouteCleanStop != nil {
+		return
+	}
+	stopCh := make(chan struct{})
+	dnsRouteCleanStop = stopCh
+	go func(ch <-chan struct{}) {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				cleanupDNSPendingRoutes(time.Now())
+			case <-ch:
+				return
 			}
-		}()
-	})
+		}
+	}(stopCh)
 }
 
 func stopDNSRouteCleanup() {
-	if dnsRouteCleanStop != nil {
-		select {
-		case <-dnsRouteCleanStop:
-			// already closed
-		default:
-			close(dnsRouteCleanStop)
-		}
+	dnsRouteCleanMu.Lock()
+	defer dnsRouteCleanMu.Unlock()
+	if dnsRouteCleanStop == nil {
+		return
 	}
+	close(dnsRouteCleanStop)
+	dnsRouteCleanStop = nil
 }
 
 func storeDNSPendingRoute(key string, setID string) {
