@@ -48,7 +48,7 @@ var migrationRegistry = map[int]MigrationFunc{
 }
 
 func migrateV27to28(c *Config, _ map[string]interface{}) error {
-	log.Tracef("Migration v21->v22: Adding per-set routing config")
+	log.Tracef("Migration v27->v28: Adding per-set routing config")
 	for _, set := range c.Sets {
 		if set.Routing.SourceInterfaces == nil {
 			set.Routing.SourceInterfaces = []string{}
