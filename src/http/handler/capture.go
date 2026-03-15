@@ -230,7 +230,7 @@ func (api *API) handleClearCaptures(w http.ResponseWriter, r *http.Request) {
 func (api *API) handleDownloadCapture(w http.ResponseWriter, r *http.Request) {
 	fileParam := r.URL.Query().Get("file")
 	if fileParam == "" {
-		http.Error(w, "File path required", http.StatusBadRequest)
+		http.Error(w, "Filename required", http.StatusBadRequest)
 		return
 	}
 

@@ -94,7 +94,7 @@ export function useCaptures() {
   );
 
   const download = useCallback(async (capture: Capture) => {
-    const filename = capture.filepath.split("/").pop() || capture.filepath;
+    const filename = capture.filepath.split(/[\\/]/).pop() || capture.filepath;
     const url = `/api/capture/download?file=${encodeURIComponent(filename)}`;
     const response = await fetch(url);
     if (!response.ok) {

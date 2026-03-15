@@ -56,7 +56,7 @@ export const CaptureSettings = () => {
         return { ...prev, domain: name };
       });
     }
-  }, [uploadForm]);
+  }, [uploadForm.domain, uploadForm.file]);
 
   const generateCapture = async () => {
     if (!probeForm.domain) return;
