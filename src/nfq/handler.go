@@ -194,11 +194,13 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		set = nil
 	}
 
+	matchedLearned := false
 	if mLearned, learnedSet, _ := matcher.MatchLearnedIPWithSource(pkt.dst, pkt.srcMac); mLearned {
-		if learnedSet.MatchesTCPDPort(dport) && learnedSet.Targets.TLSVersion == "" {
+		if learnedSet.MatchesTCPDPort(dport) {
 			matched = true
 			set = learnedSet
 			st = learnedSet
+			matchedLearned = true
 		}
 	}
 
@@ -316,6 +318,12 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 		// If IP-matched set has a TLS version filter that doesn't match, clear it
 		if matched && !matchedSNI && set != nil && !set.MatchesTLSVersion(tlsVersion) {
+			matched = false
+			set = nil
+		}
+
+		// Learned IP match without SNI confirmation
+		if matchedLearned && !matchedSNI && !(len(payload) >= 1 && payload[0] == 0x16) {
 			matched = false
 			set = nil
 		}

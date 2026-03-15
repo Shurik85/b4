@@ -9,12 +9,12 @@ var (
 )
 
 type Config struct {
-	Version    int    `json:"version" bson:"version"`
-	ConfigPath string `json:"-" bson:"-"`
+	Version    int    `json:"version"`
+	ConfigPath string `json:"-"`
 
-	Queue  QueueConfig  `json:"queue" bson:"queue"`
-	System SystemConfig `json:"system" bson:"system"`
-	Sets   []*SetConfig `json:"sets" bson:"sets"`
+	Queue  QueueConfig  `json:"queue"`
+	System SystemConfig `json:"system"`
+	Sets   []*SetConfig `json:"sets"`
 
 	tcpPortMap map[uint16]bool // pre-computed TCP port set for fast lookup in packet handler
 }

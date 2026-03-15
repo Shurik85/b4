@@ -1,5 +1,9 @@
 # B4 - Bye Bye Big Bro
 
+## [1.44.0] - 2026-03-15
+
+- FIXED: **DPI bypass not working with TLS version set to "Any"** — when a set's TLS version filter was set to "Any", connections would break after the initial handshake. Selecting a specific version (1.2 or 1.3) worked fine. The issue was that encrypted data packets were being incorrectly processed as if they were new TLS handshakes.
+
 ## [1.43.0] - 2026-03-14
 
 - ADDED: **Language selection** — you can now switch the web interface language in Settings. English and Russian are available.
