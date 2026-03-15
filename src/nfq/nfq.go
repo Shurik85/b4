@@ -487,6 +487,7 @@ func (w *Worker) gc(cfg *config.Config) {
 			return
 		case <-t.C:
 			connState.Cleanup()
+			_ = cleanupDNSPendingRoutes(time.Now())
 
 			if cfg.System.WebServer.IsEnabled {
 				mtcs := metrics.GetMetricsCollector()

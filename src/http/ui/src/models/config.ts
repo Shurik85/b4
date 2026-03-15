@@ -270,6 +270,7 @@ export interface B4SetConfig {
   faking: FakingConfig;
   targets: TargetsConfig;
   dns: DNSConfig;
+  routing: RoutingConfig;
 }
 
 export type ComboShuffleMode = "middle" | "full" | "reverse";
@@ -297,6 +298,15 @@ export interface DNSConfig {
   enabled: boolean;
   target_dns: string;
   fragment_query: boolean;
+}
+
+export interface RoutingConfig {
+  enabled: boolean;
+  egress_interface: string;
+  fwmark: number;
+  table: number;
+  source_interfaces: string[];
+  ip_ttl_seconds: number;
 }
 
 export interface DuplicateConfig {

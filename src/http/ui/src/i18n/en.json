@@ -921,6 +921,24 @@
       "noServerWarning": "Select or enter a DNS server IP to enable redirect.",
       "googleWarning": "Google DNS (8.8.8.8) is commonly poisoned by Russian ISPs. Consider Quad9 (9.9.9.9) or Cloudflare (1.1.1.1) instead."
     },
+    "routing": {
+      "sectionTitle": "Routing",
+      "sectionDescription": "Route domain-matched traffic to output interface via policy routing",
+      "rule": "Rule",
+      "enable": "Enable Routing",
+      "enableDesc": "Resolve matched domains and route destination IPs via selected output interface",
+      "outputInterface": "Output Interface",
+      "outputInterfaceHelper": "Select egress interface for this set",
+      "interfaceUnavailable": "Selected interface is currently unavailable",
+      "interfaceUnavailableOption": "{{iface}} (unavailable)",
+      "ipTtl": "Resolved IP TTL (seconds)",
+      "ipTtlHelper": "How long resolved A/AAAA addresses stay in routing set",
+      "sourceInterfaces": "Source Interfaces",
+      "sourceInterfacesHint": "Limit marking to ingress interfaces (empty = any interface)",
+      "noInterfaces": "No interfaces detected",
+      "unavailableWarning": "Output interface \"{{iface}}\" is down or missing. Routing for this set will not work until it is available again or you select another interface.",
+      "info": "Routing uses DNS answers for this set domains. Route marks and table IDs are assigned automatically per output interface."
+    },
     "importExport": {
       "sectionTitle": "Import/Export Set configuration",
       "importSuccess": "Configuration imported successfully! Review your changes in the other tabs, then click <strong>Save</strong> to apply.",
@@ -944,6 +962,7 @@
         "tcp": "TCP",
         "udp": "UDP",
         "dns": "DNS",
+        "routing": "Routing",
         "importExport": "Import/Export"
       }
     }

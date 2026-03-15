@@ -3,10 +3,12 @@ package nfq
 import (
 	"encoding/binary"
 	"net"
+	"strings"
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/dns"
 	"github.com/daniellavrushin/b4/log"
+	b4route "github.com/daniellavrushin/b4/route"
 	"github.com/daniellavrushin/b4/sock"
 	"github.com/florianl/go-nfqueue"
 )
@@ -15,9 +17,46 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 
 	if dport == 53 {
 		domain, ok := dns.ParseQueryDomain(payload)
+		txid, txidOK := dns.ParseTransactionID(payload)
 		if ok {
+			domain = strings.ToLower(domain)
 			matcher := w.getMatcher()
-			if matchedSet, set := matcher.MatchSNIWithSource(domain, srcMac); matchedSet && set.DNS.Enabled && set.DNS.TargetDNS != "" {
+			if matchedSet, set := matcher.MatchSNIWithSource(domain, srcMac); matchedSet {
+				if txidOK && set.Routing.Enabled {
+					if ipVersion == IPv4 {
+						storeDNSPendingRoute(
+							dnsRouteKeyRequest(
+								ipVersion,
+								net.IP(raw[12:16]),
+								sport,
+								net.IP(raw[16:20]),
+								dport,
+								txid,
+								domain,
+							),
+							set.Id,
+						)
+					} else if ipVersion == IPv6 {
+						storeDNSPendingRoute(
+							dnsRouteKeyRequest(
+								ipVersion,
+								net.IP(raw[8:24]),
+								sport,
+								net.IP(raw[24:40]),
+								dport,
+								txid,
+								domain,
+							),
+							set.Id,
+						)
+					}
+				}
+				if !(set.DNS.Enabled && set.DNS.TargetDNS != "") {
+					if err := w.q.SetVerdict(id, nfqueue.NfAccept); err != nil {
+						log.Tracef("failed to set verdict on packet %d: %v", id, err)
+					}
+					return 0
+				}
 
 				targetIP := net.ParseIP(set.DNS.TargetDNS)
 				if targetIP == nil {
@@ -95,6 +134,31 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 	}
 
 	if sport == 53 {
+		if txid, ok := dns.ParseTransactionID(payload); ok {
+			domain, _ := dns.ParseQueryDomain(payload)
+			domain = strings.ToLower(domain)
+			var clientIP net.IP
+			var dnsServerIP net.IP
+			if ipVersion == IPv4 {
+				clientIP = net.IP(raw[16:20])
+				dnsServerIP = net.IP(raw[12:16])
+			} else {
+				clientIP = net.IP(raw[24:40])
+				dnsServerIP = net.IP(raw[8:24])
+			}
+
+			if setID, hit := consumeDNSPendingRoute(
+				dnsRouteKeyResponse(ipVersion, clientIP, dport, dnsServerIP, sport, txid, domain),
+			); hit {
+				if ips := dns.ParseResponseIPs(payload); len(ips) > 0 {
+					cfg := w.getConfig()
+					if set := cfg.GetSetById(setID); set != nil {
+						b4route.HandleDNSResolved(cfg, set, ips)
+					}
+				}
+			}
+		}
+
 		if ipVersion == IPv4 {
 			if originalDst, ok := dns.DnsNATGet(net.IP(raw[16:20]), dport); ok {
 				copy(raw[12:16], originalDst.To4())

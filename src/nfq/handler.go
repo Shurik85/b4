@@ -101,6 +101,28 @@ func (w *Worker) handlePacket(q *nfqueue.Nfqueue, a nfqueue.Attribute, mark uint
 	return accept(q, id)
 }
 
+func needsTCPInjection(set *config.SetConfig) bool {
+	if set == nil {
+		return false
+	}
+
+	return set.TCP.DropSACK ||
+		set.Faking.SNI ||
+		set.Faking.SNIMutation.Mode != config.ConfigOff ||
+		set.TCP.Desync.Mode != config.ConfigOff ||
+		set.TCP.Desync.PostDesync ||
+		set.TCP.Win.Mode != config.ConfigOff ||
+		set.Fragmentation.Strategy != config.ConfigNone
+}
+
+func needsTCPSynInjection(set *config.SetConfig) bool {
+	if set == nil {
+		return false
+	}
+
+	return set.TCP.SynFake || (set.Fragmentation.Strategy != config.ConfigNone && set.Faking.TCPMD5)
+}
+
 // parseIPHeaders parses IP version, protocol, addresses and header length.
 // Returns nil, false if the packet should be accepted without processing.
 func (w *Worker) parseIPHeaders(raw []byte) (*pktInfo, bool) {
@@ -248,7 +270,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		log.Tracef("RST received from %s:%d", pkt.dstStr, dport)
 	}
 
-	if isSyn && !isAck && cfg.IsTCPPort(dport) && matched && !set.TCP.Duplicate.Enabled {
+	if isSyn && !isAck && cfg.IsTCPPort(dport) && matched && !set.TCP.Duplicate.Enabled && needsTCPSynInjection(set) {
 		log.Tracef("TCP SYN to %s:%d (set: %s)", pkt.dstStr, dport, set.Name)
 
 		m := metrics.GetMetricsCollector()
@@ -353,6 +375,11 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		if set.TCP.Incoming.Mode != config.ConfigOff {
 			connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 			connState.RegisterOutgoing(connKey, set)
+		}
+
+		// Routing-only sets should keep original packet path without drop+inject.
+		if !needsTCPInjection(set) {
+			return accept(q, id)
 		}
 
 		packetCopy := make([]byte, len(pkt.raw))

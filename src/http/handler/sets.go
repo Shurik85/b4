@@ -364,6 +364,12 @@ func (api *API) initializeSetDefaults(set *config.SetConfig) {
 	if set.Faking.SNIMutation.FakeSNIs == nil {
 		set.Faking.SNIMutation.FakeSNIs = []string{}
 	}
+	if set.Routing.SourceInterfaces == nil {
+		set.Routing.SourceInterfaces = []string{}
+	}
+	if set.Routing.IPTTLSeconds <= 0 {
+		set.Routing.IPTTLSeconds = config.DefaultSetConfig.Routing.IPTTLSeconds
+	}
 }
 
 func (api *API) loadTargetsForSetCached(set *config.SetConfig) {

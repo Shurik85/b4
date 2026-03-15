@@ -128,6 +128,12 @@ func (c *Config) Validate() error {
 	}
 
 	for _, set := range c.Sets {
+		if set.Routing.Table < 0 {
+			set.Routing.Table = 0
+		}
+		if set.Routing.IPTTLSeconds <= 0 {
+			set.Routing.IPTTLSeconds = DefaultSetConfig.Routing.IPTTLSeconds
+		}
 
 		if len(set.Fragmentation.SeqOverlapPattern) > 0 {
 			set.Fragmentation.SeqOverlapBytes = make([]byte, len(set.Fragmentation.SeqOverlapPattern))
@@ -339,6 +345,9 @@ func (set *SetConfig) ResetToDefaults() {
 
 	set.Faking.TLSMod = make([]string, len(defaultSet.Faking.TLSMod))
 	copy(set.Faking.TLSMod, defaultSet.Faking.TLSMod)
+
+	set.Routing.SourceInterfaces = make([]string, len(defaultSet.Routing.SourceInterfaces))
+	copy(set.Routing.SourceInterfaces, defaultSet.Routing.SourceInterfaces)
 
 }
 

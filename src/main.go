@@ -20,6 +20,7 @@ import (
 	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/nfq"
 	"github.com/daniellavrushin/b4/quic"
+	"github.com/daniellavrushin/b4/route"
 	"github.com/daniellavrushin/b4/socks5"
 	"github.com/daniellavrushin/b4/tables"
 	"github.com/spf13/cobra"
@@ -87,6 +88,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 	if clearTables {
 		log.Infof("Clearing iptables rules as requested (--clear-iptables)")
 		tables.ClearRules(&cfg)
+		route.ClearAll()
 		log.Infof("IPTables rules cleared successfully")
 		return nil
 	}
@@ -122,6 +124,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Infof("Loaded targets: %d domains, %d IPs across %d sets", totalDomains, totalIps, len(cfg.Sets))
+	route.ClearAll()
 
 	// Setup iptables/nftables rules
 	if !cfg.System.Tables.SkipSetup {
@@ -271,6 +274,8 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Serve
 			}
 		}()
 	}
+
+	route.ClearAll()
 
 	// Wait for all shutdown tasks or timeout
 	shutdownDone := make(chan struct{})

@@ -79,6 +79,15 @@ var DefaultSetConfig = SetConfig{
 		TargetDNS:     "",
 	},
 
+	Routing: RoutingConfig{
+		Enabled:          false,
+		EgressInterface:  "",
+		FWMark:           0,
+		Table:            0,
+		SourceInterfaces: []string{},
+		IPTTLSeconds:     3600,
+	},
+
 	Fragmentation: FragmentationConfig{
 		Strategy:          "tcp", // "tcp", "ip", "tls", "oob", "none", "combo", "hybrid", "disorder",  "extsplit", "firstbyte"
 		ReverseOrder:      true,
@@ -97,7 +106,7 @@ var DefaultSetConfig = SetConfig{
 			ShuffleMode:    "full",
 			FirstDelayMs:   30,
 			JitterMaxUs:    1000,
-			DecoyEnabled: false,
+			DecoyEnabled:   false,
 		},
 
 		Disorder: DisorderFragConfig{
@@ -144,9 +153,9 @@ var DefaultConfig = Config{
 	ConfigPath: "",
 
 	Queue: QueueConfig{
-		StartNum:    537,
-		Mark:        1 << 15,
-		Threads:     4,
+		StartNum:          537,
+		Mark:              1 << 15,
+		Threads:           4,
 		IPv4Enabled:       true,
 		IPv6Enabled:       false,
 		TCPConnBytesLimit: 19,
@@ -232,6 +241,7 @@ func NewSetConfig() SetConfig {
 	cfg.Targets.SourceDevices = append(make([]string, 0), DefaultSetConfig.Targets.SourceDevices...)
 	cfg.Fragmentation.SeqOverlapPattern = append(make([]string, 0), DefaultSetConfig.Fragmentation.SeqOverlapPattern...)
 	cfg.Faking.TLSMod = append(make([]string, 0), DefaultSetConfig.Faking.TLSMod...)
+	cfg.Routing.SourceInterfaces = append(make([]string, 0), DefaultSetConfig.Routing.SourceInterfaces...)
 
 	return cfg
 }

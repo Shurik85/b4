@@ -47,6 +47,14 @@ export function createDefaultSet(setCount: number): B4SetConfig {
       target_dns: "",
       fragment_query: false,
     } as B4SetConfig["dns"],
+    routing: {
+      enabled: false,
+      egress_interface: "",
+      fwmark: 0,
+      table: 0,
+      source_interfaces: [],
+      ip_ttl_seconds: 3600,
+    } as B4SetConfig["routing"],
     fragmentation: {
       strategy: "tcp",
       reverse_order: true,

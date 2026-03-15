@@ -44,6 +44,20 @@ var migrationRegistry = map[int]MigrationFunc{
 	24: migrateV24to25, // Remove main set, move ConnBytesLimit to queue config
 	25: migrateV25to26, // Add TLS version filter to targets
 	26: migrateV26to27, // Add tables engine config
+	27: migrateV27to28, // Add per-set routing config
+}
+
+func migrateV27to28(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v21->v22: Adding per-set routing config")
+	for _, set := range c.Sets {
+		if set.Routing.SourceInterfaces == nil {
+			set.Routing.SourceInterfaces = []string{}
+		}
+		if set.Routing.IPTTLSeconds <= 0 {
+			set.Routing.IPTTLSeconds = DefaultSetConfig.Routing.IPTTLSeconds
+		}
+	}
+	return nil
 }
 
 // Migration: v26 -> v27 (add tables engine config)
