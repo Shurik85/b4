@@ -235,30 +235,55 @@ action_sysinfo() {
     done
 
     # Functional test — does NFQUEUE actually work?
+    _nfq_ipt=""
     if command_exists iptables; then
-        if iptables -t mangle -C B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null; then
-            iptables -t mangle -D B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null || true
+        _nfq_ipt="iptables"
+    elif command_exists iptables-legacy; then
+        _nfq_ipt="iptables-legacy"
+    fi
+    if [ -n "$_nfq_ipt" ]; then
+        if $_nfq_ipt -t mangle -C B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null; then
+            $_nfq_ipt -t mangle -D B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null || true
         fi
-        if iptables -t mangle -N B4_TEST 2>/dev/null; then
-            if iptables -t mangle -A B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null; then
+        if $_nfq_ipt -t mangle -N B4_TEST 2>/dev/null; then
+            if $_nfq_ipt -t mangle -A B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null; then
                 printf "    ${GREEN}  OK${NC}    %s\n" "NFQUEUE works (functional test passed)" >&2
-                iptables -t mangle -D B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null || true
+                $_nfq_ipt -t mangle -D B4_TEST -j NFQUEUE --queue-num 0 2>/dev/null || true
             else
                 printf "    ${RED}  FAIL${NC}  %s\n" "NFQUEUE not functional" >&2
             fi
-            iptables -t mangle -X B4_TEST 2>/dev/null || true
+            $_nfq_ipt -t mangle -X B4_TEST 2>/dev/null || true
         fi
     fi
 
     # --- Tools & dependencies ---
     echo ""
     log_info "Required tools:"
-    # Firewall
+    # Firewall detection with functional nftables test
+    _fw_found=0
+    if command_exists nft; then
+        if nft add table inet _b4_test 2>/dev/null; then
+            nft delete table inet _b4_test 2>/dev/null || true
+            printf "    ${GREEN}found${NC}   nft ${DIM}(nftables — functional)${NC}\n" >&2
+            _fw_found=1
+        else
+            printf "    ${YELLOW}found${NC}   nft ${DIM}(nftables — ${RED}not functional${NC}${DIM})${NC}\n" >&2
+        fi
+    fi
     if command_exists iptables; then
-        printf "    ${GREEN}found${NC}   iptables\n" >&2
-    elif command_exists nft; then
-        printf "    ${GREEN}found${NC}   nft ${DIM}(nftables)${NC}\n" >&2
-    else
+        _ipt_ver=$(iptables --version 2>/dev/null)
+        if echo "$_ipt_ver" | grep -q "nf_tables"; then
+            printf "    ${YELLOW}found${NC}   iptables ${DIM}(nft-variant)${NC}\n" >&2
+        else
+            printf "    ${GREEN}found${NC}   iptables\n" >&2
+        fi
+        _fw_found=1
+    fi
+    if command_exists iptables-legacy; then
+        printf "    ${GREEN}found${NC}   iptables-legacy\n" >&2
+        _fw_found=1
+    fi
+    if [ "$_fw_found" = "0" ]; then
         printf "    ${RED}missing${NC} iptables or nft ${DIM}(firewall required)${NC}\n" >&2
     fi
     # Archive

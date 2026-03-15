@@ -215,6 +215,7 @@ export interface WebServerConfig {
 export interface TableConfig {
   monitor_interval: number;
   skip_setup: boolean;
+  engine: string;
   masquerade: boolean;
   masquerade_interface: string;
 }

@@ -6,6 +6,7 @@ import {
   B4FormGroup,
   B4Section,
   B4Switch,
+  B4Select,
   B4Alert,
   B4Badge,
 } from "@b4.elements";
@@ -76,6 +77,23 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
               </B4Alert>
             )
           }
+        />
+        <B4Select
+          label={t("settings.Feature.firewallEngine")}
+          value={config.system.tables.engine || "auto"}
+          onChange={(e) =>
+            onChange(
+              "system.tables.engine",
+              e.target.value === "auto" ? "" : (e.target.value as string),
+            )
+          }
+          options={[
+            { value: "auto", label: t("settings.Feature.engineAuto") },
+            { value: "nftables", label: "nftables" },
+            { value: "iptables", label: "iptables" },
+            { value: "iptables-legacy", label: "iptables-legacy" },
+          ]}
+          helperText={t("settings.Feature.firewallEngineHelp")}
         />
         <B4Switch
           label={t("settings.Feature.natMasquerade")}

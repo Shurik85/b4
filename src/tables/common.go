@@ -12,6 +12,8 @@ import (
 	"github.com/daniellavrushin/b4/log"
 )
 
+const backendIPTablesLegacy = "iptables-legacy"
+
 var modulesLoaded sync.Once
 
 func AddRules(cfg *config.Config) error {
@@ -24,7 +26,7 @@ func AddRules(cfg *config.Config) error {
 		return AddRules(cfg)
 	})
 
-	backend := detectFirewallBackend()
+	backend := detectFirewallBackend(cfg)
 	log.Tracef("Detected firewall backend: %s", backend)
 	metrics := handler.GetMetricsCollector()
 	metrics.TablesStatus = backend
@@ -34,21 +36,21 @@ func AddRules(cfg *config.Config) error {
 		return nft.Apply()
 	}
 
-	ipt := NewIPTablesManager(cfg)
+	ipt := NewIPTablesManager(cfg, backend == backendIPTablesLegacy)
 
 	return ipt.Apply()
 }
 
 func ClearRules(cfg *config.Config) error {
 
-	backend := detectFirewallBackend()
+	backend := detectFirewallBackend(cfg)
 
 	if backend == "nftables" {
 		nft := NewNFTablesManager(cfg)
 		return nft.Clear()
 	}
 
-	ipt := NewIPTablesManager(cfg)
+	ipt := NewIPTablesManager(cfg, backend == backendIPTablesLegacy)
 	return ipt.Clear()
 }
 
@@ -78,23 +80,54 @@ func getSysctlOrProc(name string) string {
 	return strings.TrimSpace(out)
 }
 
-func detectFirewallBackend() string {
-	if hasBinary("nft") {
-		out, err := run("nft", "list", "tables")
-		if err == nil && out != "" {
+func detectFirewallBackend(cfg *config.Config) string {
+	if b := cfg.System.Tables.Engine; b != "" {
+		switch strings.ToLower(b) {
+		case "nftables", "nft":
 			return "nftables"
+		case "iptables":
+			return "iptables"
+		case backendIPTablesLegacy:
+			return backendIPTablesLegacy
+		default:
+			log.Warnf("Unknown tables backend %q in config, auto-detecting", b)
 		}
+	}
+
+	if nftWorking() {
+		return "nftables"
 	}
 
 	if hasBinary("iptables") {
 		out, _ := run("iptables", "--version")
 		if strings.Contains(out, "nf_tables") {
-			return "nftables"
+			if hasBinary(backendIPTablesLegacy) {
+				log.Infof("nftables not functional, iptables is nft-variant; using %s", backendIPTablesLegacy)
+				return backendIPTablesLegacy
+			}
+			log.Warnf("nftables not functional and %s not found; attempting iptables (nft-variant)", backendIPTablesLegacy)
 		}
 		return "iptables"
 	}
 
+	if hasBinary(backendIPTablesLegacy) {
+		return backendIPTablesLegacy
+	}
+
 	return "iptables"
+}
+
+func nftWorking() bool {
+	if !hasBinary("nft") {
+		return false
+	}
+	_, err := run("nft", "add", "table", "inet", "_b4_test")
+	if err != nil {
+		log.Tracef("nftables functional test failed: %v", err)
+		return false
+	}
+	_, _ = run("nft", "delete", "table", "inet", "_b4_test")
+	return true
 }
 
 func hasBinary(name string) bool {

@@ -15,11 +15,26 @@ import (
 
 type IPTablesManager struct {
 	cfg              *config.Config
+	useLegacy        bool
 	multiportSupport map[string]bool // per-binary cache (iptables vs ip6tables may differ)
 }
 
-func NewIPTablesManager(cfg *config.Config) *IPTablesManager {
-	return &IPTablesManager{cfg: cfg, multiportSupport: make(map[string]bool)}
+func NewIPTablesManager(cfg *config.Config, useLegacy bool) *IPTablesManager {
+	return &IPTablesManager{cfg: cfg, useLegacy: useLegacy, multiportSupport: make(map[string]bool)}
+}
+
+func (im *IPTablesManager) iptablesBin() string {
+	if im.useLegacy {
+		return "iptables-legacy"
+	}
+	return "iptables"
+}
+
+func (im *IPTablesManager) ip6tablesBin() string {
+	if im.useLegacy {
+		return "ip6tables-legacy"
+	}
+	return "ip6tables"
 }
 
 // hasMultiportSupport checks if iptables multiport module is available
@@ -219,11 +234,13 @@ func (m Manifest) RevertSysctls() {
 func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 	cfg := manager.cfg
 	var ipts []string
-	if cfg.Queue.IPv4Enabled && hasBinary("iptables") {
-		ipts = append(ipts, "iptables")
+	iptBin := manager.iptablesBin()
+	ip6tBin := manager.ip6tablesBin()
+	if cfg.Queue.IPv4Enabled && hasBinary(iptBin) {
+		ipts = append(ipts, iptBin)
 	}
-	if cfg.Queue.IPv6Enabled && hasBinary("ip6tables") {
-		ipts = append(ipts, "ip6tables")
+	if cfg.Queue.IPv6Enabled && hasBinary(ip6tBin) {
+		ipts = append(ipts, ip6tBin)
 	}
 	if len(ipts) == 0 {
 		return Manifest{}, errors.New("no valid iptables binaries found")
@@ -310,7 +327,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		// Must come before the generic connbytes-limited TCP rule.
 		dupIPv4, dupIPv6 := cfg.CollectDuplicateIPs()
 		var dupIPs []string
-		if ipt == "iptables" {
+		if strings.HasPrefix(ipt, "iptables") {
 			dupIPs = dupIPv4
 		} else {
 			dupIPs = dupIPv6
@@ -525,7 +542,7 @@ func (ipt *IPTablesManager) Apply() error {
 	result := m.Apply()
 
 	if log.Level(log.CurLevel.Load()) >= log.LevelTrace {
-		iptablesTrace, _ := run("sh", "-c", "cat /proc/net/netfilter/nfnetlink_queue && iptables -t mangle -vnL --line-numbers")
+		iptablesTrace, _ := run("sh", "-c", "cat /proc/net/netfilter/nfnetlink_queue && "+ipt.iptablesBin()+" -t mangle -vnL --line-numbers")
 		log.Tracef("Current iptables mangle table:\n%s", iptablesTrace)
 	}
 	return result
@@ -547,11 +564,13 @@ func (ipt *IPTablesManager) Clear() error {
 
 func (ipt *IPTablesManager) clearB4JumpRules() {
 	ipts := []string{}
-	if ipt.cfg.Queue.IPv4Enabled && hasBinary("iptables") {
-		ipts = append(ipts, "iptables")
+	iptBin := ipt.iptablesBin()
+	ip6tBin := ipt.ip6tablesBin()
+	if ipt.cfg.Queue.IPv4Enabled && hasBinary(iptBin) {
+		ipts = append(ipts, iptBin)
 	}
-	if ipt.cfg.Queue.IPv6Enabled && hasBinary("ip6tables") {
-		ipts = append(ipts, "ip6tables")
+	if ipt.cfg.Queue.IPv6Enabled && hasBinary(ip6tBin) {
+		ipts = append(ipts, ip6tBin)
 	}
 
 	for _, iptBin := range ipts {

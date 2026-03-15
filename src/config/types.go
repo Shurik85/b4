@@ -75,9 +75,9 @@ type DesyncConfig struct {
 }
 
 type IncomingConfig struct {
-	Mode      string `json:"mode"`       // "off", "fake", "reset", "fin", "desync"
-	Min       int    `json:"min"`        // threshold min (KB)
-	Max       int    `json:"max"`        // threshold max (KB), if 0 or eq MinKB -> uses MinKB
+	Mode      string `json:"mode"` // "off", "fake", "reset", "fin", "desync"
+	Min       int    `json:"min"`  // threshold min (KB)
+	Max       int    `json:"max"`  // threshold max (KB), if 0 or eq MinKB -> uses MinKB
 	FakeTTL   uint8  `json:"fake_ttl"`
 	FakeCount int    `json:"fake_count"`
 	Strategy  string `json:"strategy"` // "badsum", "badseq", "badack",  "rand", "all"
@@ -174,6 +174,7 @@ type Socks5Config struct {
 type TablesConfig struct {
 	MonitorInterval     int    `json:"monitor_interval"`
 	SkipSetup           bool   `json:"skip_setup"`
+	Engine              string `json:"engine"`
 	Masquerade          bool   `json:"masquerade"`
 	MasqueradeInterface string `json:"masquerade_interface"`
 }

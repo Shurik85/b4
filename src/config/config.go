@@ -178,6 +178,7 @@ var DefaultConfig = Config{
 		Tables: TablesConfig{
 			MonitorInterval:     10,
 			SkipSetup:           false,
+			Engine:              "",
 			Masquerade:          false,
 			MasqueradeInterface: "",
 		},

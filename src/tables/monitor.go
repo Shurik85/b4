@@ -28,7 +28,7 @@ func NewMonitor(cfg *config.Config) *Monitor {
 		cfg:      cfg,
 		stop:     make(chan struct{}),
 		interval: interval,
-		backend:  detectFirewallBackend(),
+		backend:  detectFirewallBackend(cfg),
 	}
 }
 
@@ -86,12 +86,19 @@ func (m *Monitor) checkRules() bool {
 }
 
 func (m *Monitor) checkIPTablesRules() bool {
-	ipts := []string{}
-	if m.cfg.Queue.IPv4Enabled && hasBinary("iptables") {
-		ipts = append(ipts, "iptables")
+	legacy := m.backend == backendIPTablesLegacy
+	ipt4 := "iptables"
+	ipt6 := "ip6tables"
+	if legacy {
+		ipt4 = "iptables-legacy"
+		ipt6 = "ip6tables-legacy"
 	}
-	if m.cfg.Queue.IPv6Enabled && hasBinary("ip6tables") {
-		ipts = append(ipts, "ip6tables")
+	ipts := []string{}
+	if m.cfg.Queue.IPv4Enabled && hasBinary(ipt4) {
+		ipts = append(ipts, ipt4)
+	}
+	if m.cfg.Queue.IPv6Enabled && hasBinary(ipt6) {
+		ipts = append(ipts, ipt6)
 	}
 	if len(ipts) == 0 {
 		return true

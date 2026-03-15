@@ -43,6 +43,14 @@ var migrationRegistry = map[int]MigrationFunc{
 	23: migrateV23to24, // Add multidisorder (fake per segment) and new payload types
 	24: migrateV24to25, // Remove main set, move ConnBytesLimit to queue config
 	25: migrateV25to26, // Add TLS version filter to targets
+	26: migrateV26to27, // Add tables engine config
+}
+
+// Migration: v26 -> v27 (add tables engine config)
+func migrateV26to27(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v26->v27: Adding tables engine config")
+	c.System.Tables.Engine = DefaultConfig.System.Tables.Engine
+	return nil
 }
 
 // Migration: v25 -> v26 (add TLS version filter to targets)
