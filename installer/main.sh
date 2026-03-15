@@ -40,6 +40,7 @@ main() {
         v* | V*)
             VERSION="$arg"
             ;;
+        *) ;;
         esac
     done
 
@@ -56,6 +57,7 @@ main() {
     remove) action_remove ;;
     update) action_update "$VERSION" "$FORCE_ARCH" ;;
     sysinfo) action_sysinfo ;;
+    *) ;;
     esac
 }
 

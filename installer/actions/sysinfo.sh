@@ -52,6 +52,7 @@ action_sysinfo() {
             case "$_ei_data" in
                 1) log_detail "ELF endian" "little-endian" ;;
                 2) log_detail "ELF endian" "big-endian" ;;
+                *) ;;
             esac
         fi
         if is_softfloat; then
@@ -60,6 +61,7 @@ action_sysinfo() {
             log_detail "Float ABI" "hard-float"
         fi
         ;;
+    *) ;;
     esac
 
     # Memory
@@ -324,6 +326,7 @@ action_sysinfo() {
             sha256sum) printf "    ${YELLOW}missing${NC} %s ${DIM}(checksum verify skipped)${NC}\n" "$tool" >&2 ;;
             nohup)     printf "    ${YELLOW}missing${NC} %s ${DIM}(service may stop on session close)${NC}\n" "$tool" >&2 ;;
             modprobe)  printf "    ${YELLOW}missing${NC} %s ${DIM}(kernel modules loaded via insmod)${NC}\n" "$tool" >&2 ;;
+            *) ;;
             esac
         fi
     done
@@ -354,7 +357,7 @@ action_sysinfo() {
     for dir in /mnt/*; do
         [ -d "$dir" ] || continue
         # Skip already-shown entries
-        case "$dir" in /mnt/sda1) continue ;; esac
+        case "$dir" in /mnt/sda1) continue ;; *) ;; esac
         _sysinfo_show_storage "$dir"
     done
 

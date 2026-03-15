@@ -5,8 +5,9 @@ import (
 	"testing"
 )
 
+const domain = "max.ru"
+
 func TestGenerateTLSClientHello(t *testing.T) {
-	domain := "max.ru"
 	payload, err := GenerateTLSClientHello(domain)
 
 	if err != nil {
@@ -42,7 +43,6 @@ func TestGenerateTLSClientHello(t *testing.T) {
 }
 
 func TestSNIFirstExtension(t *testing.T) {
-	domain := "max.ru"
 	payload, err := GenerateTLSClientHello(domain)
 
 	if err != nil {
@@ -150,7 +150,6 @@ func TestSNIFirstExtension(t *testing.T) {
 }
 
 func TestCipherSuiteOrder(t *testing.T) {
-	domain := "test.com"
 	payload, err := GenerateTLSClientHello(domain)
 
 	if err != nil {

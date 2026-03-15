@@ -976,6 +976,7 @@ _generic_linux_check_kmods() {
         dnf | yum) log_info "Try: dnf install xtables-addons" ;;
         pacman) log_info "Try: pacman -S xtables-addons" ;;
         apk) log_info "Try: apk add iptables-nft" ;;
+        *) ;;
         esac
     fi
 }
@@ -2910,6 +2911,7 @@ action_sysinfo() {
             case "$_ei_data" in
                 1) log_detail "ELF endian" "little-endian" ;;
                 2) log_detail "ELF endian" "big-endian" ;;
+                *) ;;
             esac
         fi
         if is_softfloat; then
@@ -2918,6 +2920,7 @@ action_sysinfo() {
             log_detail "Float ABI" "hard-float"
         fi
         ;;
+    *) ;;
     esac
 
     if [ -f /proc/meminfo ]; then
@@ -3164,6 +3167,7 @@ action_sysinfo() {
             sha256sum) printf "    ${YELLOW}missing${NC} %s ${DIM}(checksum verify skipped)${NC}\n" "$tool" >&2 ;;
             nohup)     printf "    ${YELLOW}missing${NC} %s ${DIM}(service may stop on session close)${NC}\n" "$tool" >&2 ;;
             modprobe)  printf "    ${YELLOW}missing${NC} %s ${DIM}(kernel modules loaded via insmod)${NC}\n" "$tool" >&2 ;;
+            *) ;;
             esac
         fi
     done
@@ -3189,7 +3193,7 @@ action_sysinfo() {
     done
     for dir in /mnt/*; do
         [ -d "$dir" ] || continue
-        case "$dir" in /mnt/sda1) continue ;; esac
+        case "$dir" in /mnt/sda1) continue ;; *) ;; esac
         _sysinfo_show_storage "$dir"
     done
 
@@ -3256,6 +3260,7 @@ main() {
         v* | V*)
             VERSION="$arg"
             ;;
+        *) ;;
         esac
     done
 
@@ -3268,6 +3273,7 @@ main() {
     remove) action_remove ;;
     update) action_update "$VERSION" "$FORCE_ARCH" ;;
     sysinfo) action_sysinfo ;;
+    *) ;;
     esac
 }
 

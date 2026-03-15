@@ -14,6 +14,8 @@ import (
 	"github.com/daniellavrushin/b4/log"
 )
 
+const payloadFilenameFmt = "%s_%s.bin"
+
 var (
 	instance *Manager
 	once     sync.Once
@@ -221,7 +223,7 @@ func (m *Manager) CapturePayload(connKey, domain, protocol string, payload []byt
 		captureData = pending.data
 	}
 
-	filename := fmt.Sprintf("%s_%s.bin", protocol, sanitizeDomain(pending.domain))
+	filename := fmt.Sprintf(payloadFilenameFmt, protocol, sanitizeDomain(pending.domain))
 	filepath := filepath.Join(m.outputPath, filename)
 
 	if err := os.WriteFile(filepath, captureData, 0644); err != nil {
@@ -297,7 +299,7 @@ func (m *Manager) GenerateCapture(domain, protocol string) error {
 		return fmt.Errorf("failed to generate payload: %v", err)
 	}
 
-	filename := fmt.Sprintf("%s_%s.bin", protocol, sanitizeDomain(domain))
+	filename := fmt.Sprintf(payloadFilenameFmt, protocol, sanitizeDomain(domain))
 	filepath := filepath.Join(m.outputPath, filename)
 
 	if err := os.WriteFile(filepath, payload, 0644); err != nil {
@@ -464,7 +466,7 @@ func (m *Manager) SaveUploadedCapture(protocol, domain string, data []byte) erro
 	defer m.mu.Unlock()
 
 	domain = strings.ToLower(strings.TrimSpace(domain))
-	filename := fmt.Sprintf("%s_%s.bin", protocol, sanitizeDomain(domain))
+	filename := fmt.Sprintf(payloadFilenameFmt, protocol, sanitizeDomain(domain))
 	filePath := filepath.Join(m.outputPath, filename)
 
 	if err := os.WriteFile(filePath, data, 0644); err != nil {

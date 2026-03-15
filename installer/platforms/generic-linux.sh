@@ -118,6 +118,7 @@ _generic_linux_check_kmods() {
         dnf | yum) log_info "Try: dnf install xtables-addons" ;;
         pacman) log_info "Try: pacman -S xtables-addons" ;;
         apk) log_info "Try: apk add iptables-nft" ;;
+        *) ;;
         esac
     fi
 }
