@@ -57,10 +57,10 @@ func StartServer(cfg *config.Config, pool *nfq.Pool) (*stdhttp.Server, error) {
 
 	tlsEnabled := cfg.System.WebServer.TLSCert != "" && cfg.System.WebServer.TLSKey != ""
 
-	// Pre-validate TLS certificate/key pair before starting the server
 	if tlsEnabled {
 		if _, err := tls.LoadX509KeyPair(cfg.System.WebServer.TLSCert, cfg.System.WebServer.TLSKey); err != nil {
-			return nil, fmt.Errorf("invalid TLS certificate/key pair: %w", err)
+			log.Warnf("Invalid TLS certificate/key pair: %v — falling back to HTTP", err)
+			tlsEnabled = false
 		}
 	}
 

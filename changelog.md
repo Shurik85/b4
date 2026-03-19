@@ -7,6 +7,7 @@
 - FIXED: **Syslog crashes B4 in Docker** — enabling syslog in a `Docker` container caused B4 to crash-loop because the syslog socket doesn't exist. Now B4 logs a warning and continues without syslog.
 - FIXED: **Time zone not applying on routers** — setting a time zone in `Settings` had no effect on some routers (e.g. `Keenetic`) because the device lacked timezone data.
 - FIXED: **Log level resets to Info on restart** — changing the log verbosity in `Settings` did not persist across service restarts.
+- FIXED: **Invalid TLS certificate crashes B4** — setting a wrong certificate or key path in `Settings` caused B4 to crash on next restart. Now it logs a warning and falls back to `HTTP`.
 
 ## [1.44.1] - 2026-03-15
 
