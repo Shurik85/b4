@@ -62,7 +62,7 @@ func (w *Worker) sendDisorderFragments(cfg *config.SetConfig, packet []byte, dst
 			if seqovlLen <= payloadLen {
 				seqOffset := seg.Seq - pi.Seq0
 				for f := 0; f < fakePerSegCount; f++ {
-					fakeSeg := BuildFakeOverlapSegmentV4(packet, pi, payloadLen, seqOffset, 0, seqovlPattern, cfg.Faking.TTL, true)
+					fakeSeg := BuildFakeOverlapSegmentV4(packet, pi, payloadLen, seqOffset, 0, seqovlPattern, cfg.Faking.TTL)
 					if fakeSeg != nil {
 						_ = w.sock.SendIPv4(fakeSeg, dst)
 						time.Sleep(50 * time.Microsecond)

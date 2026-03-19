@@ -8,6 +8,9 @@
 - FIXED: **Time zone not applying on routers** — setting a time zone in `Settings` had no effect on some routers (e.g. `Keenetic`) because the device lacked timezone data.
 - FIXED: **Log level resets to Info on restart** — changing the log verbosity in `Settings` did not persist across service restarts.
 - FIXED: **Invalid TLS certificate crashes B4** — setting a wrong certificate or key path in `Settings` caused B4 to crash on next restart. Now it logs a warning and falls back to `HTTP`.
+- IMPROVED: **Fake packets now match real connection fingerprint** — fake desync packets (RST, FIN, ACK) now preserve the original TCP options (timestamps, window scale, SACK) instead of stripping them. This prevents DPI from detecting fakes by comparing TCP header fingerprints.
+- IMPROVED: **Dynamic fake TTL** — fake packet TTL is now clamped to never exceed the real packet's TTL, preventing impossible TTL values that DPI systems use to identify forged packets.
+- IMPROVED: **Removed checksum corruption from fakes** — fake packets now use valid TCP checksums instead of intentionally corrupted ones, relying solely on TTL to prevent server delivery. DPI can no longer detect fakes by checking for bad checksums.
 
 ## [1.44.1] - 2026-03-15
 

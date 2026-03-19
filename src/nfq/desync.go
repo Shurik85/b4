@@ -17,6 +17,29 @@ type DesyncAttacker struct {
 	count int
 }
 
+// dynamicTTL computes a fake TTL that looks plausible to DPI.
+// Uses config TTL (user-tuned hop count to DPI) but clamps it to never
+// exceed the original packet's TTL, preventing impossible values that DPI detects.
+func dynamicTTL(packet []byte, isIPv6 bool, configTTL uint8) uint8 {
+	var realTTL uint8
+	if isIPv6 {
+		realTTL = packet[7]
+	} else {
+		realTTL = packet[8]
+	}
+	ttl := configTTL
+	if ttl == 0 {
+		ttl = 5
+	}
+	if ttl >= realTTL && realTTL > 1 {
+		ttl = realTTL - 1
+	}
+	if ttl < 1 {
+		ttl = 1
+	}
+	return ttl
+}
+
 func NewDesyncAttacker(cfg *config.TCPConfig) *DesyncAttacker {
 	return &DesyncAttacker{
 		mode:  cfg.Desync.Mode,
@@ -57,11 +80,11 @@ func (w *Worker) sendDesyncRST(packet []byte, dst net.IP, da *DesyncAttacker) {
 	log.Tracef("Desync: Sending %d fake RST packets", da.count)
 
 	origSeq := binary.BigEndian.Uint32(packet[ipHdrLen+4 : ipHdrLen+8])
+	tcpHdrLen := int((packet[ipHdrLen+12] >> 4) * 4)
 
 	for i := 0; i < da.count; i++ {
-		fake := make([]byte, ipHdrLen+20)
-		copy(fake, packet[:ipHdrLen+20])
-		fake[ipHdrLen+12] = 0x50
+		fake := make([]byte, ipHdrLen+tcpHdrLen)
+		copy(fake, packet[:ipHdrLen+tcpHdrLen])
 
 		if i%2 == 0 {
 			fake[ipHdrLen+13] = 0x04
@@ -88,14 +111,11 @@ func (w *Worker) sendDesyncRST(packet []byte, dst net.IP, da *DesyncAttacker) {
 			binary.BigEndian.PutUint32(fake[ipHdrLen+8:ipHdrLen+12], 0)
 		}
 
-		fake[8] = da.ttl
-		binary.BigEndian.PutUint16(fake[2:4], uint16(ipHdrLen+20))
+		fake[8] = dynamicTTL(packet, false, da.ttl)
+		binary.BigEndian.PutUint16(fake[2:4], uint16(ipHdrLen+tcpHdrLen))
 
 		sock.FixIPv4Checksum(fake[:ipHdrLen])
 		sock.FixTCPChecksum(fake)
-
-		fake[ipHdrLen+16] ^= 0xFF
-		fake[ipHdrLen+17] ^= 0xFF
 
 		_ = w.sock.SendIPv4(fake, dst)
 		time.Sleep(100 * time.Microsecond)
@@ -112,11 +132,11 @@ func (w *Worker) sendDesyncFIN(packet []byte, dst net.IP, da *DesyncAttacker) {
 
 	origSeq := binary.BigEndian.Uint32(packet[ipHdrLen+4 : ipHdrLen+8])
 	origAck := binary.BigEndian.Uint32(packet[ipHdrLen+8 : ipHdrLen+12])
+	tcpHdrLen := int((packet[ipHdrLen+12] >> 4) * 4)
 
 	for i := 0; i < da.count; i++ {
-		fake := make([]byte, ipHdrLen+20)
-		copy(fake, packet[:ipHdrLen+20])
-		fake[ipHdrLen+12] = 0x50
+		fake := make([]byte, ipHdrLen+tcpHdrLen)
+		copy(fake, packet[:ipHdrLen+tcpHdrLen])
 
 		fake[ipHdrLen+13] = 0x11
 
@@ -129,15 +149,11 @@ func (w *Worker) sendDesyncFIN(packet []byte, dst net.IP, da *DesyncAttacker) {
 
 		binary.BigEndian.PutUint32(fake[ipHdrLen+8:ipHdrLen+12], origAck)
 
-		fake[8] = da.ttl
-		binary.BigEndian.PutUint16(fake[2:4], uint16(ipHdrLen+20))
+		fake[8] = dynamicTTL(packet, false, da.ttl)
+		binary.BigEndian.PutUint16(fake[2:4], uint16(ipHdrLen+tcpHdrLen))
 
 		sock.FixIPv4Checksum(fake[:ipHdrLen])
 		sock.FixTCPChecksum(fake)
-
-		if i%2 == 0 {
-			fake[ipHdrLen+16] ^= 0xAA
-		}
 
 		_ = w.sock.SendIPv4(fake, dst)
 		time.Sleep(200 * time.Microsecond)
@@ -154,11 +170,12 @@ func (w *Worker) sendDesyncACK(packet []byte, dst net.IP, da *DesyncAttacker) {
 
 	origSeq := binary.BigEndian.Uint32(packet[ipHdrLen+4 : ipHdrLen+8])
 	origAck := binary.BigEndian.Uint32(packet[ipHdrLen+8 : ipHdrLen+12])
+	tcpHdrLen := int((packet[ipHdrLen+12] >> 4) * 4)
+	baseTTL := dynamicTTL(packet, false, da.ttl)
 
 	for i := 0; i < da.count; i++ {
-		fake := make([]byte, ipHdrLen+20)
-		copy(fake, packet[:ipHdrLen+20])
-		fake[ipHdrLen+12] = 0x50
+		fake := make([]byte, ipHdrLen+tcpHdrLen)
+		copy(fake, packet[:ipHdrLen+tcpHdrLen])
 
 		fake[ipHdrLen+13] = 0x10
 
@@ -170,22 +187,21 @@ func (w *Worker) sendDesyncACK(packet []byte, dst net.IP, da *DesyncAttacker) {
 		futureAck := origAck + uint32(100000*(i+1))
 		binary.BigEndian.PutUint32(fake[ipHdrLen+8:ipHdrLen+12], futureAck)
 
-		if uint8(i) >= da.ttl {
-			fake[8] = 1
+		ttl := baseTTL
+		if uint8(i) >= ttl {
+			ttl = 1
 		} else {
-			fake[8] = da.ttl - uint8(i)
+			ttl = ttl - uint8(i)
 		}
-
-		if fake[8] < 1 {
-			fake[8] = 1
+		if ttl < 1 {
+			ttl = 1
 		}
+		fake[8] = ttl
 
-		binary.BigEndian.PutUint16(fake[2:4], uint16(ipHdrLen+20))
+		binary.BigEndian.PutUint16(fake[2:4], uint16(ipHdrLen+tcpHdrLen))
 
 		sock.FixIPv4Checksum(fake[:ipHdrLen])
 		sock.FixTCPChecksum(fake)
-
-		fake[ipHdrLen+17] = ^fake[ipHdrLen+17]
 
 		_ = w.sock.SendIPv4(fake, dst)
 		time.Sleep(50 * time.Microsecond)
@@ -213,73 +229,57 @@ func (w *Worker) sendDesyncFull(packet []byte, dst net.IP, da *DesyncAttacker) {
 	log.Tracef("Desync: Full attack sequence")
 
 	origSeq := binary.BigEndian.Uint32(packet[ipHdrLen+4 : ipHdrLen+8])
+	tcpHdrLen := int((packet[ipHdrLen+12] >> 4) * 4)
+	ttl := dynamicTTL(packet, false, da.ttl)
 
-	synFake := make([]byte, ipHdrLen+20)
-	copy(synFake, packet[:ipHdrLen+20])
-	synFake[ipHdrLen+12] = 0x50
+	synFake := make([]byte, ipHdrLen+tcpHdrLen)
+	copy(synFake, packet[:ipHdrLen+tcpHdrLen])
 	synFake[ipHdrLen+13] = 0x02
 	binary.BigEndian.PutUint32(synFake[ipHdrLen+4:ipHdrLen+8], origSeq-100000)
-	synFake[8] = 1
-	binary.BigEndian.PutUint16(synFake[2:4], uint16(ipHdrLen+20))
+	synFake[8] = ttl
+	binary.BigEndian.PutUint16(synFake[2:4], uint16(ipHdrLen+tcpHdrLen))
 	sock.FixIPv4Checksum(synFake[:ipHdrLen])
 	sock.FixTCPChecksum(synFake)
-	synFake[ipHdrLen+16] = 0xFF
 	_ = w.sock.SendIPv4(synFake, dst)
 
 	time.Sleep(100 * time.Microsecond)
 
 	for i := 0; i < 3; i++ {
-		rstFake := make([]byte, ipHdrLen+20)
-		copy(rstFake, packet[:ipHdrLen+20])
-		rstFake[ipHdrLen+12] = 0x50
+		rstFake := make([]byte, ipHdrLen+tcpHdrLen)
+		copy(rstFake, packet[:ipHdrLen+tcpHdrLen])
 		rstFake[ipHdrLen+13] = 0x04
 
 		seq := origSeq + uint32(i*100)
 		binary.BigEndian.PutUint32(rstFake[ipHdrLen+4:ipHdrLen+8], seq)
 
-		rstFake[8] = 2
-		binary.BigEndian.PutUint16(rstFake[2:4], uint16(ipHdrLen+20))
+		rstFake[8] = ttl
+		binary.BigEndian.PutUint16(rstFake[2:4], uint16(ipHdrLen+tcpHdrLen))
 		sock.FixIPv4Checksum(rstFake[:ipHdrLen])
 		sock.FixTCPChecksum(rstFake)
-
-		switch i {
-		case 0:
-			rstFake[ipHdrLen+16] ^= 0xFF
-		case 1:
-			rstFake[ipHdrLen+17] ^= 0xAA
-		case 2:
-			rstFake[ipHdrLen+16] = 0x00
-			rstFake[ipHdrLen+17] = 0x00
-		}
 
 		_ = w.sock.SendIPv4(rstFake, dst)
 		time.Sleep(50 * time.Microsecond)
 	}
 
-	pushFake := make([]byte, ipHdrLen+20)
-	copy(pushFake, packet[:ipHdrLen+20])
-	pushFake[ipHdrLen+12] = 0x50
+	pushFake := make([]byte, ipHdrLen+tcpHdrLen)
+	copy(pushFake, packet[:ipHdrLen+tcpHdrLen])
 	pushFake[ipHdrLen+13] = 0x18
-	pushFake[8] = 1
-	binary.BigEndian.PutUint16(pushFake[2:4], uint16(ipHdrLen+20))
+	pushFake[8] = ttl
+	binary.BigEndian.PutUint16(pushFake[2:4], uint16(ipHdrLen+tcpHdrLen))
 	sock.FixIPv4Checksum(pushFake[:ipHdrLen])
 	sock.FixTCPChecksum(pushFake)
-	pushFake[ipHdrLen+17] = ^pushFake[ipHdrLen+17]
 	_ = w.sock.SendIPv4(pushFake, dst)
 
 	time.Sleep(100 * time.Microsecond)
 
-	urgFake := make([]byte, ipHdrLen+20)
-	copy(urgFake, packet[:ipHdrLen+20])
-	urgFake[ipHdrLen+12] = 0x50
+	urgFake := make([]byte, ipHdrLen+tcpHdrLen)
+	copy(urgFake, packet[:ipHdrLen+tcpHdrLen])
 	urgFake[ipHdrLen+13] = 0x39
 	binary.BigEndian.PutUint16(urgFake[ipHdrLen+18:ipHdrLen+20], 0xFFFF)
-	urgFake[8] = da.ttl
-	binary.BigEndian.PutUint16(urgFake[2:4], uint16(ipHdrLen+20))
+	urgFake[8] = ttl
+	binary.BigEndian.PutUint16(urgFake[2:4], uint16(ipHdrLen+tcpHdrLen))
 	sock.FixIPv4Checksum(urgFake[:ipHdrLen])
 	sock.FixTCPChecksum(urgFake)
-	urgFake[ipHdrLen+16] = 0x12
-	urgFake[ipHdrLen+17] = 0x34
 	_ = w.sock.SendIPv4(urgFake, dst)
 }
 
@@ -300,7 +300,7 @@ func (w *Worker) ExecuteDesyncIPv6(cfg *config.SetConfig, packet []byte, dst net
 	case "combo":
 		w.sendDesyncCombov6(packet, dst, da)
 	case "full":
-		w.sendDesyncFullv6(packet, dst)
+		w.sendDesyncFullv6(packet, dst, da)
 	default:
 		w.sendDesyncCombov6(packet, dst, da)
 	}
@@ -313,11 +313,11 @@ func (w *Worker) sendDesyncRSTv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 	}
 
 	origSeq := binary.BigEndian.Uint32(packet[ipv6HdrLen+4 : ipv6HdrLen+8])
+	tcpHdrLen := int((packet[ipv6HdrLen+12] >> 4) * 4)
 
 	for i := 0; i < da.count; i++ {
-		fake := make([]byte, ipv6HdrLen+20)
-		copy(fake, packet[:ipv6HdrLen+20])
-		fake[ipv6HdrLen+12] = 0x50
+		fake := make([]byte, ipv6HdrLen+tcpHdrLen)
+		copy(fake, packet[:ipv6HdrLen+tcpHdrLen])
 
 		if i%2 == 0 {
 			fake[ipv6HdrLen+13] = 0x04
@@ -344,13 +344,10 @@ func (w *Worker) sendDesyncRSTv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 			binary.BigEndian.PutUint32(fake[ipv6HdrLen+8:ipv6HdrLen+12], 0)
 		}
 
-		fake[7] = da.ttl
-		binary.BigEndian.PutUint16(fake[4:6], 20)
+		fake[7] = dynamicTTL(packet, true, da.ttl)
+		binary.BigEndian.PutUint16(fake[4:6], uint16(tcpHdrLen))
 
 		sock.FixTCPChecksumV6(fake)
-
-		fake[ipv6HdrLen+16] ^= 0xFF
-		fake[ipv6HdrLen+17] ^= 0xFF
 
 		_ = w.sock.SendIPv6(fake, dst)
 		time.Sleep(100 * time.Microsecond)
@@ -365,11 +362,11 @@ func (w *Worker) sendDesyncFINv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 
 	origSeq := binary.BigEndian.Uint32(packet[ipv6HdrLen+4 : ipv6HdrLen+8])
 	origAck := binary.BigEndian.Uint32(packet[ipv6HdrLen+8 : ipv6HdrLen+12])
+	tcpHdrLen := int((packet[ipv6HdrLen+12] >> 4) * 4)
 
 	for i := 0; i < da.count; i++ {
-		fake := make([]byte, ipv6HdrLen+20)
-		copy(fake, packet[:ipv6HdrLen+20])
-		fake[ipv6HdrLen+12] = 0x50
+		fake := make([]byte, ipv6HdrLen+tcpHdrLen)
+		copy(fake, packet[:ipv6HdrLen+tcpHdrLen])
 
 		fake[ipv6HdrLen+13] = 0x11
 
@@ -382,14 +379,10 @@ func (w *Worker) sendDesyncFINv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 
 		binary.BigEndian.PutUint32(fake[ipv6HdrLen+8:ipv6HdrLen+12], origAck)
 
-		fake[7] = da.ttl
-		binary.BigEndian.PutUint16(fake[4:6], 20)
+		fake[7] = dynamicTTL(packet, true, da.ttl)
+		binary.BigEndian.PutUint16(fake[4:6], uint16(tcpHdrLen))
 
 		sock.FixTCPChecksumV6(fake)
-
-		if i%2 == 0 {
-			fake[ipv6HdrLen+16] ^= 0xAA
-		}
 
 		_ = w.sock.SendIPv6(fake, dst)
 		time.Sleep(200 * time.Microsecond)
@@ -404,11 +397,12 @@ func (w *Worker) sendDesyncACKv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 
 	origSeq := binary.BigEndian.Uint32(packet[ipv6HdrLen+4 : ipv6HdrLen+8])
 	origAck := binary.BigEndian.Uint32(packet[ipv6HdrLen+8 : ipv6HdrLen+12])
+	tcpHdrLen := int((packet[ipv6HdrLen+12] >> 4) * 4)
+	baseTTL := dynamicTTL(packet, true, da.ttl)
 
 	for i := 0; i < da.count; i++ {
-		fake := make([]byte, ipv6HdrLen+20)
-		copy(fake, packet[:ipv6HdrLen+20])
-		fake[ipv6HdrLen+12] = 0x50
+		fake := make([]byte, ipv6HdrLen+tcpHdrLen)
+		copy(fake, packet[:ipv6HdrLen+tcpHdrLen])
 
 		fake[ipv6HdrLen+13] = 0x10
 
@@ -420,20 +414,20 @@ func (w *Worker) sendDesyncACKv6(packet []byte, dst net.IP, da *DesyncAttacker) 
 		futureAck := origAck + uint32(100000*(i+1))
 		binary.BigEndian.PutUint32(fake[ipv6HdrLen+8:ipv6HdrLen+12], futureAck)
 
-		if uint8(i) >= da.ttl {
-			fake[7] = 1
+		ttl := baseTTL
+		if uint8(i) >= ttl {
+			ttl = 1
 		} else {
-			fake[7] = da.ttl - uint8(i)
+			ttl = ttl - uint8(i)
 		}
-
-		if fake[7] < 1 {
-			fake[7] = 1
+		if ttl < 1 {
+			ttl = 1
 		}
+		fake[7] = ttl
 
-		binary.BigEndian.PutUint16(fake[4:6], 20)
+		binary.BigEndian.PutUint16(fake[4:6], uint16(tcpHdrLen))
 
 		sock.FixTCPChecksumV6(fake)
-		fake[ipv6HdrLen+17] = ^fake[ipv6HdrLen+17]
 
 		_ = w.sock.SendIPv6(fake, dst)
 		time.Sleep(50 * time.Microsecond)
@@ -450,49 +444,38 @@ func (w *Worker) sendDesyncCombov6(packet []byte, dst net.IP, da *DesyncAttacker
 	w.sendDesyncACKv6(packet, dst, &DesyncAttacker{ttl: da.ttl, count: 2})
 }
 
-func (w *Worker) sendDesyncFullv6(packet []byte, dst net.IP) {
+func (w *Worker) sendDesyncFullv6(packet []byte, dst net.IP, da *DesyncAttacker) {
 	ipv6HdrLen := 40
 	if len(packet) < ipv6HdrLen+20 {
 		return
 	}
 
 	origSeq := binary.BigEndian.Uint32(packet[ipv6HdrLen+4 : ipv6HdrLen+8])
+	tcpHdrLen := int((packet[ipv6HdrLen+12] >> 4) * 4)
+	ttl := dynamicTTL(packet, true, da.ttl)
 
-	synFake := make([]byte, ipv6HdrLen+20)
-	copy(synFake, packet[:ipv6HdrLen+20])
-	synFake[ipv6HdrLen+12] = 0x50
+	synFake := make([]byte, ipv6HdrLen+tcpHdrLen)
+	copy(synFake, packet[:ipv6HdrLen+tcpHdrLen])
 	synFake[ipv6HdrLen+13] = 0x02
 	binary.BigEndian.PutUint32(synFake[ipv6HdrLen+4:ipv6HdrLen+8], origSeq-100000)
-	synFake[7] = 1
-	binary.BigEndian.PutUint16(synFake[4:6], 20)
+	synFake[7] = ttl
+	binary.BigEndian.PutUint16(synFake[4:6], uint16(tcpHdrLen))
 	sock.FixTCPChecksumV6(synFake)
-	synFake[ipv6HdrLen+16] = 0xFF
 	_ = w.sock.SendIPv6(synFake, dst)
 
 	time.Sleep(100 * time.Microsecond)
 
 	for i := 0; i < 3; i++ {
-		rstFake := make([]byte, ipv6HdrLen+20)
-		copy(rstFake, packet[:ipv6HdrLen+20])
-		rstFake[ipv6HdrLen+12] = 0x50
+		rstFake := make([]byte, ipv6HdrLen+tcpHdrLen)
+		copy(rstFake, packet[:ipv6HdrLen+tcpHdrLen])
 		rstFake[ipv6HdrLen+13] = 0x04
 
 		seq := origSeq + uint32(i*100)
 		binary.BigEndian.PutUint32(rstFake[ipv6HdrLen+4:ipv6HdrLen+8], seq)
 
-		rstFake[7] = 2
-		binary.BigEndian.PutUint16(rstFake[4:6], 20)
+		rstFake[7] = ttl
+		binary.BigEndian.PutUint16(rstFake[4:6], uint16(tcpHdrLen))
 		sock.FixTCPChecksumV6(rstFake)
-
-		switch i {
-		case 0:
-			rstFake[ipv6HdrLen+16] ^= 0xFF
-		case 1:
-			rstFake[ipv6HdrLen+17] ^= 0xAA
-		case 2:
-			rstFake[ipv6HdrLen+16] = 0x00
-			rstFake[ipv6HdrLen+17] = 0x00
-		}
 
 		_ = w.sock.SendIPv6(rstFake, dst)
 		time.Sleep(50 * time.Microsecond)

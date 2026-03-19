@@ -33,14 +33,11 @@ func (w *Worker) sendFakeSyn(set *config.SetConfig, raw []byte, ipHdrLen, tcpHdr
 
 	binary.BigEndian.PutUint16(fakePkt[2:4], uint16(totalLen))
 
-	ttl := set.TCP.SynTTL
-	if ttl == 0 {
-		ttl = set.Faking.TTL
+	configTTL := set.TCP.SynTTL
+	if configTTL == 0 {
+		configTTL = set.Faking.TTL
 	}
-	if ttl == 0 {
-		ttl = 3
-	}
-	fakePkt[8] = ttl
+	fakePkt[8] = dynamicTTL(raw, false, configTTL)
 
 	// Apply sequence modification based on strategy
 	switch set.Faking.Strategy {
@@ -74,10 +71,6 @@ func (w *Worker) sendFakeSyn(set *config.SetConfig, raw []byte, ipHdrLen, tcpHdr
 	sock.FixIPv4Checksum(fakePkt[:ipHdrLen])
 	sock.FixTCPChecksum(fakePkt)
 
-	// ALWAYS corrupt TCP checksum so server drops it even if TTL reaches
-	fakePkt[ipHdrLen+16] ^= 0xFF
-	fakePkt[ipHdrLen+17] ^= 0xFF
-
 	dst := net.IP(fakePkt[16:20])
 	_ = w.sock.SendIPv4(fakePkt, dst)
 }
@@ -109,15 +102,11 @@ func (w *Worker) sendFakeSynV6(set *config.SetConfig, raw []byte, ipHdrLen, tcpH
 	payloadLen := tcpHdrLen + fakePayloadLen
 	binary.BigEndian.PutUint16(fakePkt[4:6], uint16(payloadLen))
 
-	// ALWAYS set low hop limit
-	ttl := set.TCP.SynTTL
-	if ttl == 0 {
-		ttl = set.Faking.TTL
+	configTTL := set.TCP.SynTTL
+	if configTTL == 0 {
+		configTTL = set.Faking.TTL
 	}
-	if ttl == 0 {
-		ttl = 3
-	}
-	fakePkt[7] = ttl
+	fakePkt[7] = dynamicTTL(raw, true, configTTL)
 
 	switch set.Faking.Strategy {
 	case "randseq":
@@ -149,10 +138,6 @@ func (w *Worker) sendFakeSynV6(set *config.SetConfig, raw []byte, ipHdrLen, tcpH
 
 	sock.FixTCPChecksumV6(fakePkt)
 
-	// ALWAYS corrupt TCP checksum
-	fakePkt[ipHdrLen+16] ^= 0xFF
-	fakePkt[ipHdrLen+17] ^= 0xFF
-
 	dst := net.IP(fakePkt[24:40])
 	_ = w.sock.SendIPv6(fakePkt, dst)
 }
@@ -161,12 +146,7 @@ func (w *Worker) sendFakeSynWithMD5(set *config.SetConfig, raw []byte, ihl int, 
 	fakeSyn := make([]byte, len(raw))
 	copy(fakeSyn, raw)
 
-	// Low TTL - reaches DPI but dies before server
-	ttl := set.Faking.TTL
-	if ttl == 0 {
-		ttl = 3
-	}
-	fakeSyn[8] = ttl
+	fakeSyn[8] = dynamicTTL(raw, false, set.Faking.TTL)
 
 	// Modify seq so server ignores if it arrives
 	seq := binary.BigEndian.Uint32(fakeSyn[ihl+4 : ihl+8])
@@ -187,12 +167,7 @@ func (w *Worker) sendFakeSynWithMD5V6(set *config.SetConfig, raw []byte, dst net
 	fakeSyn := make([]byte, len(raw))
 	copy(fakeSyn, raw)
 
-	// Low hop limit - reaches DPI but dies before server
-	ttl := set.Faking.TTL
-	if ttl == 0 {
-		ttl = 3
-	}
-	fakeSyn[7] = ttl
+	fakeSyn[7] = dynamicTTL(raw, true, set.Faking.TTL)
 
 	// Modify seq so server ignores if it arrives
 	seq := binary.BigEndian.Uint32(fakeSyn[ipv6HdrLen+4 : ipv6HdrLen+8])
