@@ -24,6 +24,12 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1 || which "$1" >/dev/null 2>&1
 }
 
+_byte_to_dec() {
+    _btd_oct=$(od -b | head -1 | awk '{print $2}')
+    [ -z "$_btd_oct" ] && return 1
+    printf '%d\n' "0$_btd_oct"
+}
+
 # --- Root check ---
 check_root() {
     if [ "$(id -u 2>/dev/null)" = "0" ]; then
@@ -201,7 +207,7 @@ is_little_endian() {
     [ -f /proc/cpuinfo ] && grep -qi "little.endian\|byteorder.*little" /proc/cpuinfo 2>/dev/null && return 0
     command_exists opkg && opkg print-architecture 2>/dev/null | grep -qi "mipsel\|mips64el" && return 0
     # ELF header byte 6 (index 5): 1=little-endian, 2=big-endian
-    [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null | od -An -tx1 | tr -d ' ')" = "01" ] && return 0
+    [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null | _byte_to_dec)" = "1" ] && return 0
     return 1
 }
 
@@ -212,7 +218,7 @@ is_softfloat() {
         _sf_owrt_arch=$(sed -n "s/^DISTRIB_ARCH=['\"\`]*\([^'\"\`]*\).*/\1/p" /etc/openwrt_release 2>/dev/null)
         if [ -n "$_sf_owrt_arch" ]; then
             case "$_sf_owrt_arch" in
-                *_softfloat* | *_nofpu* | *soft*) return 0 ;;
+            *_softfloat* | *_nofpu* | *soft*) return 0 ;;
             esac
             # CPU model ending in 'f' (e.g. 24kf, 74kf) = hard-float
             if echo "$_sf_owrt_arch" | grep -qE '_[a-z]*[0-9]+k?f$'; then
@@ -220,7 +226,7 @@ is_softfloat() {
             fi
             # MIPS without 'f' suffix = soft-float on OpenWrt
             case "$_sf_owrt_arch" in
-                mips_* | mipsel_* | mips64_* | mips64el_*) return 0 ;;
+            mips_* | mipsel_* | mips64_* | mips64el_*) return 0 ;;
             esac
         fi
     fi
@@ -245,8 +251,8 @@ is_softfloat() {
         [ -f "$_sf_b" ] && _sf_elf_bin="$_sf_b" && break
     done
     if [ -n "$_sf_elf_bin" ]; then
-        _sf_ei_class=$(dd if="$_sf_elf_bin" bs=1 skip=4 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
-        _sf_ei_data=$(dd if="$_sf_elf_bin" bs=1 skip=5 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+        _sf_ei_class=$(dd if="$_sf_elf_bin" bs=1 skip=4 count=1 2>/dev/null | _byte_to_dec)
+        _sf_ei_data=$(dd if="$_sf_elf_bin" bs=1 skip=5 count=1 2>/dev/null | _byte_to_dec)
         # e_flags offset: 36 for 32-bit ELF, 48 for 64-bit ELF
         _sf_flags_off=""
         [ "$_sf_ei_class" = "1" ] && _sf_flags_off=36
@@ -256,13 +262,13 @@ is_softfloat() {
             # In little-endian e_flags: bit 11 is in byte at offset+1, bit 3
             # In big-endian e_flags: bit 11 is in byte at offset+2, bit 3
             if [ "$_sf_ei_data" = "1" ]; then
-                _sf_check_off=$(( _sf_flags_off + 1 ))
+                _sf_check_off=$((_sf_flags_off + 1))
             else
-                _sf_check_off=$(( _sf_flags_off + 2 ))
+                _sf_check_off=$((_sf_flags_off + 2))
             fi
-            _sf_flag_byte=$(dd if="$_sf_elf_bin" bs=1 skip="$_sf_check_off" count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+            _sf_flag_byte=$(dd if="$_sf_elf_bin" bs=1 skip="$_sf_check_off" count=1 2>/dev/null | _byte_to_dec)
             if [ -n "$_sf_flag_byte" ]; then
-                [ $(( _sf_flag_byte & 8 )) -ne 0 ] && return 0
+                [ $((_sf_flag_byte & 8)) -ne 0 ] && return 0
                 return 1
             fi
         fi
