@@ -55,14 +55,23 @@ const TableRowMemo = memo<{
   enrichingIps: Set<string>;
   asnVersion: number;
 }>(
-  ({ log, onDomainClick, onIpClick, onEnrichIp, onDeleteAsn, enrichingIps, asnVersion }) => {
+  ({
+    log,
+    onDomainClick,
+    onIpClick,
+    onEnrichIp,
+    onDeleteAsn,
+    enrichingIps,
+  }) => {
     const { t } = useTranslation();
     const asnInfo = useMemo(() => {
       if (!log.destination) return null;
       return asnStorage.findAsnForIp(log.destination);
-    }, [log.destination, asnVersion]);
+    }, [log.destination]);
 
-    const isEnriching = enrichingIps.has(log.destination);
+    const isEnriching = enrichingIps.has(
+      log.destination.split(":")[0].replaceAll(/[[\]]/g, ""),
+    );
 
     return (
       <TableRow
@@ -169,13 +178,13 @@ const TableRowMemo = memo<{
           <Stack direction="row" spacing={1} alignItems="center">
             <Box
               sx={{
-                cursor: !log.ipSet ? "pointer" : "default",
-                "&:hover": !log.ipSet
-                  ? {
+                cursor: log.ipSet ? "default" : "pointer",
+                "&:hover": log.ipSet
+                  ? {}
+                  : {
                       bgcolor: colors.accent.primary,
                       color: colors.secondary,
-                    }
-                  : {},
+                    },
               }}
               onClick={() =>
                 log.destination && !log.ipSet && onIpClick(log.destination)
@@ -190,27 +199,36 @@ const TableRowMemo = memo<{
                 label={asnInfo.name}
                 onDelete={() => onDeleteAsn(asnInfo.id)}
               />
-            ) : log.destination && (
-              <Tooltip title={t("connections.table.enrichAsn")} placement="top" arrow>
-                {isEnriching ? (
-                  <CircularProgress size={14} sx={{ color: colors.secondary }} />
-                ) : (
-                  <NetworkIcon
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void onEnrichIp(log.destination);
-                    }}
-                    sx={{
-                      fontSize: 16,
-                      color: `${colors.secondary}88`,
-                      cursor: "pointer",
-                      "&:hover": {
-                        color: colors.secondary,
-                      },
-                    }}
-                  />
-                )}
-              </Tooltip>
+            ) : (
+              log.destination && (
+                <Tooltip
+                  title={t("connections.table.enrichAsn")}
+                  placement="top"
+                  arrow
+                >
+                  {isEnriching ? (
+                    <CircularProgress
+                      size={14}
+                      sx={{ color: colors.secondary }}
+                    />
+                  ) : (
+                    <NetworkIcon
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void onEnrichIp(log.destination);
+                      }}
+                      sx={{
+                        fontSize: 16,
+                        color: `${colors.secondary}88`,
+                        cursor: "pointer",
+                        "&:hover": {
+                          color: colors.secondary,
+                        },
+                      }}
+                    />
+                  )}
+                </Tooltip>
+              )
             )}
             <Box sx={{ flex: 1 }} />
             {!log.ipSet && (
@@ -236,7 +254,7 @@ const TableRowMemo = memo<{
   (prev, next) =>
     prev.log.raw === next.log.raw &&
     prev.enrichingIps === next.enrichingIps &&
-    prev.asnVersion === next.asnVersion
+    prev.asnVersion === next.asnVersion,
 );
 
 TableRowMemo.displayName = "TableRowMemo";
@@ -265,7 +283,7 @@ export const DomainsTable = ({
 
   const visibleData = useMemo(
     () => data.slice(startIndex, endIndex),
-    [data, startIndex, endIndex]
+    [data, startIndex, endIndex],
   );
 
   const handleScroll = useCallback(
@@ -277,7 +295,7 @@ export const DomainsTable = ({
         target.scrollHeight - target.scrollTop - target.clientHeight < 50;
       onScrollStateChange(isAtBottom);
     },
-    [onScrollStateChange]
+    [onScrollStateChange],
   );
 
   useEffect(() => {

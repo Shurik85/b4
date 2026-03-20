@@ -249,7 +249,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		m.RecordPacket(uint64(len(pkt.raw)))
 
 		if !log.IsDiscoveryActive() {
-			log.Infof(",TCP-DUP,%s,%s,%s:%d,%s,%s:%d,%s,%s", set.Name, dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS))
+			log.Infof(",TCP-DUP,,%s,%s:%d,%s,%s:%d,%s,%s", dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS))
 		}
 
 		if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {

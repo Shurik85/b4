@@ -349,6 +349,7 @@ func BuildFakeOverlapSegmentV4(packet []byte, pi PacketInfo, payloadLen int, seq
 
 	sock.FixIPv4Checksum(seg[:pi.IPHdrLen])
 	sock.FixTCPChecksum(seg)
+	corruptTCPChecksum(seg, pi.IPHdrLen)
 
 	return seg
 }
