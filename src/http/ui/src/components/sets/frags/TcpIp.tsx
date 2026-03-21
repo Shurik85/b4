@@ -1,6 +1,6 @@
 import { Grid, Box, Typography } from "@mui/material";
 
-import { B4Slider, B4Switch } from "@b4.fields";
+import { B4Switch, B4RangeSlider } from "@b4.fields";
 import { B4SetConfig } from "@models/config";
 import { colors } from "@design";
 import { B4Alert } from "@components/common/B4Alert";
@@ -152,12 +152,16 @@ export const TcpIpSettings = ({ config, onChange }: TcpIpSettingsProps) => {
         </Typography>
         <Grid container spacing={2} sx={{ mt: 1 }}>
           <Grid size={{ xs: 12, md: 12 }}>
-            <B4Slider
+            <B4RangeSlider
               label={t("sets.tcp.splitting.tcpIp.fixedSplitPos")}
-              value={config.fragmentation.sni_position}
-              onChange={(value: number) =>
-                onChange("fragmentation.sni_position", value)
-              }
+              value={[
+                config.fragmentation.sni_position,
+                config.fragmentation.sni_position_max || config.fragmentation.sni_position,
+              ]}
+              onChange={(value: [number, number]) => {
+                onChange("fragmentation.sni_position", value[0]);
+                onChange("fragmentation.sni_position_max", value[1]);
+              }}
               min={0}
               max={50}
               step={1}

@@ -97,16 +97,20 @@ type UDPConfig struct {
 }
 
 type FragmentationConfig struct {
-	Strategy     string `json:"strategy"` // Values: "tcp", "ip", "oob", "tls", "disorder",  "extsplit", "firstbyte", "combo", "none"
-	ReverseOrder bool   `json:"reverse_order"`
+	Strategy          string   `json:"strategy"` // Values: "tcp", "ip", "oob", "tls", "disorder",  "extsplit", "firstbyte", "combo", "none"
+	ReverseOrder      bool     `json:"reverse_order"`
+	StrategyPool      []string `json:"strategy_pool"`
 
-	TLSRecordPosition int `json:"tlsrec_pos"` // where to split TLS record
+	TLSRecordPosition    int `json:"tlsrec_pos"`     // where to split TLS record
+	TLSRecordPositionMax int `json:"tlsrec_pos_max"` // max for randomization (0 = use fixed)
 
-	MiddleSNI   bool `json:"middle_sni"`
-	SNIPosition int  `json:"sni_position"`
+	MiddleSNI      bool `json:"middle_sni"`
+	SNIPosition    int  `json:"sni_position"`
+	SNIPositionMax int  `json:"sni_position_max"` // max for randomization (0 = use fixed)
 
-	OOBPosition int  `json:"oob_position"` // Position for OOB (0=disabled)
-	OOBChar     byte `json:"oob_char"`     // Character for OOB data
+	OOBPosition    int  `json:"oob_position"`     // Position for OOB (0=disabled)
+	OOBPositionMax int  `json:"oob_position_max"` // max for randomization (0 = use fixed)
+	OOBChar        byte `json:"oob_char"`         // Character for OOB data
 
 	SeqOverlapPattern []string `json:"seq_overlap_pattern"`
 	SeqOverlapBytes   []byte   `json:"-"`
@@ -229,31 +233,49 @@ type GeoDatConfig struct {
 }
 
 type ComboFragConfig struct {
-	FirstByteSplit  bool   `json:"first_byte_split"`
-	ExtensionSplit  bool   `json:"extension_split"`
-	ShuffleMode     string `json:"shuffle_mode"` // "middle", "full", "reverse"
-	FirstDelayMs    int    `json:"first_delay_ms"`
-	JitterMaxUs     int    `json:"jitter_max_us"`
-	DecoyEnabled    bool   `json:"decoy_enabled"`
-	FakePerSegment  bool   `json:"fake_per_segment"`
-	FakePerSegCount int    `json:"fake_per_seg_count"` // Number of fake packets per segment (default 1)
+	FirstByteSplit     bool   `json:"first_byte_split"`
+	ExtensionSplit     bool   `json:"extension_split"`
+	ShuffleMode        string `json:"shuffle_mode"` // "middle", "full", "reverse"
+	FirstDelayMs       int    `json:"first_delay_ms"`
+	FirstDelayMsMax    int    `json:"first_delay_ms_max"`
+	JitterMaxUs        int    `json:"jitter_max_us"`
+	JitterMaxUsMax     int    `json:"jitter_max_us_max"`
+	DecoyEnabled       bool   `json:"decoy_enabled"`
+	FakePerSegment     bool   `json:"fake_per_segment"`
+	FakePerSegCount    int    `json:"fake_per_seg_count"`     // Number of fake packets per segment (default 1)
+	FakePerSegCountMax int    `json:"fake_per_seg_count_max"` // Max for randomization (0 = use fixed)
 }
 
 type DisorderFragConfig struct {
-	ShuffleMode     string `json:"shuffle_mode"` // "full", "reverse"
-	MinJitterUs     int    `json:"min_jitter_us"`
-	MaxJitterUs     int    `json:"max_jitter_us"`
-	FakePerSegment  bool   `json:"fake_per_segment"`
-	FakePerSegCount int    `json:"fake_per_seg_count"` // Number of fake packets per segment (default 1)
+	ShuffleMode        string `json:"shuffle_mode"` // "full", "reverse"
+	MinJitterUs        int    `json:"min_jitter_us"`
+	MaxJitterUs        int    `json:"max_jitter_us"`
+	FakePerSegment     bool   `json:"fake_per_segment"`
+	FakePerSegCount    int    `json:"fake_per_seg_count"`     // Number of fake packets per segment (default 1)
+	FakePerSegCountMax int    `json:"fake_per_seg_count_max"` // Max for randomization (0 = use fixed)
 }
 
-// ResolveSeg2Delay returns a delay value between min and max (inclusive).
+// ResolveRange returns a random value between min and max (inclusive).
 // If max <= min (or max is 0), returns min as a single fixed value.
-func ResolveSeg2Delay(min, max int) int {
+func ResolveRange(min, max int) int {
 	if max <= min {
 		return min
 	}
 	return min + rand.Intn(max-min+1)
+}
+
+// ResolveSeg2Delay is an alias for ResolveRange for backward compatibility.
+func ResolveSeg2Delay(min, max int) int {
+	return ResolveRange(min, max)
+}
+
+// ResolveStrategyPool picks a random strategy from the pool.
+// If pool is empty, returns the fallback.
+func ResolveStrategyPool(pool []string, fallback string) string {
+	if len(pool) == 0 {
+		return fallback
+	}
+	return pool[rand.Intn(len(pool))]
 }
 
 type DNSConfig struct {

@@ -37,10 +37,22 @@ func ApplyTimezone(tzName string) {
 }
 
 func parseFixedOffset(name string) *time.Location {
-	if !strings.HasPrefix(name, "UTC") {
-		return nil
+	if strings.HasPrefix(name, "UTC") {
+		return parseOffsetFrom(name, name[3:])
 	}
-	rest := name[3:]
+
+	i := 0
+	for i < len(name) && ((name[i] >= 'A' && name[i] <= 'Z') || (name[i] >= 'a' && name[i] <= 'z')) {
+		i++
+	}
+	if i >= 2 && i < len(name) {
+		return parseOffsetFrom(name, invertSign(name[i:]))
+	}
+
+	return nil
+}
+
+func parseOffsetFrom(name, rest string) *time.Location {
 	if rest == "" {
 		loc, _ := time.LoadLocation("UTC")
 		return loc
@@ -74,4 +86,18 @@ func parseFixedOffset(name string) *time.Location {
 
 	offset := sign * (hours*3600 + minutes*60)
 	return time.FixedZone(name, offset)
+}
+
+// invertSign flips the leading +/- in an offset string (for POSIX TZ conversion).
+func invertSign(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	switch s[0] {
+	case '+':
+		return "-" + s[1:]
+	case '-':
+		return "+" + s[1:]
+	}
+	return s
 }

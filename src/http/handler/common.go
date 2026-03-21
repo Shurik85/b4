@@ -90,6 +90,7 @@ func NewAPIHandler(cfg *config.Config) *API {
 		cfg:            cfg,
 		geodataManager: geodataManager,
 		deviceAliases:  config.NewDeviceAliases(cfg.ConfigPath),
+		asnStore:       config.NewAsnStore(cfg.ConfigPath),
 	}
 }
 func (api *API) RegisterEndpoints(mux *http.ServeMux, cfg *config.Config) {
@@ -114,6 +115,7 @@ func (api *API) RegisterEndpoints(mux *http.ServeMux, cfg *config.Config) {
 	api.RegisterSocks5Api()
 	api.RegisterDetectorApi()
 	api.RegisterBackupApi()
+	api.RegisterAsnApi()
 }
 
 func sendResponse(w http.ResponseWriter, response interface{}) {

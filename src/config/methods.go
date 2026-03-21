@@ -703,6 +703,9 @@ func (c *Config) LoadCapturePayloads() {
 	capturesDir := filepath.Join(filepath.Dir(c.ConfigPath))
 
 	for _, set := range c.Sets {
+		if !set.Enabled {
+			continue
+		}
 		if set.Faking.SNIType == FakePayloadCapture && set.Faking.PayloadFile != "" {
 			capturePath := filepath.Join(capturesDir, set.Faking.PayloadFile)
 			data, err := os.ReadFile(capturePath)

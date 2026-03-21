@@ -15,13 +15,12 @@ func (w *Worker) sendPostDesyncRST(cfg *config.SetConfig, raw []byte, ipHdrLen i
 	}
 
 	tcpHdrLen := int((raw[ipHdrLen+12] >> 4) * 4)
+	if tcpHdrLen < 20 || ipHdrLen+tcpHdrLen > len(raw) {
+		return
+	}
 	payloadLen := len(raw) - ipHdrLen - tcpHdrLen
 	seq := binary.BigEndian.Uint32(raw[ipHdrLen+4 : ipHdrLen+8])
-
-	ttl := cfg.Faking.TTL
-	if ttl == 0 {
-		ttl = 3
-	}
+	ttl := dynamicTTL(raw, false, cfg.Faking.TTL)
 
 	// Send burst of fake packets with different flags/sequences
 	fakeTypes := []struct {
@@ -36,11 +35,10 @@ func (w *Worker) sendPostDesyncRST(cfg *config.SetConfig, raw []byte, ipHdrLen i
 	}
 
 	for _, ft := range fakeTypes {
-		rstLen := ipHdrLen + 20
+		rstLen := ipHdrLen + tcpHdrLen
 		rst := make([]byte, rstLen)
-		copy(rst, raw[:ipHdrLen+20])
+		copy(rst, raw[:rstLen])
 
-		rst[ipHdrLen+12] = 0x50
 		rst[ipHdrLen+13] = ft.flags
 
 		newSeq := int64(seq) + int64(ft.seqOff)
@@ -54,10 +52,7 @@ func (w *Worker) sendPostDesyncRST(cfg *config.SetConfig, raw []byte, ipHdrLen i
 
 		sock.FixIPv4Checksum(rst[:ipHdrLen])
 		sock.FixTCPChecksum(rst)
-
-		// Corrupt checksum
-		rst[ipHdrLen+16] ^= 0xFF
-		rst[ipHdrLen+17] ^= 0xFF
+		corruptTCPChecksum(rst, ipHdrLen)
 
 		_ = w.sock.SendIPv4(rst, dst)
 		time.Sleep(100 * time.Microsecond)
@@ -71,30 +66,26 @@ func (w *Worker) sendPostDesyncRSTv6(cfg *config.SetConfig, raw []byte, dst net.
 	}
 
 	tcpHdrLen := int((raw[ipv6HdrLen+12] >> 4) * 4)
+	if tcpHdrLen < 20 || ipv6HdrLen+tcpHdrLen > len(raw) {
+		return
+	}
 	payloadLen := len(raw) - ipv6HdrLen - tcpHdrLen
 
-	rstLen := ipv6HdrLen + 20
+	rstLen := ipv6HdrLen + tcpHdrLen
 	rst := make([]byte, rstLen)
-	copy(rst, raw[:ipv6HdrLen+20])
+	copy(rst, raw[:rstLen])
 
-	rst[ipv6HdrLen+12] = 0x50
 	rst[ipv6HdrLen+13] = 0x14
 
 	seq := binary.BigEndian.Uint32(raw[ipv6HdrLen+4 : ipv6HdrLen+8])
 	binary.BigEndian.PutUint32(rst[ipv6HdrLen+4:ipv6HdrLen+8], seq+uint32(payloadLen))
 
-	ttl := cfg.Faking.TTL
-	if ttl == 0 {
-		ttl = 3
-	}
-	rst[7] = ttl
+	rst[7] = dynamicTTL(raw, true, cfg.Faking.TTL)
 
-	binary.BigEndian.PutUint16(rst[4:6], 20)
+	binary.BigEndian.PutUint16(rst[4:6], uint16(tcpHdrLen))
 
 	sock.FixTCPChecksumV6(rst)
-
-	rst[ipv6HdrLen+16] ^= 0xFF
-	rst[ipv6HdrLen+17] ^= 0xFF
+	corruptTCPChecksum(rst, ipv6HdrLen)
 
 	_ = w.sock.SendIPv6(rst, dst)
 }

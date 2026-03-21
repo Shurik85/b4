@@ -11,6 +11,7 @@ import {
   useEnrichedLogs,
   useFilteredLogs,
   useSortedLogs,
+  clearAsnLookupCache,
 } from "@hooks/useDomainActions";
 import { useIpActions } from "@hooks/useIpActions";
 import {
@@ -18,6 +19,7 @@ import {
   loadSortState,
   saveSortState,
   generateIpVariants,
+  asnStorage,
 } from "@utils";
 import { colors } from "@design";
 import { useWebSocket } from "../../context/B4WsProvider";
@@ -28,6 +30,35 @@ import { devicesApi } from "@b4.devices";
 import { useTranslation } from "react-i18next";
 
 const MAX_DISPLAY_ROWS = 1000;
+
+interface RipeNetworkInfo {
+  asns: string[];
+  prefix: string;
+}
+
+async function resolveAsn(ip: string, token: string): Promise<{ id: string; name: string } | null> {
+  if (token) {
+    const response = await fetch(`/api/integration/ipinfo?ip=${encodeURIComponent(ip)}`);
+    if (response.ok) {
+      const data = (await response.json()) as { org?: string };
+      const match = data.org ? /AS(\d+)/.exec(data.org) : null;
+      if (match) return { id: match[1], name: data.org! };
+    }
+  }
+
+  const response = await fetch(`/api/integration/ripestat?ip=${encodeURIComponent(ip)}`);
+  if (!response.ok) return null;
+  const data = (await response.json()) as { data: RipeNetworkInfo };
+  const asnId = data.data?.asns?.[0];
+  return asnId ? { id: asnId, name: `AS${asnId}` } : null;
+}
+
+async function fetchAsnPrefixes(asnId: string): Promise<string[] | null> {
+  const response = await fetch(`/api/integration/ripestat/asn?asn=${encodeURIComponent(asnId)}`);
+  if (!response.ok) return null;
+  const data = (await response.json()) as { data: { prefixes: Array<{ prefix: string }> } };
+  return data.data.prefixes.map((p) => p.prefix);
+}
 
 export function ConnectionsPage() {
   const { t } = useTranslation();
@@ -64,12 +95,14 @@ export function ConnectionsPage() {
     selectVariant: selectIpVariant,
     addIp,
   } = useIpActions();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [availableSets, setAvailableSets] = useState<B4SetConfig[]>([]);
   const [ipInfoToken, setIpInfoToken] = useState<string>("");
   const [devicesEnabled, setDevicesEnabled] = useState<boolean>(false);
   const [deviceMap, setDeviceMap] = useState<Record<string, string>>({});
+  const [enrichingIps, setEnrichingIps] = useState<Set<string>>(new Set());
+  const [asnVersion, setAsnVersion] = useState(0);
 
   useEffect(() => {
     localStorage.setItem("b4_connections_filter", filter);
@@ -131,6 +164,7 @@ export function ConnectionsPage() {
   useEffect(() => {
     const controller = new AbortController();
     void fetchSets(controller.signal);
+    void asnStorage.init();
     return () => {
       controller.abort();
     };
@@ -160,6 +194,44 @@ export function ConnectionsPage() {
     setSortColumn(null);
     setSortDirection(null);
   }, []);
+
+  const handleEnrichIp = useCallback(async (ip: string) => {
+    const cleanIp = ip.split(":")[0].replaceAll(/[[\]]/g, "");
+    setEnrichingIps((prev) => new Set(prev).add(cleanIp));
+    try {
+      const asn = await resolveAsn(cleanIp, ipInfoToken);
+      if (!asn) {
+        showError(t("connections.table.enrichNoAsn"));
+        return;
+      }
+      const prefixes = await fetchAsnPrefixes(asn.id);
+      if (!prefixes) {
+        showError(t("connections.table.enrichFailed"));
+        return;
+      }
+      await asnStorage.addAsn(asn.id, asn.name, prefixes);
+      clearAsnLookupCache();
+      setAsnVersion((v) => v + 1);
+      showSuccess(t("connections.table.enrichSuccess", { asn: asn.name, count: prefixes.length }));
+    } catch {
+      showError(t("connections.table.enrichFailed"));
+    } finally {
+      setEnrichingIps((prev) => {
+        const next = new Set(prev);
+        next.delete(cleanIp);
+        return next;
+      });
+    }
+  }, [ipInfoToken, showSuccess, showError, t]);
+
+  const handleDeleteAsn = useCallback((asnId: string) => {
+    void (async () => {
+      await asnStorage.deleteAsn(asnId);
+      clearAsnLookupCache();
+      setAsnVersion((v) => v + 1);
+      showSuccess(t("connections.table.asnDeleted", { asn: asnId }));
+    })();
+  }, [showSuccess, t]);
 
   const handleIpClick = useCallback(
     (ip: string) => {
@@ -262,6 +334,10 @@ export function ConnectionsPage() {
             onSort={handleSort}
             onDomainClick={handleDomainClick}
             onIpClick={handleIpClick}
+            onEnrichIp={handleEnrichIp}
+            onDeleteAsn={handleDeleteAsn}
+            enrichingIps={enrichingIps}
+            asnVersion={asnVersion}
             onScrollStateChange={handleScrollStateChange}
           />
 

@@ -12,6 +12,7 @@ type API struct {
 	mux            *http.ServeMux
 	geodataManager *geodat.GeodataManager
 	deviceAliases  *config.DeviceAliases
+	asnStore       *config.AsnStore
 
 	// overrideServiceManager is used in tests to stub detectServiceManager
 	overrideServiceManager func() string

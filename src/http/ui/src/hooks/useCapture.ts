@@ -104,7 +104,7 @@ export function useCaptures() {
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = blobUrl;
-    link.download = `tls_${capture.domain.replaceAll(".", "_")}.bin`;
+    link.download = `${capture.protocol}_${capture.domain.replaceAll(".", "_")}.bin`;
     document.body.appendChild(link);
     link.click();
     link.remove();

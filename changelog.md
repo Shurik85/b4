@@ -1,5 +1,24 @@
 # B4 - Bye Bye Big Bro
 
+## [1.45.0] - 2026-03-xx
+
+- ADDED: **Traffic routing** — you can now route traffic for matched domains through a specific network interface. When a set matches a domain, B4 resolves its IPs and directs that traffic through the chosen output interface. Configure it in the `Routing` tab when editing a set.
+- ADDED: **Position randomization** — SNI split position, OOB position, and TLS record position now support ranges. Each connection picks a random value within the range, making traffic harder for DPI to fingerprint.
+- ADDED: **Strategy randomization pool** — you can now select multiple splitting strategies and B4 will randomly pick one per connection. Constantly changing how packets are split confuses stateful DPI.
+- ADDED: **Combo/Disorder timing ranges** — First Segment Delay, Jitter Max, and Fakes Per Segment now support ranges. Each connection gets different timing and fake packet counts, preventing DPI from building a consistent traffic fingerprint.
+- IMPROVED: **Fake packets now match real connection fingerprint** — fake desync packets (RST, FIN, ACK) now preserve the original TCP options (timestamps, window scale, SACK) instead of stripping them. This prevents DPI from detecting fakes by comparing TCP header fingerprints.
+- IMPROVED: **Dynamic fake TTL** — fake packet TTL is now clamped to never exceed the real packet's TTL, preventing impossible TTL values that DPI systems use to identify forged packets.
+- IMPROVED: **Dual fake-packet evasion** — fake packets now use both corrupted checksums and dynamic TTL together, making them harder for DPI to accept while ensuring the real server drops them.
+- IMPROVED: **TLS info shown on all packets** — domain name and TLS version now appear in logs for every packet in a connection, not just the first one.
+- IMPROVED: **Managing large domain/IP lists** — added a bulk text editor for domains and IPs, and long lists now collapse with a "+N more" button.
+- FIXED: **Payload handling** — fixed incorrect filenames on upload/download and unnecessary loading errors when sets are disabled.
+- FIXED: **Syslog crashes B4 in Docker** — enabling syslog in a `Docker` container caused B4 to crash-loop because the syslog socket doesn't exist. Now B4 logs a warning and continues without syslog.
+- FIXED: **Time zone not applying on routers** — setting a time zone in `Settings` had no effect on some routers (e.g. `Keenetic`) because the device lacked timezone data.
+- FIXED: **Log level resets to Info on restart** — changing the log verbosity in `Settings` did not persist across service restarts.
+- FIXED: **Invalid TLS certificate crashes B4** — setting a wrong certificate or key path in `Settings` caused B4 to crash on next restart. Now it logs a warning and falls back to `HTTP`.
+- IMPROVED: **ASN data now persists on the router** — enriched ASN information is stored server-side, so it stays consistent across all browsers and devices.
+- ADDED: **Inline ASN enrichment** — you can now enrich destination IPs with ASN data directly from the connections table without opening the Add IP dialog.
+
 ## [1.44.1] - 2026-03-15
 
 - ADDED: **Time zone setting** — log timestamps now use your system's local time by default instead of UTC. You can also pick a specific time zone in Settings > Logging.

@@ -50,7 +50,18 @@ func BuildFakeSNIPacketV4(original []byte, cfg *config.SetConfig) []byte {
 
 	switch cfg.Faking.Strategy {
 	case "ttl":
-		fake[8] = cfg.Faking.TTL
+		ttl := cfg.Faking.TTL
+		if ttl == 0 {
+			ttl = 5
+		}
+		// Clamp: fake TTL must not exceed original TTL
+		if origTTL := original[8]; ttl >= origTTL && origTTL > 1 {
+			ttl = origTTL - 1
+		}
+		if ttl < 1 {
+			ttl = 1
+		}
+		fake[8] = ttl
 	case "pastseq":
 		off := uint32(cfg.Faking.SeqOffset)
 		if off == 0 {

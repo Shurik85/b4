@@ -91,11 +91,15 @@ var DefaultSetConfig = SetConfig{
 	Fragmentation: FragmentationConfig{
 		Strategy:          "tcp", // "tcp", "ip", "tls", "oob", "none", "combo", "hybrid", "disorder",  "extsplit", "firstbyte"
 		ReverseOrder:      true,
+		StrategyPool:      []string{},
 		MiddleSNI:         true,
 		SNIPosition:       1,
+		SNIPositionMax:    0,
 		OOBPosition:       0,
+		OOBPositionMax:    0,
 		OOBChar:           'x',
 		TLSRecordPosition: 0,
+		TLSRecordPositionMax: 0,
 
 		SeqOverlapBytes:   []byte{},
 		SeqOverlapPattern: []string{},
@@ -240,6 +244,7 @@ func NewSetConfig() SetConfig {
 	cfg.Targets.GeoIpCategories = append(make([]string, 0), DefaultSetConfig.Targets.GeoIpCategories...)
 	cfg.Targets.SourceDevices = append(make([]string, 0), DefaultSetConfig.Targets.SourceDevices...)
 	cfg.Fragmentation.SeqOverlapPattern = append(make([]string, 0), DefaultSetConfig.Fragmentation.SeqOverlapPattern...)
+	cfg.Fragmentation.StrategyPool = append(make([]string, 0), DefaultSetConfig.Fragmentation.StrategyPool...)
 	cfg.Faking.TLSMod = append(make([]string, 0), DefaultSetConfig.Faking.TLSMod...)
 	cfg.Routing.SourceInterfaces = append(make([]string, 0), DefaultSetConfig.Routing.SourceInterfaces...)
 

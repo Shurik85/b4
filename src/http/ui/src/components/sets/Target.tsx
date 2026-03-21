@@ -28,6 +28,7 @@ import {
   IpIcon,
   DeviceIcon,
   RefreshIcon,
+  EditIcon,
 } from "@b4.icons";
 
 import {
@@ -124,6 +125,26 @@ export const TargetSettings = ({
     data?: CategoryPreview;
     loading: boolean;
   }>({ open: false, category: "", loading: false });
+
+  const [bulkEditDialog, setBulkEditDialog] = useState<{
+    open: boolean;
+    field: string;
+    text: string;
+  }>({ open: false, field: "", text: "" });
+
+  const openBulkEdit = (field: string, items: string[]) => {
+    setBulkEditDialog({ open: true, field, text: items.join("\n") });
+  };
+
+  const saveBulkEdit = () => {
+    const lines = bulkEditDialog.text
+      .split(/[\n\r]+/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const unique = [...new Set(lines)];
+    onChange(bulkEditDialog.field, unique);
+    setBulkEditDialog({ open: false, field: "", text: "" });
+  };
 
   useEffect(() => {
     if (geo.sitedat_path) {
@@ -274,7 +295,9 @@ export const TargetSettings = ({
 
   const handleRemove = (field: keyof TargetsConfig, value: string) => {
     const items = config.targets[field] ?? [];
-    onChange(`targets.${String(field)}`, items.filter((item) => item !== value));
+    if (Array.isArray(items)) {
+      onChange(`targets.${String(field)}`, items.filter((item) => item !== value));
+    }
   };
 
   const handleAddBypassGeoIPCategory = (category: string) => {
@@ -467,13 +490,22 @@ export const TargetSettings = ({
                         <Typography variant="subtitle2">
                           {t("sets.targets.activeDomains")}
                         </Typography>
-                        <Button
-                          size="small"
-                          onClick={() => handleClearAll("targets.sni_domains")}
-                          startIcon={<ClearIcon />}
-                        >
-                          {t("core.clearAll")}
-                        </Button>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Button
+                            size="small"
+                            onClick={() => openBulkEdit("targets.sni_domains", config.targets.sni_domains)}
+                            startIcon={<EditIcon />}
+                          >
+                            {t("sets.targets.bulkEdit")}
+                          </Button>
+                          <Button
+                            size="small"
+                            onClick={() => handleClearAll("targets.sni_domains")}
+                            startIcon={<ClearIcon />}
+                          >
+                            {t("core.clearAll")}
+                          </Button>
+                        </Box>
                       </Box>
                     )}
                     <B4ChipList
@@ -483,6 +515,7 @@ export const TargetSettings = ({
                       onDelete={(d) => handleRemove("sni_domains", d)}
                       emptyMessage={t("sets.targets.noDomainsAdded")}
                       showEmpty
+                      collapsedMax={20}
                     />
                   </Box>
                 </Box>
@@ -629,13 +662,22 @@ export const TargetSettings = ({
                         <Typography variant="subtitle2">
                           {t("sets.targets.activeIps")}
                         </Typography>
-                        <Button
-                          size="small"
-                          onClick={() => handleClearAll("targets.ip")}
-                          startIcon={<ClearIcon />}
-                        >
-                          {t("core.clearAll")}
-                        </Button>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Button
+                            size="small"
+                            onClick={() => openBulkEdit("targets.ip", config.targets.ip)}
+                            startIcon={<EditIcon />}
+                          >
+                            {t("sets.targets.bulkEdit")}
+                          </Button>
+                          <Button
+                            size="small"
+                            onClick={() => handleClearAll("targets.ip")}
+                            startIcon={<ClearIcon />}
+                          >
+                            {t("core.clearAll")}
+                          </Button>
+                        </Box>
                       </Box>
                     )}
                     <B4ChipList
@@ -645,7 +687,7 @@ export const TargetSettings = ({
                       onDelete={(ip) => handleRemove("ip", ip)}
                       emptyMessage={t("sets.targets.noIpsAdded")}
                       showEmpty
-                      maxHeight={200}
+                      collapsedMax={20}
                     />
                   </Box>
                 </Box>
@@ -906,6 +948,40 @@ export const TargetSettings = ({
           </TabPanel>
         </B4Section>
       </Stack>
+
+      {/* Bulk Edit Dialog */}
+      <B4Dialog
+        title={t("sets.targets.bulkEdit")}
+        subtitle={t("sets.targets.bulkEditSubtitle")}
+        icon={<EditIcon />}
+        open={bulkEditDialog.open}
+        onClose={() => setBulkEditDialog({ open: false, field: "", text: "" })}
+        maxWidth="sm"
+        fullWidth
+        actions={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button onClick={() => setBulkEditDialog({ open: false, field: "", text: "" })}>
+              {t("core.cancel")}
+            </Button>
+            <Button variant="contained" onClick={saveBulkEdit}>
+              {t("core.save")}
+            </Button>
+          </Box>
+        }
+      >
+        <B4TextField
+          multiline
+          minRows={10}
+          maxRows={25}
+          value={bulkEditDialog.text}
+          onChange={(e) => setBulkEditDialog((prev) => ({ ...prev, text: e.target.value }))}
+          placeholder={t("sets.targets.bulkEditPlaceholder")}
+          helperText={t("sets.targets.bulkEditHelper", {
+            count: bulkEditDialog.text.split(/[\n\r]+/).filter((l) => l.trim()).length,
+          })}
+          fullWidth
+        />
+      </B4Dialog>
 
       {/* Preview Dialog */}
       <B4Dialog

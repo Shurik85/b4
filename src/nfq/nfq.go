@@ -189,7 +189,9 @@ func (w *Worker) dropAndInjectTCP(cfg *config.SetConfig, raw []byte, dst net.IP)
 		w.sendFakeSNISequence(cfg, raw, dst)
 	}
 
-	switch cfg.Fragmentation.Strategy {
+	strategy := config.ResolveStrategyPool(cfg.Fragmentation.StrategyPool, cfg.Fragmentation.Strategy)
+
+	switch strategy {
 	case "tcp":
 		w.sendTCPFragments(cfg, raw, dst)
 	case "ip":
@@ -234,7 +236,7 @@ func (w *Worker) sendTCPFragments(cfg *config.SetConfig, packet []byte, dst net.
 	}
 
 	payload := packet[payloadStart:]
-	p1 := cfg.Fragmentation.SNIPosition
+	p1 := config.ResolveRange(cfg.Fragmentation.SNIPosition, cfg.Fragmentation.SNIPositionMax)
 	validP1 := p1 > 0 && p1 < payloadLen
 
 	p2 := -1
@@ -365,7 +367,7 @@ func (w *Worker) sendIPFragments(cfg *config.SetConfig, packet []byte, dst net.I
 
 	payload := packet[payloadStart:]
 
-	splitPos := cfg.Fragmentation.SNIPosition
+	splitPos := config.ResolveRange(cfg.Fragmentation.SNIPosition, cfg.Fragmentation.SNIPositionMax)
 
 	if cfg.Fragmentation.MiddleSNI {
 		if s, e, ok := locateSNI(payload); ok && e-s >= 4 {

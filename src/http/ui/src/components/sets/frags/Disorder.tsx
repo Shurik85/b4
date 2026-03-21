@@ -3,6 +3,7 @@ import { B4SetConfig, DisorderShuffleMode } from "@models/config";
 import {
   B4Alert,
   B4Slider,
+  B4RangeSlider,
   B4Switch,
   B4Select,
   B4FormHeader,
@@ -283,12 +284,16 @@ export const DisorderSettings = ({
 
       {disorder.fake_per_segment && (
         <Grid size={{ xs: 12, md: 6 }}>
-          <B4Slider
+          <B4RangeSlider
             label={t("sets.tcp.splitting.disorder.fakesPerSeg")}
-            value={disorder.fake_per_seg_count || 1}
-            onChange={(value: number) =>
-              onChange("fragmentation.disorder.fake_per_seg_count", value)
-            }
+            value={[
+              disorder.fake_per_seg_count || 1,
+              disorder.fake_per_seg_count_max || disorder.fake_per_seg_count || 1,
+            ]}
+            onChange={(value: [number, number]) => {
+              onChange("fragmentation.disorder.fake_per_seg_count", value[0]);
+              onChange("fragmentation.disorder.fake_per_seg_count_max", value[1]);
+            }}
             min={1}
             max={11}
             step={1}

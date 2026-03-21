@@ -27,7 +27,7 @@ func (w *Worker) sendOOBFragments(cfg *config.SetConfig, packet []byte, dst net.
 	}
 
 	// Determine split position
-	oobPos := cfg.Fragmentation.OOBPosition
+	oobPos := config.ResolveRange(cfg.Fragmentation.OOBPosition, cfg.Fragmentation.OOBPositionMax)
 	if oobPos <= 0 {
 		oobPos = 1
 	}
@@ -171,7 +171,7 @@ func (w *Worker) sendOOBFragmentsV6(cfg *config.SetConfig, packet []byte, dst ne
 		return
 	}
 
-	oobPos := cfg.Fragmentation.OOBPosition
+	oobPos := config.ResolveRange(cfg.Fragmentation.OOBPosition, cfg.Fragmentation.OOBPositionMax)
 	if oobPos <= 0 {
 		oobPos = 1
 	}

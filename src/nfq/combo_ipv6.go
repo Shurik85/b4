@@ -59,17 +59,17 @@ func (w *Worker) sendComboFragmentsV6(cfg *config.SetConfig, packet []byte, dst 
 	ShuffleSegments(segments, combo.ShuffleMode, r)
 	SetMaxSeqPSH(segments, pi.IPHdrLen, sock.FixTCPChecksumV6)
 
-	firstDelayMs := combo.FirstDelayMs
+	firstDelayMs := config.ResolveRange(combo.FirstDelayMs, combo.FirstDelayMsMax)
 	if firstDelayMs <= 0 {
 		firstDelayMs = 100
 	}
-	jitterMaxUs := combo.JitterMaxUs
+	jitterMaxUs := config.ResolveRange(combo.JitterMaxUs, combo.JitterMaxUsMax)
 	if jitterMaxUs <= 0 {
 		jitterMaxUs = 2000
 	}
 
 	fakePerSeg := combo.FakePerSegment
-	fakePerSegCount := combo.FakePerSegCount
+	fakePerSegCount := config.ResolveRange(combo.FakePerSegCount, combo.FakePerSegCountMax)
 	if fakePerSegCount <= 0 {
 		fakePerSegCount = 1
 	} else if fakePerSegCount > 11 {
@@ -83,7 +83,7 @@ func (w *Worker) sendComboFragmentsV6(cfg *config.SetConfig, packet []byte, dst 
 			if seqovlLen <= payloadLen {
 				seqOffset := seg.Seq - pi.Seq0
 				for f := 0; f < fakePerSegCount; f++ {
-					fakeSeg := BuildFakeOverlapSegmentV6(packet, pi, payloadLen, seqOffset, seqovlPattern, cfg.Faking.TTL, true)
+					fakeSeg := BuildFakeOverlapSegmentV6(packet, pi, payloadLen, seqOffset, seqovlPattern, cfg.Faking.TTL)
 					if fakeSeg != nil {
 						_ = w.sock.SendIPv6(fakeSeg, dst)
 						time.Sleep(50 * time.Microsecond)
@@ -124,12 +124,8 @@ func (w *Worker) sendDecoyPacketV6(cfg *config.SetConfig, packet []byte, pi Pack
 	// Update IPv6 payload length
 	binary.BigEndian.PutUint16(fakePacket[4:6], uint16(len(fakePacket)-40))
 
-	// Set low hop limit so it won't reach server
-	hopLimit := cfg.Faking.TTL
-	if hopLimit == 0 {
-		hopLimit = 3
-	}
-	fakePacket[7] = hopLimit
+	// Set dynamic hop limit so it looks plausible to DPI but won't reach server
+	fakePacket[7] = dynamicTTL(packet, true, cfg.Faking.TTL)
 
 	sock.FixTCPChecksumV6(fakePacket)
 

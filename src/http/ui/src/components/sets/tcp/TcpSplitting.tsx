@@ -1,12 +1,16 @@
-import { Grid, Typography, Box } from "@mui/material";
+import { Grid, Typography, Box, Chip } from "@mui/material";
 import {
   B4Switch,
   B4Select,
-  B4Slider,
+  B4RangeSlider,
   B4Alert,
   B4FormHeader,
 } from "@b4.elements";
-import { B4SetConfig, FragmentationStrategy } from "@models/config";
+import {
+  B4SetConfig,
+  FragmentationStrategy,
+} from "@models/config";
+import { colors } from "@design";
 import { ComboSettings } from "../frags/Combo";
 import { DisorderSettings } from "../frags/Disorder";
 import { ExtSplitSettings } from "../frags/ExtSplit";
@@ -30,6 +34,20 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
   const isTls = strategy === "tls";
   const isActive = strategy !== "none";
 
+  const pool = (config.fragmentation.strategy_pool ?? []) as FragmentationStrategy[];
+  const hasPool = pool.length > 0;
+
+  const togglePoolStrategy = (value: FragmentationStrategy) => {
+    const current: FragmentationStrategy[] = [...pool];
+    const idx = current.indexOf(value);
+    if (idx >= 0) {
+      current.splice(idx, 1);
+    } else {
+      current.push(value);
+    }
+    onChange("fragmentation.strategy_pool", current);
+  };
+
   const fragmentationOptions: {
     label: string;
     value: FragmentationStrategy;
@@ -45,6 +63,8 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
     { label: t("sets.tcp.splitting.strategyOob"), value: "oob" },
     { label: t("sets.tcp.splitting.strategyNone"), value: "none" },
   ];
+
+  const poolOptions = fragmentationOptions.filter((o) => o.value !== "none");
 
   return (
     <>
@@ -73,6 +93,43 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
           />
         </Grid>
 
+        <Grid size={{ xs: 12 }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+            {t("sets.tcp.splitting.strategyPool")}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
+            {t("sets.tcp.splitting.strategyPoolDesc")}
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            {poolOptions.map((opt) => {
+              const active: boolean = pool.includes(opt.value);
+              return (
+                <Chip
+                  key={opt.value}
+                  label={opt.label}
+                  size="small"
+                  onClick={() => togglePoolStrategy(opt.value)}
+                  sx={{
+                    bgcolor: active ? colors.accent.primary : colors.background.dark,
+                    color: active ? colors.secondary : colors.text.secondary,
+                    fontWeight: active ? 600 : 400,
+                    cursor: "pointer",
+                    border: active ? `1px solid ${colors.secondary}` : `1px solid ${colors.border.default}`,
+                    "&:hover": {
+                      bgcolor: active ? colors.accent.primary : colors.background.paper,
+                    },
+                  }}
+                />
+              );
+            })}
+          </Box>
+          {hasPool && (
+            <B4Alert severity="info" sx={{ mt: 1 }}>
+              {t("sets.tcp.splitting.strategyPoolActive", { count: pool.length })}
+            </B4Alert>
+          )}
+        </Grid>
+
         {isTcpOrIp && <TcpIpSettings config={config} onChange={onChange} />}
 
         {strategy === "combo" && (
@@ -93,12 +150,16 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
             <B4Alert>{t("sets.tcp.splitting.oobAlert")}</B4Alert>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <B4Slider
+              <B4RangeSlider
                 label={t("sets.tcp.splitting.oobPosition")}
-                value={config.fragmentation.oob_position || 1}
-                onChange={(value: number) =>
-                  onChange("fragmentation.oob_position", value)
-                }
+                value={[
+                  config.fragmentation.oob_position || 1,
+                  config.fragmentation.oob_position_max || config.fragmentation.oob_position || 1,
+                ]}
+                onChange={(value: [number, number]) => {
+                  onChange("fragmentation.oob_position", value[0]);
+                  onChange("fragmentation.oob_position_max", value[1]);
+                }}
                 min={1}
                 max={50}
                 step={1}
@@ -132,12 +193,16 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
             <B4Alert>{t("sets.tcp.splitting.tlsRecAlert")}</B4Alert>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <B4Slider
+              <B4RangeSlider
                 label={t("sets.tcp.splitting.tlsRecPosition")}
-                value={config.fragmentation.tlsrec_pos || 1}
-                onChange={(value: number) =>
-                  onChange("fragmentation.tlsrec_pos", value)
-                }
+                value={[
+                  config.fragmentation.tlsrec_pos || 1,
+                  config.fragmentation.tlsrec_pos_max || config.fragmentation.tlsrec_pos || 1,
+                ]}
+                onChange={(value: [number, number]) => {
+                  onChange("fragmentation.tlsrec_pos", value[0]);
+                  onChange("fragmentation.tlsrec_pos_max", value[1]);
+                }}
                 min={1}
                 max={100}
                 step={1}

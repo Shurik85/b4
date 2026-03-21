@@ -59,13 +59,17 @@ export type FragmentationStrategy =
   | "none";
 export interface FragmentationConfig {
   strategy: FragmentationStrategy;
+  strategy_pool: FragmentationStrategy[];
   sni_position: number;
+  sni_position_max: number;
   reverse_order: boolean;
   middle_sni: boolean;
   oob_position: number;
+  oob_position_max: number;
   oob_char: number;
 
   tlsrec_pos: number;
+  tlsrec_pos_max: number;
 
   seq_overlap_pattern: string[];
 
@@ -279,10 +283,13 @@ export interface ComboFragConfig {
   extension_split: boolean;
   shuffle_mode: ComboShuffleMode;
   first_delay_ms: number;
+  first_delay_ms_max: number;
   jitter_max_us: number;
+  jitter_max_us_max: number;
   decoy_enabled: boolean;
   fake_per_segment: boolean;
   fake_per_seg_count: number;
+  fake_per_seg_count_max: number;
 }
 
 export type DisorderShuffleMode = "full" | "reverse";
@@ -292,6 +299,7 @@ export interface DisorderFragConfig {
   max_jitter_us: number;
   fake_per_segment: boolean;
   fake_per_seg_count: number;
+  fake_per_seg_count_max: number;
 }
 
 export interface DNSConfig {

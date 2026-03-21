@@ -20,7 +20,7 @@ func (w *Worker) sendTLSFragments(cfg *config.SetConfig, packet []byte, dst net.
 		return
 	}
 
-	splitPos := cfg.Fragmentation.TLSRecordPosition
+	splitPos := config.ResolveRange(cfg.Fragmentation.TLSRecordPosition, cfg.Fragmentation.TLSRecordPositionMax)
 	if splitPos <= 0 {
 		splitPos = 1
 	}
@@ -72,7 +72,7 @@ func (w *Worker) sendTLSFragmentsV6(cfg *config.SetConfig, packet []byte, dst ne
 		return
 	}
 
-	splitPos := cfg.Fragmentation.TLSRecordPosition
+	splitPos := config.ResolveRange(cfg.Fragmentation.TLSRecordPosition, cfg.Fragmentation.TLSRecordPositionMax)
 	if splitPos <= 0 {
 		splitPos = 1
 	}

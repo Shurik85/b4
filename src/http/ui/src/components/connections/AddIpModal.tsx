@@ -168,7 +168,7 @@ export const AddIpModal = ({
         setPrefixes(loadedPrefixes);
         setAddMode("all");
         onSelectVariant(loadedPrefixes);
-        asnStorage.addAsn(asn, ipInfo?.org || `AS${asn}`, loadedPrefixes);
+        void asnStorage.addAsn(asn, ipInfo?.org || `AS${asn}`, loadedPrefixes);
         clearAsnLookupCache();
       }
     } catch (error) {

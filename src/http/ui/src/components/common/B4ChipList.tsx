@@ -1,4 +1,5 @@
 // src/http/ui/src/components/common/B4ChipList.tsx
+import { useState } from "react";
 import { Box, Chip, Grid, Typography } from "@mui/material";
 import { colors } from "@design";
 
@@ -13,6 +14,7 @@ interface B4ChipListProps<T> {
   gridSize?: { xs?: number; sm?: number; md?: number; lg?: number };
   showEmpty?: boolean;
   maxHeight?: number;
+  collapsedMax?: number;
 }
 
 export function B4ChipList<T>({
@@ -26,8 +28,15 @@ export function B4ChipList<T>({
   gridSize,
   maxHeight,
   showEmpty = false,
+  collapsedMax,
 }: Readonly<B4ChipListProps<T>>) {
+  const [expanded, setExpanded] = useState(false);
+
   if (items.length === 0 && !showEmpty) return null;
+
+  const canCollapse = collapsedMax != null && items.length > collapsedMax;
+  const visibleItems = canCollapse && !expanded ? items.slice(0, collapsedMax) : items;
+  const hiddenCount = items.length - (collapsedMax ?? 0);
 
   const content = (
     <>
@@ -55,21 +64,49 @@ export function B4ChipList<T>({
             {emptyMessage}
           </Typography>
         ) : (
-          items.map((item) => (
-            <Chip
-              key={getKey(item)}
-              label={getLabel(item)}
-              onDelete={onDelete ? () => onDelete(item) : undefined}
-              onClick={onClick ? () => onClick(item) : undefined}
-              size="small"
-              sx={{
-                bgcolor: colors.accent.primary,
-                color: colors.secondary,
-                cursor: onClick ? "pointer" : undefined,
-                "& .MuiChip-deleteIcon": { color: colors.secondary },
-              }}
-            />
-          ))
+          <>
+            {visibleItems.map((item) => (
+              <Chip
+                key={getKey(item)}
+                label={getLabel(item)}
+                onDelete={onDelete ? () => onDelete(item) : undefined}
+                onClick={onClick ? () => onClick(item) : undefined}
+                size="small"
+                sx={{
+                  bgcolor: colors.accent.primary,
+                  color: colors.secondary,
+                  cursor: onClick ? "pointer" : undefined,
+                  "& .MuiChip-deleteIcon": { color: colors.secondary },
+                }}
+              />
+            ))}
+            {canCollapse && !expanded && (
+              <Chip
+                label={`+${hiddenCount} more`}
+                size="small"
+                onClick={() => setExpanded(true)}
+                sx={{
+                  bgcolor: colors.background.dark,
+                  color: colors.text.secondary,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              />
+            )}
+            {canCollapse && expanded && (
+              <Chip
+                label="Show less"
+                size="small"
+                onClick={() => setExpanded(false)}
+                sx={{
+                  bgcolor: colors.background.dark,
+                  color: colors.text.secondary,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              />
+            )}
+          </>
         )}
       </Box>
     </>

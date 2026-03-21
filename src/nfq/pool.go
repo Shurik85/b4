@@ -68,6 +68,7 @@ func NewPool(cfg *config.Config) *Pool {
 			select {
 			case <-ticker.C:
 				connState.Cleanup()
+				tlsCache.Cleanup()
 			case <-pool.stopCleanup:
 				return
 			}

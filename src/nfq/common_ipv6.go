@@ -109,7 +109,7 @@ func (w *Worker) SendTwoSegmentsV6(seg1, seg2 []byte, dst net.IP, delay int, rev
 	}
 }
 
-func BuildFakeOverlapSegmentV6(packet []byte, pi PacketInfo, payloadLen int, seqOffset uint32, fakePattern []byte, fakeHopLimit uint8, corruptChecksum bool) []byte {
+func BuildFakeOverlapSegmentV6(packet []byte, pi PacketInfo, payloadLen int, seqOffset uint32, fakePattern []byte, fakeHopLimit uint8) []byte {
 	if payloadLen <= 0 {
 		return nil
 	}
@@ -132,19 +132,12 @@ func BuildFakeOverlapSegmentV6(packet []byte, pi PacketInfo, payloadLen int, seq
 	binary.BigEndian.PutUint32(seg[pi.IPHdrLen+4:pi.IPHdrLen+8], pi.Seq0+seqOffset)
 	binary.BigEndian.PutUint16(seg[4:6], uint16(segLen-40))
 
-	if fakeHopLimit == 0 {
-		fakeHopLimit = 3
-	}
-	seg[7] = fakeHopLimit
+	seg[7] = dynamicTTL(packet, true, fakeHopLimit)
 
 	seg[pi.IPHdrLen+13] &^= 0x08
 
 	sock.FixTCPChecksumV6(seg)
-
-	if corruptChecksum {
-		seg[pi.IPHdrLen+16] ^= 0xFF
-		seg[pi.IPHdrLen+17] ^= 0xFF
-	}
+	corruptTCPChecksum(seg, pi.IPHdrLen)
 
 	return seg
 }

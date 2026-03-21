@@ -1,5 +1,5 @@
 import { Grid, Box, Typography } from "@mui/material";
-import { B4Slider, B4Switch, B4Select } from "@b4.fields";
+import { B4RangeSlider, B4Switch, B4Select } from "@b4.fields";
 import { B4SetConfig, ComboShuffleMode } from "@models/config";
 import { colors } from "@design";
 import { B4Alert, B4FormHeader } from "@b4.elements";
@@ -311,29 +311,39 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
       <B4FormHeader label={t("sets.tcp.splitting.combo.timingHeader")} />
 
       <Grid size={{ xs: 12, md: 6 }}>
-        <B4Slider
+        <B4RangeSlider
           label={t("sets.tcp.splitting.combo.firstDelay")}
-          value={combo.first_delay_ms}
-          onChange={(value: number) =>
-            onChange("fragmentation.combo.first_delay_ms", value)
-          }
+          value={[
+            combo.first_delay_ms,
+            combo.first_delay_ms_max || combo.first_delay_ms,
+          ]}
+          onChange={(value: [number, number]) => {
+            onChange("fragmentation.combo.first_delay_ms", value[0]);
+            onChange("fragmentation.combo.first_delay_ms_max", value[1]);
+          }}
           min={10}
           max={500}
           step={10}
+          valueSuffix=" ms"
           helperText={t("sets.tcp.splitting.combo.firstDelayHelper")}
         />
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
-        <B4Slider
+        <B4RangeSlider
           label={t("sets.tcp.splitting.combo.jitterMax")}
-          value={combo.jitter_max_us}
-          onChange={(value: number) =>
-            onChange("fragmentation.combo.jitter_max_us", value)
-          }
+          value={[
+            combo.jitter_max_us,
+            combo.jitter_max_us_max || combo.jitter_max_us,
+          ]}
+          onChange={(value: [number, number]) => {
+            onChange("fragmentation.combo.jitter_max_us", value[0]);
+            onChange("fragmentation.combo.jitter_max_us_max", value[1]);
+          }}
           min={100}
           max={10000}
           step={100}
+          valueSuffix=" μs"
           helperText={t("sets.tcp.splitting.combo.jitterMaxHelper")}
         />
       </Grid>
@@ -359,12 +369,16 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
 
       {combo.fake_per_segment && (
         <Grid size={{ xs: 12, md: 6 }}>
-          <B4Slider
+          <B4RangeSlider
             label={t("sets.tcp.splitting.combo.fakesPerSeg")}
-            value={combo.fake_per_seg_count || 1}
-            onChange={(value: number) =>
-              onChange("fragmentation.combo.fake_per_seg_count", value)
-            }
+            value={[
+              combo.fake_per_seg_count || 1,
+              combo.fake_per_seg_count_max || combo.fake_per_seg_count || 1,
+            ]}
+            onChange={(value: [number, number]) => {
+              onChange("fragmentation.combo.fake_per_seg_count", value[0]);
+              onChange("fragmentation.combo.fake_per_seg_count_max", value[1]);
+            }}
             min={1}
             max={11}
             step={1}

@@ -1,45 +1,91 @@
 import * as ipaddr from "ipaddr.js";
 
-interface AsnInfo {
+export interface AsnInfo {
   id: string;
   name: string;
   prefixes: string[];
 }
 
-const ASN_STORAGE_KEY = "b4_asn_cache";
-
 class AsnStorage {
-  private cache: Record<string, AsnInfo> | null = null;
+  private cache: Record<string, AsnInfo> = {};
   private readonly lookupCache = new Map<string, AsnInfo | null>();
-  private cacheTimeout: ReturnType<typeof setTimeout> | null = null;
   private readonly MAX_CACHE_SIZE = 10000;
+  private loaded = false;
+  private loadPromise: Promise<void> | null = null;
 
-  private loadCache(): Record<string, AsnInfo> {
-    if (this.cache === null) {
-      const data = localStorage.getItem(ASN_STORAGE_KEY);
-      this.cache = data ? (JSON.parse(data) as Record<string, AsnInfo>) : {};
+  async init(): Promise<void> {
+    if (this.loaded) return;
+    if (this.loadPromise) return this.loadPromise;
+    this.loadPromise = this.fetchAll();
+    await this.loadPromise;
+  }
+
+  private async fetchAll(): Promise<void> {
+    try {
+      const oldData = localStorage.getItem("b4_asn_cache");
+      if (oldData) {
+        await this.migrateFromLocalStorage(oldData);
+      }
+
+      const response = await fetch("/api/asn");
+      if (response.ok) {
+        const data = (await response.json()) as Record<string, AsnInfo> | null;
+        this.cache = data ?? {};
+      }
+    } catch {
+      // keep whatever is in cache
     }
-    return this.cache;
-  }
-
-  private resetCacheTimeout() {
-    if (this.cacheTimeout) clearTimeout(this.cacheTimeout);
-    this.cacheTimeout = setTimeout(() => {
-      this.cache = null;
-      this.lookupCache.clear();
-    }, 60000);
-  }
-
-  addAsn(asnId: string, name: string, prefixes: string[]) {
-    const cache = this.loadCache();
-    cache[asnId] = { id: asnId, name, prefixes };
-    localStorage.setItem(ASN_STORAGE_KEY, JSON.stringify(cache));
+    this.loaded = true;
     this.lookupCache.clear();
-    this.resetCacheTimeout();
+  }
+
+  private async migrateFromLocalStorage(data: string): Promise<void> {
+    try {
+      const parsed = JSON.parse(data) as Record<string, AsnInfo>;
+      for (const info of Object.values(parsed)) {
+        await fetch("/api/asn", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(info),
+        });
+      }
+      localStorage.removeItem("b4_asn_cache");
+    } catch {
+      // migration is best-effort
+    }
+  }
+
+  async addAsn(asnId: string, name: string, prefixes: string[]): Promise<void> {
+    const info: AsnInfo = { id: asnId, name, prefixes };
+    this.cache[asnId] = info;
+    this.lookupCache.clear();
+
+    try {
+      await fetch("/api/asn", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(info),
+      });
+    } catch {
+      // keep local cache even if server write fails
+    }
+  }
+
+  async deleteAsn(asnId: string): Promise<void> {
+    delete this.cache[asnId];
+    this.lookupCache.clear();
+
+    try {
+      await fetch(`/api/asn?id=${encodeURIComponent(asnId)}`, {
+        method: "DELETE",
+      });
+    } catch {
+      // keep local state
+    }
   }
 
   getAll(): Record<string, AsnInfo> {
-    return { ...this.loadCache() };
+    return { ...this.cache };
   }
 
   findAsnForIp(ip: string): AsnInfo | null {
@@ -47,34 +93,21 @@ class AsnStorage {
 
     const cached = this.lookupCache.get(cleanIp);
     if (cached !== undefined) {
-      // LRU refresh: move to end
       this.lookupCache.delete(cleanIp);
       this.lookupCache.set(cleanIp, cached);
-      this.resetCacheTimeout();
       return cached;
     }
 
-    const cache = this.loadCache();
+    const result = Object.values(this.cache).find((asn) =>
+      asn.prefixes.some((prefix) => this.ipInCidr(cleanIp, prefix))
+    ) ?? null;
 
-    let result: AsnInfo | null = null;
-    outer: for (const asn of Object.values(cache)) {
-      for (const prefix of asn.prefixes) {
-        if (this.ipInCidr(cleanIp, prefix)) {
-          result = asn;
-          break outer;
-        }
-      }
-    }
-
-    // Enforce max size
     if (this.lookupCache.size >= this.MAX_CACHE_SIZE) {
       const firstKey = this.lookupCache.keys().next().value;
       if (firstKey) this.lookupCache.delete(firstKey);
     }
 
     this.lookupCache.set(cleanIp, result);
-    this.resetCacheTimeout();
-
     return result;
   }
 
@@ -88,10 +121,10 @@ class AsnStorage {
     }
   }
 
-  clear() {
-    localStorage.removeItem(ASN_STORAGE_KEY);
-    this.cache = null;
-    this.lookupCache.clear();
+  async reload(): Promise<void> {
+    this.loaded = false;
+    this.loadPromise = null;
+    await this.init();
   }
 }
 

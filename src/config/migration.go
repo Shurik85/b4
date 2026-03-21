@@ -45,6 +45,17 @@ var migrationRegistry = map[int]MigrationFunc{
 	25: migrateV25to26, // Add TLS version filter to targets
 	26: migrateV26to27, // Add tables engine config
 	27: migrateV27to28, // Add per-set routing config
+	28: migrateV28to29, // Add position ranges and strategy pool
+}
+
+func migrateV28to29(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v28->v29: Adding position ranges and strategy pool")
+	for _, set := range c.Sets {
+		if set.Fragmentation.StrategyPool == nil {
+			set.Fragmentation.StrategyPool = []string{}
+		}
+	}
+	return nil
 }
 
 func migrateV27to28(c *Config, _ map[string]interface{}) error {

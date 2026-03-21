@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/daniellavrushin/b4/config"
 	b4http "github.com/daniellavrushin/b4/http"
@@ -78,7 +79,9 @@ func runB4(cmd *cobra.Command, args []string) error {
 		config.ApplyTimezone(cfg.System.Timezone)
 	}
 
-	cfg.ApplyLogLevel(verboseFlag)
+	if cmd.Flags().Changed("verbose") {
+		cfg.ApplyLogLevel(verboseFlag)
+	}
 	handler.SetRoutingSyncFunc(tables.RoutingSyncConfig)
 	nfq.RoutingHandleDNSFunc = tables.RoutingHandleDNS
 
@@ -95,12 +98,6 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Infof("Starting B4 packet processor")
-
-	if cmd.Flags().Changed("verbose") {
-		cfg.ApplyLogLevel(verboseFlag)
-		log.CurLevel.Store(int32(currentLogLevel))
-		log.Infof("Log level set to %s", verboseFlag)
-	}
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
@@ -359,10 +356,11 @@ func initLogging(cfg *config.Config) error {
 
 	if cfg.System.Logging.Syslog {
 		if err := log.EnableSyslog("b4"); err != nil {
-			log.Errorf("Failed to enable syslog: %v", err)
-			return err
+			log.Warnf("Syslog unavailable, continuing without it: %v", err)
+			cfg.System.Logging.Syslog = false
+		} else {
+			log.Infof("Syslog enabled")
 		}
-		log.Infof("Syslog enabled")
 	}
 
 	if cfg.System.Logging.ErrorFile != "" {

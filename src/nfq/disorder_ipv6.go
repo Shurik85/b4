@@ -48,7 +48,7 @@ func (w *Worker) sendDisorderFragmentsV6(cfg *config.SetConfig, packet []byte, d
 	minJitter, maxJitter := GetDisorderJitter(disorder)
 
 	fakePerSeg := disorder.FakePerSegment
-	fakePerSegCount := disorder.FakePerSegCount
+	fakePerSegCount := config.ResolveRange(disorder.FakePerSegCount, disorder.FakePerSegCountMax)
 	if fakePerSegCount <= 0 {
 		fakePerSegCount = 1
 	} else if fakePerSegCount > 11 {
@@ -63,7 +63,7 @@ func (w *Worker) sendDisorderFragmentsV6(cfg *config.SetConfig, packet []byte, d
 			if seqovlLen <= payloadLen {
 				seqOffset := seg.Seq - pi.Seq0
 				for f := 0; f < fakePerSegCount; f++ {
-					fakeSeg := BuildFakeOverlapSegmentV6(packet, pi, payloadLen, seqOffset, seqovlPattern, cfg.Faking.TTL, true)
+					fakeSeg := BuildFakeOverlapSegmentV6(packet, pi, payloadLen, seqOffset, seqovlPattern, cfg.Faking.TTL)
 					if fakeSeg != nil {
 						_ = w.sock.SendIPv6(fakeSeg, dst)
 						time.Sleep(50 * time.Microsecond)
