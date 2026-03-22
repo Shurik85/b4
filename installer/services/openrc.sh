@@ -16,15 +16,14 @@ command_args="--config ${B4_CONFIG_FILE}"
 command_background=true
 pidfile="/run/b4.pid"
 
-output_log="/var/log/b4.log"
-error_log="/var/log/b4.log"
+output_log="/dev/null"
+error_log="/dev/null"
 
 depend() {
     need net
 }
 
 start_pre() {
-    checkpath --file --owner root:root /var/log/b4.log
     # Load kernel modules
     for mod in nfnetlink nf_conntrack nf_conntrack_netlink xt_connbytes xt_NFQUEUE nfnetlink_queue xt_multiport nf_tables nft_queue nft_ct nf_nat nft_masq; do
         modprobe "\$mod" >/dev/null 2>&1 || true
@@ -56,7 +55,7 @@ service_openrc_start() {
         return 0
     fi
     log_err "Service crashed immediately after start"
-    for _logf in /var/log/b4/errors.log /var/log/b4.log; do
+    for _logf in /var/log/b4/errors.log; do
         if [ -s "$_logf" ]; then
             log_info "Last log entries from $_logf:"
             tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do

@@ -55,7 +55,7 @@ action_remove() {
 
     # Cleanup
     rm -f /var/run/b4.pid 2>/dev/null || true
-    rm -f /var/log/b4.log 2>/dev/null || true
+    rm -f /var/log/b4.log /opt/var/log/b4.log /tmp/log/b4.log 2>/dev/null || true
     rm -rf /var/log/b4 2>/dev/null || true
 
     echo ""

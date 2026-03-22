@@ -102,6 +102,9 @@ action_install() {
     # Stop running instance
     stop_b4
 
+    # Remove stale stdout log files from older service scripts
+    rm -f /var/log/b4.log /opt/var/log/b4.log /tmp/log/b4.log 2>/dev/null || true
+
     # Backup existing binary
     if [ -f "${B4_BIN_DIR}/${BINARY_NAME}" ]; then
         ts=$(date '+%Y%m%d_%H%M%S')
