@@ -436,12 +436,13 @@ func findSNIInPayload(data []byte) (start, end int, ok bool) {
 		extType := int(data[pos])<<8 | int(data[pos+1])
 		extDataLen := int(data[pos+2])<<8 | int(data[pos+3])
 		if extType == 0 && pos+4+extDataLen <= extEnd {
+			extDataEnd := pos + 4 + extDataLen
 			nameListStart := pos + 4
-			if nameListStart+5 <= extEnd {
+			if nameListStart+5 <= extDataEnd {
 				nameStart := nameListStart + 5
 				nameLen := int(data[nameListStart+3])<<8 | int(data[nameListStart+4])
 				nameEnd := nameStart + nameLen
-				if nameEnd <= extEnd {
+				if nameEnd <= extDataEnd {
 					return nameStart, nameEnd, true
 				}
 			}

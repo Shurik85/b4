@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
@@ -64,7 +65,12 @@ func (s *Server) Start() error {
 			return fmt.Errorf("MTProto generate secret: %w", err)
 		}
 		mtCfg.Secret = sec.Hex()
-		log.Infof("MTProto secret generated: %s", sec.Hex())
+		if s.cfg.ConfigPath != "" {
+			if err := s.cfg.SaveToFile(s.cfg.ConfigPath); err != nil {
+				log.Warnf("MTProto: failed to persist generated secret: %v", err)
+			}
+		}
+		log.Infof("MTProto secret generated and saved: %s", sec.Hex())
 	} else {
 		return fmt.Errorf("MTProto: either secret or fake_sni must be configured")
 	}
@@ -122,14 +128,14 @@ func (s *Server) acceptLoop() {
 		}
 
 		s.active.Add(1)
-		go func() {
+		go func(c net.Conn) {
 			defer func() {
-				conn.Close()
+				c.Close()
 				<-s.connSem
 				s.active.Add(-1)
 			}()
-			s.handleConn(conn)
-		}()
+			s.handleConn(c)
+		}(conn)
 	}
 }
 
@@ -143,10 +149,13 @@ func (s *Server) handleConn(raw net.Conn) {
 		}
 	}()
 
+	if err := raw.SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
+		return
+	}
+
 	tlsConn, err := AcceptFakeTLS(raw, s.secret)
 	if err != nil {
-		log.Infof("MTProto fake-TLS failed from %s: %v (fronting to %s)", clientAddr, err, s.secret.Host)
-		s.frontDomain(raw, s.secret.Host)
+		log.Debugf("MTProto fake-TLS failed from %s: %v", clientAddr, err)
 		return
 	}
 	log.Debugf("MTProto fake-TLS handshake OK from %s", clientAddr)
@@ -157,6 +166,7 @@ func (s *Server) handleConn(raw net.Conn) {
 		return
 	}
 	log.Debugf("MTProto client from %s wants DC %d", clientAddr, result.DC)
+	_ = raw.SetDeadline(time.Time{})
 
 	dcAddr, err := ResolveDC(result.DC, s.cfg.Queue.IPv6Enabled, s.cfg.System.MTProto.DCRelay)
 
@@ -194,16 +204,3 @@ func (s *Server) relay(client, dc io.ReadWriteCloser, label string) {
 	<-errCh
 }
 
-func (s *Server) frontDomain(conn net.Conn, host string) {
-	remote, err := net.DialTimeout("tcp", host+":443", 10*secondDuration)
-	if err != nil {
-		log.Tracef("MTProto domain fronting to %s failed: %v", host, err)
-		return
-	}
-	defer remote.Close()
-
-	errCh := make(chan error, 2)
-	go func() { _, err := io.Copy(remote, conn); errCh <- err }()
-	go func() { _, err := io.Copy(conn, remote); errCh <- err }()
-	<-errCh
-}

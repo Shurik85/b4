@@ -15,6 +15,14 @@ func (api *API) RegisterMTProtoApi() {
 	api.mux.HandleFunc("/api/mtproto/config", api.handleMTProtoConfig)
 }
 
+// @Summary Generate MTProto secret
+// @Tags MTProto
+// @Accept json
+// @Produce json
+// @Param body body object true "fake_sni field required"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /mtproto/generate-secret [post]
 func (api *API) handleMTProtoGenerateSecret(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -45,6 +53,12 @@ func (api *API) handleMTProtoGenerateSecret(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+// @Summary Get MTProto configuration
+// @Tags MTProto
+// @Produce json
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /mtproto/config [get]
 func (api *API) handleMTProtoConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -59,6 +73,14 @@ func (api *API) handleMTProtoConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary Update MTProto configuration
+// @Tags MTProto
+// @Accept json
+// @Produce json
+// @Param body body config.MTProtoConfig true "MTProto configuration"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /mtproto/config [post]
 func (api *API) updateMTProtoConfig(w http.ResponseWriter, r *http.Request) {
 	var req config.MTProtoConfig
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -78,9 +100,21 @@ func (api *API) updateMTProtoConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if req.Enabled && req.Secret == "" && req.FakeSNI == "" {
+		writeJsonError(w, http.StatusBadRequest, "Either secret or fake SNI domain is required when enabled")
+		return
+	}
+
 	if req.Secret != "" {
 		if _, err := mtproto.ParseSecret(req.Secret); err != nil {
 			writeJsonError(w, http.StatusBadRequest, "Invalid secret: "+err.Error())
+			return
+		}
+	}
+
+	if req.DCRelay != "" {
+		if _, _, err := net.SplitHostPort(req.DCRelay); err != nil {
+			writeJsonError(w, http.StatusBadRequest, "Invalid DC relay address, expected host:port")
 			return
 		}
 	}
