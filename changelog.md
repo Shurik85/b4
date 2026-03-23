@@ -1,8 +1,10 @@
 # B4 - Bye Bye Big Bro
 
-## [1.46.1] - 2026-03-23
+## [1.46.2] - 2026-03-23
 
 - FIXED: **Domain-based routing not working with local DNS** — on routers running their own DNS (e.g. `dnsmasq` on `OpenWrt`), B4 couldn't learn which IPs belong to routed domains. Now it works correctly regardless of where DNS is handled.
+- FIXED: **Routing stops working after toggling it off and on** — re-enabling routing on a set required waiting for fresh DNS traffic before it would take effect. Now B4 immediately resolves the domains and populates the routing table.
+- FIXED: **Tables monitor not detecting missing DNS routing rule** — the firewall monitor now checks that the OUTPUT chain DNS queue rule is in place, and triggers re-setup if it gets removed.
 
 ## [1.46.0] - 2026-03-22
 

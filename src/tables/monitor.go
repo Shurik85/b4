@@ -18,6 +18,10 @@ type Monitor struct {
 	backend  string
 }
 
+var (
+	dnsPortMatch = "sport 53"
+)
+
 func NewMonitor(cfg *config.Config) *Monitor {
 	interval := time.Duration(cfg.System.Tables.MonitorInterval) * time.Second
 	if interval < time.Second {
@@ -124,7 +128,7 @@ func (m *Monitor) checkIPTablesRules() bool {
 		}
 
 		out, _ := run(ipt, "-w", "-t", "mangle", "-S", "PREROUTING")
-		hasDNS := strings.Contains(out, "sport 53") && strings.Contains(out, "NFQUEUE")
+		hasDNS := strings.Contains(out, dnsPortMatch) && strings.Contains(out, "NFQUEUE")
 		hasTCP := strings.Contains(out, "tcp") && strings.Contains(out, "NFQUEUE")
 		if !hasDNS || !hasTCP {
 			log.Tracef("Monitor: PREROUTING response rules missing (dns=%v, tcp=%v)", hasDNS, hasTCP)
@@ -137,6 +141,10 @@ func (m *Monitor) checkIPTablesRules() bool {
 		}
 
 		out, _ = run(ipt, "-w", "-t", "mangle", "-S", "OUTPUT")
+		if !strings.Contains(out, dnsPortMatch) || !strings.Contains(out, "NFQUEUE") {
+			log.Tracef("Monitor: OUTPUT DNS response rule missing")
+			return false
+		}
 		if !strings.Contains(out, markHex) {
 			log.Tracef("Monitor: OUTPUT mark accept rule missing")
 			return false
@@ -209,7 +217,7 @@ func (m *Monitor) checkNFTablesRules() bool {
 		return false
 	}
 	out, _ := nft.runNft("list", "chain", "inet", nftTableName, "prerouting")
-	hasDNS := strings.Contains(out, "sport 53") && strings.Contains(out, "queue")
+	hasDNS := strings.Contains(out, dnsPortMatch) && strings.Contains(out, "queue")
 	hasTCP := strings.Contains(out, "tcp sport") && strings.Contains(out, "queue")
 	if !hasDNS || !hasTCP {
 		log.Tracef("Monitor: prerouting response rules missing (dns=%v, tcp=%v)", hasDNS, hasTCP)
@@ -222,6 +230,10 @@ func (m *Monitor) checkNFTablesRules() bool {
 	}
 
 	out, _ = nft.runNft("list", "chain", "inet", nftTableName, "output")
+	if !strings.Contains(out, dnsPortMatch) || !strings.Contains(out, "queue") {
+		log.Tracef("Monitor: output DNS response rule missing")
+		return false
+	}
 	if !strings.Contains(out, "accept") || !strings.Contains(out, nftChainName) {
 		log.Tracef("Monitor: output mark accept rule missing")
 		return false

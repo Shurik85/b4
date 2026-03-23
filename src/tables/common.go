@@ -148,7 +148,7 @@ func runLogged(op string, args ...string) {
 		if strings.Contains(msg, "File exists") || strings.Contains(msg, "already exists") {
 			return
 		}
-		if strings.Contains(msg, "No such file or directory") {
+		if strings.Contains(msg, "No such file or directory") || strings.Contains(msg, "FIB table does not exist") {
 			log.Tracef("%s: %s | cmd=%s", op, msg, strings.Join(args, " "))
 			return
 		}

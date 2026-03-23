@@ -1,12 +1,14 @@
 package tables
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	"net"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
@@ -221,6 +223,7 @@ func RoutingSyncConfig(cfg *config.Config) {
 		}
 	}
 
+	var newRoutingSets []*config.SetConfig
 	for _, set := range cfg.Sets {
 		if set == nil {
 			continue
@@ -255,6 +258,7 @@ func RoutingSyncConfig(cfg *config.Config) {
 				continue
 			}
 			routeRuleCache[set.Id] = cur
+			newRoutingSets = append(newRoutingSets, set)
 		}
 	}
 
@@ -262,6 +266,43 @@ func RoutingSyncConfig(cfg *config.Config) {
 	for _, st := range routeRuleCache {
 		if _, ok := routeIfaceAuto[st.iface]; !ok {
 			routeIfaceAuto[st.iface] = routeState{mark: st.mark, table: st.table}
+		}
+	}
+
+	if len(newRoutingSets) > 0 {
+		cfgSnapshot := *cfg
+		go routePreResolveDomains(&cfgSnapshot, newRoutingSets)
+	}
+}
+
+func routePreResolveDomains(cfg *config.Config, sets []*config.SetConfig) {
+	for _, set := range sets {
+		for _, domain := range set.Targets.SNIDomains {
+			domain = strings.TrimSpace(domain)
+			if domain == "" {
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ips, err := net.DefaultResolver.LookupIPAddr(ctx, domain)
+			cancel()
+			if err != nil {
+				log.Tracef("Routing: pre-resolve %s failed: %v", domain, err)
+				continue
+			}
+			resolved := make([]net.IP, 0, len(ips))
+			for _, ip := range ips {
+				if ip.IP.To4() != nil && !cfg.Queue.IPv4Enabled {
+					continue
+				}
+				if ip.IP.To4() == nil && !cfg.Queue.IPv6Enabled {
+					continue
+				}
+				resolved = append(resolved, ip.IP)
+			}
+			if len(resolved) > 0 {
+				RoutingHandleDNS(cfg, set, resolved)
+				log.Tracef("Routing: pre-resolved %s -> %d IPs", domain, len(resolved))
+			}
 		}
 	}
 }
