@@ -48,10 +48,31 @@ func (b *routeNftBackend) ensureIPSet(name string, v6 bool) error {
 	return nil
 }
 
-func (b *routeNftBackend) addElement(setName, ip string, ttlSec int) {
-	runLogged("routing: add element "+ip,
-		"nft", "add", "element", "inet", routeNftTable, setName,
-		"{", ip, "timeout", fmt.Sprintf("%ds", ttlSec), "}")
+func (b *routeNftBackend) addElements(setName string, ips []string, ttlSec int) {
+	if len(ips) == 0 {
+		return
+	}
+
+	const chunkSize = 128
+	ttl := fmt.Sprintf("%ds", ttlSec)
+
+	for i := 0; i < len(ips); i += chunkSize {
+		end := i + chunkSize
+		if end > len(ips) {
+			end = len(ips)
+		}
+		chunk := ips[i:end]
+
+		args := []string{"nft", "add", "element", "inet", routeNftTable, setName, "{"}
+		for idx, ip := range chunk {
+			args = append(args, ip, "timeout", ttl)
+			if idx < len(chunk)-1 {
+				args = append(args, ",")
+			}
+		}
+		args = append(args, "}")
+		runLogged(fmt.Sprintf("routing: add %d element(s) to %s", len(chunk), setName), args...)
+	}
 }
 
 func (b *routeNftBackend) ensureChain(chain string, _ bool) error {

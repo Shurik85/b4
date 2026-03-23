@@ -19,9 +19,9 @@ import (
 	b4http "github.com/daniellavrushin/b4/http"
 	"github.com/daniellavrushin/b4/http/handler"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/mtproto"
 	"github.com/daniellavrushin/b4/nfq"
 	"github.com/daniellavrushin/b4/quic"
-	"github.com/daniellavrushin/b4/mtproto"
 	"github.com/daniellavrushin/b4/socks5"
 	"github.com/daniellavrushin/b4/tables"
 	"github.com/spf13/cobra"
@@ -147,6 +147,13 @@ func runB4(cmd *cobra.Command, args []string) error {
 	} else {
 		log.Infof("Skipping tables setup (--skip-tables)")
 		metrics.TablesStatus = "skipped"
+	}
+
+	// Ensure routing runtime state is applied at startup as well.
+	if !cfg.System.Tables.SkipSetup {
+		tables.RoutingSyncConfig(&cfg)
+	} else {
+		log.Tracef("Skipping routing sync due to --skip-tables")
 	}
 
 	// Start netfilter queue pool

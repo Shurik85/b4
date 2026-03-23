@@ -34,7 +34,7 @@ type routeBackend interface {
 	available() bool
 	ensureBase() error
 	ensureIPSet(name string, v6 bool) error
-	addElement(setName, ip string, ttlSec int)
+	addElements(setName string, ips []string, ttlSec int)
 	ensureChain(chain string, isMangle bool) error
 	flushChain(chain string, isMangle bool)
 	deleteChain(chain string, isMangle bool)
@@ -141,15 +141,101 @@ func RoutingHandleDNS(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
 		ttl = 3600
 	}
 
+	routeAddIPsToSets(be, cur, ttl, ips, cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
+}
+
+func routeAddIPsToSets(be routeBackend, st routeState, ttl int, ips []net.IP, ipv4Enabled, ipv6Enabled bool) {
+	v4 := make([]string, 0, len(ips))
+	v6 := make([]string, 0, len(ips))
+	seen4 := make(map[string]struct{}, len(ips))
+	seen6 := make(map[string]struct{}, len(ips))
+
 	for _, ip := range ips {
 		if ip4 := ip.To4(); ip4 != nil {
-			be.addElement(cur.setV4, ip4.String(), ttl)
+			if !ipv4Enabled {
+				continue
+			}
+			s := ip4.String()
+			if _, ok := seen4[s]; ok {
+				continue
+			}
+			seen4[s] = struct{}{}
+			v4 = append(v4, s)
 			continue
 		}
 		if ip6 := ip.To16(); ip6 != nil {
-			be.addElement(cur.setV6, ip6.String(), ttl)
+			if !ipv6Enabled {
+				continue
+			}
+			s := ip6.String()
+			if _, ok := seen6[s]; ok {
+				continue
+			}
+			seen6[s] = struct{}{}
+			v6 = append(v6, s)
 		}
 	}
+
+	if len(v4) > 0 {
+		be.addElements(st.setV4, v4, ttl)
+	}
+	if len(v6) > 0 {
+		be.addElements(st.setV6, v6, ttl)
+	}
+}
+
+func routeCollectStaticHostIPs(set *config.SetConfig) []net.IP {
+	if set == nil || len(set.Targets.IpsToMatch) == 0 {
+		return nil
+	}
+
+	out := make([]net.IP, 0, len(set.Targets.IpsToMatch))
+	seen := make(map[string]struct{}, len(set.Targets.IpsToMatch))
+	ignoredCIDR := 0
+
+	for _, raw := range set.Targets.IpsToMatch {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+
+		var ip net.IP
+		if strings.Contains(raw, "/") {
+			parsedIP, ipNet, err := net.ParseCIDR(raw)
+			if err != nil || parsedIP == nil || ipNet == nil {
+				continue
+			}
+			ones, bits := ipNet.Mask.Size()
+			// Routing sets are host-address sets (no CIDR ranges).
+			if (bits == 32 && ones != 32) || (bits == 128 && ones != 128) {
+				ignoredCIDR++
+				continue
+			}
+			ip = parsedIP
+		} else {
+			ip = net.ParseIP(raw)
+		}
+		if ip == nil {
+			continue
+		}
+
+		key := ip.String()
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, ip)
+	}
+
+	if ignoredCIDR > 0 {
+		log.Warnf(
+			"Routing: set '%s' ignored %d non-host CIDR entries in targets.ip (only single IPs, /32 and /128, are supported for routing)",
+			set.Name,
+			ignoredCIDR,
+		)
+	}
+
+	return out
 }
 
 func RoutingClearAll() {
@@ -260,6 +346,12 @@ func RoutingSyncConfig(cfg *config.Config) {
 			routeRuleCache[set.Id] = cur
 			newRoutingSets = append(newRoutingSets, set)
 		}
+
+		ttl := set.Routing.IPTTLSeconds
+		if ttl <= 0 {
+			ttl = 3600
+		}
+		routeAddIPsToSets(be, cur, ttl, routeCollectStaticHostIPs(set), cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
 	}
 
 	routeIfaceAuto = make(map[string]routeState)

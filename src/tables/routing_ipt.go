@@ -63,9 +63,14 @@ func (b *routeIptBackend) ensureIPSet(name string, v6 bool) error {
 	return nil
 }
 
-func (b *routeIptBackend) addElement(setName, ip string, ttlSec int) {
-	runLogged("routing: ipset add "+ip,
-		"ipset", "add", setName, ip, "timeout", fmt.Sprintf("%d", ttlSec), "-exist")
+func (b *routeIptBackend) addElements(setName string, ips []string, ttlSec int) {
+	if len(ips) == 0 {
+		return
+	}
+	for _, ip := range ips {
+		runLogged("routing: ipset add "+ip,
+			"ipset", "add", setName, ip, "timeout", fmt.Sprintf("%d", ttlSec), "-exist")
+	}
 }
 
 func (b *routeIptBackend) ensureChain(chain string, isMangle bool) error {
