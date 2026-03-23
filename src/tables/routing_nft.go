@@ -168,17 +168,10 @@ func (b *routeNftBackend) deleteJumpRules(baseChain, targetChain string, _ bool)
 func (b *routeNftBackend) addMasqueradeRule(chain string, mark uint32, iface string, v6 bool) {
 	markHex := fmt.Sprintf("0x%x", mark)
 	hostCTMask := fmt.Sprintf("0x%x", hostRouteCTMark)
-	runLogged("routing: add masquerade rule (host)",
+	runLogged("routing: add masquerade rule",
 		"nft", "add", "rule", "inet", routeNftTable, chain,
 		"meta", "mark", markHex,
 		"ct", "mark", "&", hostCTMask, "==", hostCTMask,
-		"oifname", iface,
-		"masquerade",
-	)
-
-	runLogged("routing: add masquerade rule (forwarded)",
-		"nft", "add", "rule", "inet", routeNftTable, chain,
-		"meta", "mark", markHex,
 		"oifname", iface,
 		"masquerade",
 	)

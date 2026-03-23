@@ -1,6 +1,6 @@
 # B4 - Bye Bye Big Bro
 
-## [1.46.4] - 2026-03-23
+## [1.46.5] - 2026-03-23
 
 - FIXED: **Domain-based routing not working with local DNS** — on routers running their own DNS (e.g. `dnsmasq` on `OpenWrt`), B4 couldn't learn which IPs belong to routed domains. Now it works correctly regardless of where DNS is handled.
 - FIXED: **Routing stops working after toggling it off and on** — re-enabling routing on a set required waiting for fresh DNS traffic before it would take effect. Now B4 immediately resolves the domains and populates the routing table.
