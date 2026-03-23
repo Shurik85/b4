@@ -418,21 +418,64 @@ func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 b
 	if ipv4 {
 		routeDelRuleLoop(false, markStr, tableStr)
 		runLogged("routing: add ip rule v4", "ip", "rule", "add", "fwmark", markStr, "lookup", tableStr, "priority", prioStr)
-		if ifaceV4 != "" {
-			runLogged("routing: add ip route v4", "ip", "route", "replace", "default", "dev", iface, "src", ifaceV4, "table", tableStr)
-		} else {
-			runLogged("routing: add ip route v4", "ip", "route", "replace", "default", "dev", iface, "table", tableStr)
-		}
+		routeReplaceDefaultRoute(iface, ifaceV4, tableStr, false)
 	}
 	if ipv6 {
 		routeDelRuleLoop(true, markStr, tableStr)
 		runLogged("routing: add ip rule v6", "ip", "-6", "rule", "add", "fwmark", markStr, "lookup", tableStr, "priority", prioStr)
-		if ifaceV6 != "" {
-			runLogged("routing: add ip route v6", "ip", "-6", "route", "replace", "default", "dev", iface, "src", ifaceV6, "table", tableStr)
-		} else {
-			runLogged("routing: add ip route v6", "ip", "-6", "route", "replace", "default", "dev", iface, "table", tableStr)
+		routeReplaceDefaultRoute(iface, ifaceV6, tableStr, true)
+	}
+}
+
+func routeReplaceDefaultRoute(iface, src, table string, ipv6 bool) {
+	family := "v4"
+	ipCmd := []string{"ip"}
+	if ipv6 {
+		family = "v6"
+		ipCmd = append(ipCmd, "-6")
+	}
+
+	if gw := routeDefaultGatewayForIface(iface, ipv6); gw != "" {
+		args := append([]string{}, ipCmd...)
+		args = append(args, "route", "replace", "default", "via", gw, "dev", iface)
+		if src != "" {
+			args = append(args, "src", src)
+		}
+		args = append(args, "table", table)
+		runLogged("routing: add ip route "+family+" (via gw)", args...)
+		return
+	}
+
+	args := append([]string{}, ipCmd...)
+	args = append(args, "route", "replace", "default", "dev", iface)
+	if src != "" {
+		args = append(args, "src", src)
+	}
+	args = append(args, "table", table)
+	runLogged("routing: add ip route "+family+" (direct)", args...)
+}
+
+func routeDefaultGatewayForIface(iface string, ipv6 bool) string {
+	args := []string{"ip"}
+	if ipv6 {
+		args = append(args, "-6")
+	} else {
+		args = append(args, "-4")
+	}
+	args = append(args, "route", "show", "default", "dev", iface)
+	out, err := run(args...)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		for i := 0; i+1 < len(fields); i++ {
+			if fields[i] == "via" {
+				return fields[i+1]
+			}
 		}
 	}
+	return ""
 }
 
 func routeGetIfaceAddr(iface string, wantV6 bool) string {
