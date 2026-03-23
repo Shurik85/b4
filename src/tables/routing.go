@@ -434,11 +434,11 @@ func routeEnsureRule(be routeBackend, cfg *config.Config, set *config.SetConfig,
 	be.addBypassRule(st.chainOut, st.mark)
 
 	if cfg.Queue.IPv4Enabled {
-		routeAddMarkRules(be, st.chainPre, false, st.setV4, st.mark, sources, false)
+		routeAddMarkRules(be, st.chainPre, false, st.setV4, st.mark, sources, true)
 		routeAddMarkRules(be, st.chainOut, false, st.setV4, st.mark, nil, true)
 	}
 	if cfg.Queue.IPv6Enabled {
-		routeAddMarkRules(be, st.chainPre, true, st.setV6, st.mark, sources, false)
+		routeAddMarkRules(be, st.chainPre, true, st.setV6, st.mark, sources, true)
 		routeAddMarkRules(be, st.chainOut, true, st.setV6, st.mark, nil, true)
 	}
 
