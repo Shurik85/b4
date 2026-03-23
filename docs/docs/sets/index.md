@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 6
 title: Сеты
 ---
 
@@ -16,7 +16,7 @@ title: Сеты
 - Активные техники (COMBO, DISORDER, HYBRID и т.д.)
 - Состояние DNS-маршрутизации и SNI Faking
 
-![sets](../../../static/img/index/20260323210109.png)
+![sets](../../static/img/index/20260323210109.png)
 
 Доступные действия:
 
@@ -37,7 +37,7 @@ title: Сеты
 - [Маршрутизация](./routing) — DNS-редирект и маршрутизация трафика через интерфейсы
 - **Импорт/Экспорт** — JSON-представление конфигурации сета для переноса между устройствами
 
-![set](../../../static/img/index/20260323210150.png)
+![set](../../static/img/index/20260323210150.png)
 
 ## Как это работает
 
@@ -54,27 +54,37 @@ flowchart TD
     D -->|"Нет"| F
 
     E --> G{"Домен совпал\nс сетом?"}
-    G -->|"Да"| OK["Применить сет\n(по домену)"]
-    G -->|"Нет"| F
+    G -->|"Да"| SEL
+    G -->|"Нет"| TLSCHK
+
+    TLSCHK{"IP совпал ранее\nи версия TLS\nподходит?"}
+    TLSCHK -->|"Да"| SEL
+    TLSCHK -->|"Нет"| F
 
     F{"IP ранее\nсвязывался\nс доменом?"}
-    F -->|"Да"| OK2["Применить сет\n(по выученному IP)"]
+    F -->|"Да"| SEL
     F -->|"Нет"| H
 
     H{"Есть сет\nтолько по порту?"}
-    H -->|"Да"| OK3["Применить сет\n(по порту)"]
-    H -->|"Нет"| I{"IP совпал\nранее?"}
+    H -->|"Да"| SEL
+    H -->|"Нет"| SKIP["Пропустить"]
 
-    I -->|"Да"| OK4["Применить сет\n(по IP)"]
-    I -->|"Нет"| SKIP["Пропустить"]
+    SEL{"Сет с устройством\n+ версия TLS?"}
+    SEL -->|"Да"| OK["Применить сет"]
+    SEL -->|"Нет"| SEL2{"Общий сет\n+ версия TLS?"}
+    SEL2 -->|"Да"| OK
+    SEL2 -->|"Нет"| SEL3{"Любой\nподходящий сет?"}
+    SEL3 -->|"Да"| OK
+    SEL3 -->|"Нет"| SKIP
 
     style A fill:#4a9eff,color:#fff,stroke:none
     style OK fill:#4caf50,color:#fff,stroke:none
-    style OK2 fill:#4caf50,color:#fff,stroke:none
-    style OK3 fill:#4caf50,color:#fff,stroke:none
-    style OK4 fill:#4caf50,color:#fff,stroke:none
     style SKIP fill:#666,color:#fff,stroke:none
     style C fill:#ff9800,color:#fff,stroke:none
+    style SEL fill:#9c27b0,color:#fff,stroke:none
+    style SEL2 fill:#9c27b0,color:#fff,stroke:none
+    style SEL3 fill:#9c27b0,color:#fff,stroke:none
+    style TLSCHK fill:#ff9800,color:#fff,stroke:none
 ```
 
 ### Порядок сопоставления
