@@ -79,6 +79,8 @@ func (im *IPTablesManager) hasMultiportSupport(ipt string) bool {
 // using a temporary chain, so the probe never touches live traffic.
 func (im *IPTablesManager) probeModuleInTempChain(ipt string, testSpec []string) bool {
 	const tmpChain = "B4_MODULE_TEST"
+	_, _ = run(ipt, "-w", "-t", "filter", "-F", tmpChain)
+	_, _ = run(ipt, "-w", "-t", "filter", "-X", tmpChain)
 	if _, err := run(ipt, "-w", "-t", "filter", "-N", tmpChain); err != nil {
 		return false
 	}
@@ -222,10 +224,11 @@ type IPSet struct {
 }
 
 func (s IPSet) Create() error {
-	_, _ = run("ipset", "destroy", s.Name)
-
-	if _, err := run("ipset", "create", s.Name, "hash:net", "family", s.Family); err != nil {
+	if _, err := run("ipset", "create", s.Name, "hash:net", "family", s.Family, "-exist"); err != nil {
 		return fmt.Errorf("failed to create ipset %s: %w", s.Name, err)
+	}
+	if _, err := run("ipset", "flush", s.Name); err != nil {
+		return fmt.Errorf("failed to flush ipset %s: %w", s.Name, err)
 	}
 
 	const batchSize = 10000
