@@ -43,6 +43,13 @@ func (b *routeNftBackend) ensureIPSet(name string, v6 bool) error {
 	if v6 {
 		typ = "ipv6_addr"
 	}
+
+	out, _ := run("nft", "list", "set", "inet", routeNftTable, name)
+	if out != "" && !strings.Contains(out, "interval") {
+		runLogged("routing: recreate set "+name, "nft", "flush", "set", "inet", routeNftTable, name)
+		runLogged("routing: delete old set "+name, "nft", "delete", "set", "inet", routeNftTable, name)
+	}
+
 	if err := runEnsure("nft", "add", "set", "inet", routeNftTable, name,
 		"{", "type", typ, ";", "flags", "interval,timeout", ";", "timeout", "1h", ";", "auto-merge", ";", "}"); err != nil {
 		return fmt.Errorf("ensure set %s: %w", name, err)

@@ -45,7 +45,7 @@ func (im *IPTablesManager) checkConnbytesSupport(ipt string) error {
 		if result {
 			return nil
 		}
-		return fmt.Errorf("xt_connbytes kernel module is not available")
+		return fmt.Errorf("xt_connbytes kernel module is not available for %s — install it with: modprobe xt_connbytes (or apt install xtables-addons-common / linux-modules-extra-$(uname -r))", ipt)
 	}
 
 	supported := im.probeModuleInTempChain(ipt, []string{"-p", "tcp", "-m", "connbytes", "--connbytes-dir", "original",
