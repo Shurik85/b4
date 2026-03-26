@@ -2,10 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -264,14 +266,32 @@ func (api *API) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		installerPath := "/tmp/b4install_update.sh"
 		installerURL := "https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh"
 
-		downloadCmd := exec.Command("wget", "-O", installerPath, installerURL)
-		if output, err := downloadCmd.CombinedOutput(); err != nil {
-			log.Errorf("Failed to download installer: %v\nOutput: %s", err, string(output))
+		extraPaths := "/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		currentPath := os.Getenv("PATH")
+		fullPath := currentPath
+		for _, p := range strings.Split(extraPaths, ":") {
+			if !strings.Contains(currentPath, p) {
+				fullPath += ":" + p
+			}
+		}
+
+		if _, err := downloadFile(installerURL, installerPath); err != nil {
+			log.Errorf("Failed to download installer: %v", err)
 			return
 		}
 
 		if err := os.Chmod(installerPath, 0755); err != nil {
 			log.Errorf("Failed to make installer executable: %v", err)
+			return
+		}
+
+		header := make([]byte, 4)
+		if f, err := os.Open(installerPath); err == nil {
+			f.Read(header)
+			f.Close()
+		}
+		if !strings.HasPrefix(string(header), "#!/") {
+			log.Errorf("Downloaded installer is not a valid shell script (got: %q)", string(header))
 			return
 		}
 
@@ -295,6 +315,8 @@ func (api *API) handleUpdate(w http.ResponseWriter, r *http.Request) {
 				Setsid: true,
 			}
 		}
+
+		cmd.Env = append(os.Environ(), fmt.Sprintf("PATH=%s", fullPath))
 
 		devNull, _ := os.Open("/dev/null")
 		logFile, _ := os.OpenFile("/tmp/b4_update.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)

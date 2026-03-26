@@ -4,6 +4,8 @@
 
 - FIXED: **B4 fails to start with large configs** — configs with many sets and hundreds of thousands of IPs caused an error on restart because all IPs were inlined into a single firewall command.
 - FIXED: **Routing skips IP ranges** — when IP ranges (e.g. `10.0.0.0/24`) were added to a set's target IPs, routing silently ignored them and only routed individual IPs. Now all IP ranges are routed correctly.
+- FIXED: **Update from UI not working** — updating from the web interface appeared successful but the version stayed the same. Now updates from UI work correctly on all devices.
+- FIXED: **Pre-release versions shown as downgrade** — selecting a pre-release version (e.g. `1.46.6rc`) in the update dialog incorrectly showed "Downgrade" instead of "Upgrade".
 
 ## [1.46.5] - 2026-03-23
 

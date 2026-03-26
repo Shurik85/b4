@@ -21,17 +21,32 @@ interface UseGitHubReleaseResult {
 }
 
 const GITHUB_REPO = "DanielLavrushin/b4";
-const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=15`;
+const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=25`;
 const DISMISSED_VERSIONS_KEY = "b4_dismissed_versions";
 const INCLUDE_PRERELEASE_KEY = "b4_include_prerelease";
 
 export const compareVersions = (v1: string, v2: string): number => {
-  const normalize = (v: string) => v.replace(/^v/, "").split(".").map(Number);
+  const normalize = (v: string) =>
+    v
+      .replace(/^v/, "")
+      .replace(/-(alpha|beta|rc|dev).*$/i, "")
+      .split(".")
+      .map((s) => {
+        const n = Number.parseInt(s, 10);
+        return Number.isNaN(n) ? 0 : n;
+      });
+  const preTag = (v: string) => {
+    const m = /-?(alpha|beta|rc|dev)/i.exec(v.replace(/^v/, ""));
+    return m ? m[1].toLowerCase() : "";
+  };
   const [a, b] = [normalize(v1), normalize(v2)];
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     if ((a[i] || 0) > (b[i] || 0)) return 1;
     if ((a[i] || 0) < (b[i] || 0)) return -1;
   }
+  const [pa, pb] = [preTag(v1), preTag(v2)];
+  if (pa && !pb) return -1;
+  if (!pa && pb) return 1;
   return 0;
 };
 
@@ -103,7 +118,7 @@ export const useGitHubRelease = (): UseGitHubReleaseResult => {
         }
 
         const data = (await response.json()) as GitHubRelease[];
-        setAllReleases(data.slice(0, 10));
+        setAllReleases(data);
       } catch (err) {
         console.error("Failed to fetch GitHub releases:", err);
         setError(err instanceof Error ? err.message : "Unknown error");
@@ -115,7 +130,7 @@ export const useGitHubRelease = (): UseGitHubReleaseResult => {
     void fetchReleases();
     const interval = setInterval(
       () => void fetchReleases(),
-      6 * 60 * 60 * 1000
+      6 * 60 * 60 * 1000,
     );
     return () => clearInterval(interval);
   }, []);
