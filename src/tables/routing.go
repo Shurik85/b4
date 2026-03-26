@@ -184,14 +184,12 @@ func routeAddIPsToSets(be routeBackend, st routeState, ttl int, ips []net.IP, ip
 	}
 }
 
-func routeCollectStaticHostIPs(set *config.SetConfig) []net.IP {
+func routeCollectEntries(set *config.SetConfig) (v4, v6 []string) {
 	if set == nil || len(set.Targets.IpsToMatch) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	out := make([]net.IP, 0, len(set.Targets.IpsToMatch))
 	seen := make(map[string]struct{}, len(set.Targets.IpsToMatch))
-	ignoredCIDR := 0
 
 	for _, raw := range set.Targets.IpsToMatch {
 		raw = strings.TrimSpace(raw)
@@ -199,43 +197,38 @@ func routeCollectStaticHostIPs(set *config.SetConfig) []net.IP {
 			continue
 		}
 
-		var ip net.IP
+		var entry string
+		var isV6 bool
+
 		if strings.Contains(raw, "/") {
-			parsedIP, ipNet, err := net.ParseCIDR(raw)
-			if err != nil || parsedIP == nil || ipNet == nil {
+			ip, ipNet, err := net.ParseCIDR(raw)
+			if err != nil || ip == nil || ipNet == nil {
 				continue
 			}
-			ones, bits := ipNet.Mask.Size()
-			// Routing sets are host-address sets (no CIDR ranges).
-			if (bits == 32 && ones != 32) || (bits == 128 && ones != 128) {
-				ignoredCIDR++
-				continue
-			}
-			ip = parsedIP
+			entry = ipNet.String() // normalized CIDR
+			isV6 = ip.To4() == nil
 		} else {
-			ip = net.ParseIP(raw)
+			ip := net.ParseIP(raw)
+			if ip == nil {
+				continue
+			}
+			entry = ip.String()
+			isV6 = ip.To4() == nil
 		}
-		if ip == nil {
+
+		if _, ok := seen[entry]; ok {
 			continue
 		}
+		seen[entry] = struct{}{}
 
-		key := ip.String()
-		if _, ok := seen[key]; ok {
-			continue
+		if isV6 {
+			v6 = append(v6, entry)
+		} else {
+			v4 = append(v4, entry)
 		}
-		seen[key] = struct{}{}
-		out = append(out, ip)
 	}
 
-	if ignoredCIDR > 0 {
-		log.Warnf(
-			"Routing: set '%s' ignored %d non-host CIDR entries in targets.ip (only single IPs, /32 and /128, are supported for routing)",
-			set.Name,
-			ignoredCIDR,
-		)
-	}
-
-	return out
+	return v4, v6
 }
 
 func RoutingClearAll() {
@@ -351,7 +344,13 @@ func RoutingSyncConfig(cfg *config.Config) {
 		if ttl <= 0 {
 			ttl = 3600
 		}
-		routeAddIPsToSets(be, cur, ttl, routeCollectStaticHostIPs(set), cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
+		staticV4, staticV6 := routeCollectEntries(set)
+		if cfg.Queue.IPv4Enabled && len(staticV4) > 0 {
+			be.addElements(cur.setV4, staticV4, ttl)
+		}
+		if cfg.Queue.IPv6Enabled && len(staticV6) > 0 {
+			be.addElements(cur.setV6, staticV6, ttl)
+		}
 	}
 
 	routeIfaceAuto = make(map[string]routeState)

@@ -44,7 +44,7 @@ func (b *routeNftBackend) ensureIPSet(name string, v6 bool) error {
 		typ = "ipv6_addr"
 	}
 	if err := runEnsure("nft", "add", "set", "inet", routeNftTable, name,
-		"{", "type", typ, ";", "flags", "timeout", ";", "timeout", "1h", ";", "}"); err != nil {
+		"{", "type", typ, ";", "flags", "interval,timeout", ";", "timeout", "1h", ";", "auto-merge", ";", "}"); err != nil {
 		return fmt.Errorf("ensure set %s: %w", name, err)
 	}
 	return nil

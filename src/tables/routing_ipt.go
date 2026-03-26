@@ -56,7 +56,7 @@ func (b *routeIptBackend) ensureIPSet(name string, v6 bool) error {
 	if v6 {
 		family = "inet6"
 	}
-	out, err := run("ipset", "create", name, "hash:ip", "family", family, "timeout", "3600", "-exist")
+	out, err := run("ipset", "create", name, "hash:net", "family", family, "timeout", "3600", "-exist")
 	if err != nil {
 		return fmt.Errorf("ipset create %s: %v: %s", name, err, strings.TrimSpace(out))
 	}

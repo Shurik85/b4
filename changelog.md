@@ -3,6 +3,7 @@
 ## [1.46.6] - 2026-03-26
 
 - FIXED: **B4 fails to start with large configs** — configs with many sets and hundreds of thousands of IPs caused an error on restart because all IPs were inlined into a single firewall command.
+- FIXED: **Routing skips IP ranges** — when IP ranges (e.g. `10.0.0.0/24`) were added to a set's target IPs, routing silently ignored them and only routed individual IPs. Now all IP ranges are routed correctly.
 
 ## [1.46.5] - 2026-03-23
 
