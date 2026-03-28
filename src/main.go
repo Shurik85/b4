@@ -241,10 +241,10 @@ func runB4(cmd *cobra.Command, args []string) error {
 	metrics.RecordEvent("info", fmt.Sprintf("Shutdown initiated by signal: %v", sig))
 
 	// Perform graceful shutdown with timeout
-	return gracefulShutdown(&cfg, pool, httpServer, socks5Server, mtprotoServer, metrics)
+	return gracefulShutdown(&cfg, pool, httpServer, socks5Server, mtprotoServer, metrics, discoveryRT)
 }
 
-func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Server, socks5Server *socks5.Server, mtprotoServer *mtproto.Server, metrics *handler.MetricsCollector) error {
+func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Server, socks5Server *socks5.Server, mtprotoServer *mtproto.Server, metrics *handler.MetricsCollector, discoveryRT *discovery.Runtime) error {
 	// Create shutdown context with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -298,6 +298,11 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Serve
 	// Shutdown WebSocket connections
 	log.Infof("Shutting down WebSocket connections...")
 	b4http.Shutdown()
+
+	if discoveryRT != nil && discoveryRT.IsActive() {
+		log.Infof("Stopping active discovery...")
+		discoveryRT.Stop(cfg, "")
+	}
 
 	// Stop NFQueue pool
 	wg.Add(1)
