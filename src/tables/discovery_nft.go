@@ -13,8 +13,12 @@ func (b *discoveryNftBackend) name() string    { return backendNFTables }
 func (b *discoveryNftBackend) available() bool { return hasBinary("nft") }
 
 func (b *discoveryNftBackend) apply(flowMark uint, injectedMark uint, queueStart int, threads int) error {
-	_, _ = run("nft", "add", "chain", "inet", nftTableName, discoveryChainNFT)
-	_, _ = run("nft", "flush", "chain", "inet", nftTableName, discoveryChainNFT)
+	if err := runEnsure("nft", "add", "chain", "inet", nftTableName, discoveryChainNFT); err != nil {
+		return fmt.Errorf("failed to create discovery chain: %w", err)
+	}
+	if _, err := run("nft", "flush", "chain", "inet", nftTableName, discoveryChainNFT); err != nil {
+		return fmt.Errorf("failed to flush discovery chain: %w", err)
+	}
 
 	queueExpr := fmt.Sprintf("queue num %d bypass", queueStart)
 	if threads > 1 {
@@ -42,22 +46,22 @@ func (b *discoveryNftBackend) apply(flowMark uint, injectedMark uint, queueStart
 	b.deleteDiscoveryRulesFromChain("output", flowMark, injectedMark)
 	b.deleteDiscoveryRulesFromChain("prerouting", flowMark, injectedMark)
 
-	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "output", "jump", discoveryChainNFT); err != nil {
+	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "output", "meta", "mark", injectedHex, "accept"); err != nil {
 		return err
 	}
 	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "output", "meta", "mark", flowHex, "accept"); err != nil {
 		return err
 	}
-	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "output", "meta", "mark", injectedHex, "accept"); err != nil {
+	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "output", "jump", discoveryChainNFT); err != nil {
 		return err
 	}
-	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "prerouting", "jump", discoveryChainNFT); err != nil {
+	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "prerouting", "meta", "mark", injectedHex, "accept"); err != nil {
 		return err
 	}
 	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "prerouting", "meta", "mark", flowHex, "accept"); err != nil {
 		return err
 	}
-	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "prerouting", "meta", "mark", injectedHex, "accept"); err != nil {
+	if _, err := run("nft", "insert", "rule", "inet", nftTableName, "prerouting", "jump", discoveryChainNFT); err != nil {
 		return err
 	}
 	return nil
