@@ -118,7 +118,9 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 					originalDst := make(net.IP, 4)
 					copy(originalDst, raw[16:20])
 
-					dns.DnsNATSet(net.IP(raw[12:16]), sport, originalDst)
+					if !cfg.Queue.IsDiscovery {
+						dns.DnsNATSet(net.IP(raw[12:16]), sport, originalDst)
+					}
 
 					copy(raw[16:20], targetDNS)
 					sock.FixIPv4Checksum(raw[:ihl])
@@ -154,7 +156,9 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 					originalDst := make(net.IP, 16)
 					copy(originalDst, raw[24:40])
 
-					dns.DnsNATSet(net.IP(raw[8:24]), sport, originalDst)
+					if !cfg.Queue.IsDiscovery {
+						dns.DnsNATSet(net.IP(raw[8:24]), sport, originalDst)
+					}
 
 					copy(raw[24:40], targetDNS)
 					sock.FixUDPChecksumV6(raw)

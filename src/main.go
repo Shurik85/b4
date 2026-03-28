@@ -100,7 +100,17 @@ func runB4(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 		if discoveryRT.IsActive() {
-			return fmt.Errorf("tables refresh is blocked while discovery is running")
+			log.Warnf("Tables refresh requested while discovery is active, waiting for discovery to finish...")
+			deadline := time.After(5 * time.Minute)
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
+			for discoveryRT.IsActive() {
+				select {
+				case <-deadline:
+					return fmt.Errorf("tables refresh timed out: discovery did not finish within 5 minutes")
+				case <-ticker.C:
+				}
+			}
 		}
 		if err := tables.ClearRules(&cfg); err != nil {
 			return err

@@ -46,9 +46,7 @@ func ApplyDiscoverySteeringRules(cfg *config.Config, flowMark uint, injectedMark
 	return be.apply(flowMark, injectedMark, queueStart, threads)
 }
 
-func ClearDiscoverySteeringRules(cfg *config.Config, flowMark uint, injectedMark uint, queueStart int, threads int) {
-	_ = queueStart
-	_ = threads
+func ClearDiscoverySteeringRules(cfg *config.Config, flowMark uint, injectedMark uint) {
 	be := getDiscoveryBackend(cfg)
 	if be == nil {
 		return

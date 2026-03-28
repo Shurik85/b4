@@ -46,7 +46,6 @@ type Worker struct {
 	matcher          atomic.Value
 	sock             *sock.Sender
 	ipToMac          atomic.Value
-	connState        sync.Map
 	tlsCache         *tlsInfoCache
 	connTracker      *connStateTracker
 }

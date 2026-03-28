@@ -3,6 +3,7 @@ package discovery
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
@@ -83,7 +84,7 @@ func (m *Runtime) Start(cfg *config.Config) (*StartResult, error) {
 
 	pool := nfq.NewPool(discoveryCfg)
 	if err := pool.Start(); err != nil {
-		tables.ClearDiscoverySteeringRules(cfg, flowMark, injectedMark, discoveryStart, discoveryThreads)
+		tables.ClearDiscoverySteeringRules(cfg, flowMark, injectedMark)
 		return nil, fmt.Errorf("failed to start discovery pool: %w", err)
 	}
 
@@ -147,10 +148,16 @@ func (m *Runtime) Stop(cfg *config.Config, suiteID string) {
 		m.mu.Unlock()
 		return
 	}
+	activeSuite := state.activeSuiteID
 	m.state = nil
 	m.mu.Unlock()
 
+	if activeSuite != "" {
+		CancelCheckSuite(activeSuite)
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	state.pool.Stop()
-	tables.ClearDiscoverySteeringRules(cfg, state.discoveryFlowMark, state.discoveryInjMark, state.discoveryStartNum, state.discoveryThreads)
+	tables.ClearDiscoverySteeringRules(cfg, state.discoveryFlowMark, state.discoveryInjMark)
 	log.Infof("Discovery runtime stopped: queue=%d-%d", state.discoveryStartNum, state.discoveryStartNum+state.discoveryThreads-1)
 }

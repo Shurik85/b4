@@ -307,7 +307,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 		for _, preset := range cachedPresets {
 			select {
 			case <-ds.cancel:
-				ds.restoreConfig()
 				ds.finalize()
 				ds.logDiscoverySummary()
 				return
@@ -342,7 +341,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 			ds.CheckSuite.mu.Unlock()
 
 			log.DiscoveryLogf("Verified: no DPI bypass needed for any domain")
-			ds.restoreConfig()
 			ds.finalize()
 			ds.logDiscoverySummary()
 			return
@@ -357,7 +355,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 		// no packet manipulation strategy will help — the blocking is at IP level.
 		if ds.allDomainsTransportBlocked() {
 			log.Warnf("All domains have transport-level blocking (IP blocked) — extended search skipped")
-			ds.restoreConfig()
 			ds.finalize()
 			ds.logDiscoverySummary()
 			return
@@ -370,7 +367,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 
 		if len(workingFamilies) == 0 {
 			log.Warnf("No working bypass strategies found")
-			ds.restoreConfig()
 			ds.finalize()
 			ds.logDiscoverySummary()
 			return
@@ -391,7 +387,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 	}
 
 	ds.determineBest(baselineSpeed)
-	ds.restoreConfig()
 	ds.finalize()
 	ds.logDiscoverySummary()
 }
@@ -1747,13 +1742,6 @@ func (ds *DiscoverySuite) finalize() {
 		delete(activeSuites, ds.Id)
 		suitesMu.Unlock()
 	}()
-}
-
-func (ds *DiscoverySuite) restoreConfig() {
-	log.DiscoveryLogf("Restoring original configuration")
-	if err := ds.pool.UpdateConfig(ds.cfg); err != nil {
-		log.DiscoveryLogf("Failed to restore original configuration: %v", err)
-	}
 }
 
 func (ds *DiscoverySuite) logDiscoverySummary() {
