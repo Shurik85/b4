@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/daniellavrushin/b4/config"
-	"github.com/daniellavrushin/b4/http/handler"
 	"github.com/daniellavrushin/b4/log"
 )
 
@@ -27,15 +26,8 @@ func AddRules(cfg *config.Config) error {
 		return nil
 	}
 
-	handler.SetTablesRefreshFunc(func() error {
-		ClearRules(cfg)
-		return AddRules(cfg)
-	})
-
 	backend := detectFirewallBackend(cfg)
 	log.Tracef("Detected firewall backend: %s", backend)
-	metrics := handler.GetMetricsCollector()
-	metrics.TablesStatus = backend
 
 	if backend == backendNFTables {
 		nft := NewNFTablesManager(cfg)
@@ -48,6 +40,9 @@ func AddRules(cfg *config.Config) error {
 }
 
 func ClearRules(cfg *config.Config) error {
+	if cfg.System.Tables.SkipSetup {
+		return nil
+	}
 
 	backend := detectFirewallBackend(cfg)
 
@@ -58,6 +53,10 @@ func ClearRules(cfg *config.Config) error {
 
 	ipt := NewIPTablesManager(cfg, backend == backendIPTablesLegacy)
 	return ipt.Clear()
+}
+
+func DetectBackend(cfg *config.Config) string {
+	return detectFirewallBackend(cfg)
 }
 
 func run(args ...string) (string, error) {

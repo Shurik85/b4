@@ -67,6 +67,12 @@ func NewCheckSuite(domainInputs []DomainInput) *CheckSuite {
 	}
 }
 
+func RegisterSuite(suite *CheckSuite) {
+	suitesMu.Lock()
+	activeSuites[suite.Id] = suite
+	suitesMu.Unlock()
+}
+
 func GetCheckSuite(id string) (*CheckSuite, bool) {
 	suitesMu.RLock()
 	defer suitesMu.RUnlock()
@@ -83,8 +89,16 @@ func CancelCheckSuite(id string) error {
 		return nil
 	}
 
-	if suite.Status == CheckStatusRunning {
-		close(suite.cancel)
+	suite.mu.Lock()
+	defer suite.mu.Unlock()
+
+	if suite.Status == CheckStatusPending || suite.Status == CheckStatusRunning {
+		select {
+		case <-suite.cancel:
+			// already canceled
+		default:
+			close(suite.cancel)
+		}
 		suite.Status = CheckStatusCanceled
 	}
 

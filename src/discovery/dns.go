@@ -35,10 +35,11 @@ type CDNEntry struct {
 }
 
 type DNSProber struct {
-	domain  string
-	timeout time.Duration
-	pool    *nfq.Pool
-	cfg     *config.Config
+	domain   string
+	timeout  time.Duration
+	pool     *nfq.Pool
+	cfg      *config.Config
+	flowMark uint
 }
 
 var (
@@ -85,6 +86,7 @@ func (ds *DiscoverySuite) runDNSDiscoveryForDomain(domain string) *DNSDiscoveryR
 		time.Duration(ds.cfg.System.Checker.DiscoveryTimeoutSec)*time.Second,
 		ds.pool,
 		ds.cfg,
+		ds.flowMark,
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -129,12 +131,13 @@ func (r *DNSDiscoveryResult) hasWorkingConfig() bool {
 	return !r.IsPoisoned || r.BestServer != "" || r.NeedsFragment
 }
 
-func NewDNSProber(domain string, timeout time.Duration, pool *nfq.Pool, cfg *config.Config) *DNSProber {
+func NewDNSProber(domain string, timeout time.Duration, pool *nfq.Pool, cfg *config.Config, flowMark uint) *DNSProber {
 	return &DNSProber{
-		domain:  domain,
-		timeout: timeout,
-		pool:    pool,
-		cfg:     cfg,
+		domain:   domain,
+		timeout:  timeout,
+		pool:     pool,
+		cfg:      cfg,
+		flowMark: flowMark,
 	}
 }
 
@@ -306,7 +309,8 @@ func (p *DNSProber) getSystemResolverIPs(ctx context.Context) []string {
 		network = "ip6"
 	}
 
-	ips, err := net.DefaultResolver.LookupIP(ctx, network, p.domain)
+	resolver := markedResolver(p.flowMark, p.timeout/2, "")
+	ips, err := resolver.LookupIP(ctx, network, p.domain)
 	if err != nil {
 		log.DiscoveryLogf("  DNS: system resolver error: %v", err)
 		return nil
@@ -342,7 +346,12 @@ func (p *DNSProber) getExpectedIPs(ctx context.Context) []string {
 		"https://cloudflare-dns.com/dns-query?name=%s&type=" + recordType,
 	}
 
-	client := &http.Client{Timeout: p.timeout}
+	client := &http.Client{
+		Timeout: p.timeout,
+		Transport: &http.Transport{
+			DialContext: markedDialer(p.flowMark, p.timeout/2, p.timeout).DialContext,
+		},
+	}
 
 	seenIPs := make(map[string]bool)
 	var allIPs []string
@@ -420,13 +429,7 @@ func (p *DNSProber) getExpectedIPFallback(ctx context.Context) string {
 	}
 
 	for _, server := range p.cfg.System.Checker.ReferenceDNS {
-		resolver := &net.Resolver{
-			PreferGo: true,
-			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-				d := net.Dialer{Timeout: p.timeout / 3}
-				return d.DialContext(ctx, "udp", server+":53")
-			},
-		}
+		resolver := markedResolver(p.flowMark, p.timeout/3, server)
 
 		ips, err := resolver.LookupIP(ctx, network, p.domain)
 		if err == nil && len(ips) > 0 {
@@ -447,15 +450,9 @@ func (p *DNSProber) testDNS(ctx context.Context, server string, fragmented bool,
 		ExpectedIP: expectedIP,
 	}
 
-	resolver := net.DefaultResolver
+	resolver := markedResolver(p.flowMark, p.timeout, "")
 	if server != "" {
-		resolver = &net.Resolver{
-			PreferGo: true,
-			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-				d := net.Dialer{Timeout: p.timeout}
-				return d.DialContext(ctx, network, server+":53")
-			},
-		}
+		resolver = markedResolver(p.flowMark, p.timeout, server)
 	}
 
 	network := "ip4"
@@ -498,7 +495,7 @@ func (p *DNSProber) findValidIP(ctx context.Context, ips []string) string {
 }
 
 func (p *DNSProber) testIPServesDomain(ctx context.Context, ip string) bool {
-	dialer := &net.Dialer{Timeout: p.timeout / 2}
+	dialer := markedDialer(p.flowMark, p.timeout/2, p.timeout)
 	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(ip, "443"))
 	if err != nil {
 		return false
@@ -540,7 +537,8 @@ func (p *DNSProber) testDNSWithFragment(ctx context.Context, server string, expe
 
 	// Now DNS queries should be fragmented via NFQ
 	start := time.Now()
-	ips, err := net.DefaultResolver.LookupIPAddr(lookupCtx, p.domain)
+	resolver := markedResolver(p.flowMark, p.timeout/2, "")
+	ips, err := resolver.LookupIPAddr(lookupCtx, p.domain)
 	result.Latency = time.Since(start)
 
 	if err != nil || len(ips) == 0 {

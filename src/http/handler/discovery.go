@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -82,6 +83,9 @@ func (api *API) handleCancelCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Infof("Canceled test suite %s", testID)
+	if api.discoveryRT != nil {
+		api.discoveryRT.Stop(api.cfg, testID)
+	}
 
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -135,14 +139,28 @@ func (api *API) handleStartDiscovery(w http.ResponseWriter, r *http.Request) {
 		validationTries = 1
 	}
 
-	suite := discovery.NewDiscoverySuite(urls, globalPool, req.SkipDNS, req.SkipCache, req.PayloadFiles, validationTries, req.TLSVersion)
+	if api.discoveryRT == nil {
+		http.Error(w, "discovery runtime is not configured", http.StatusInternalServerError)
+		return
+	}
+
+	suite, err := api.discoveryRT.StartSuite(api.cfg, urls, discovery.StartSuiteOptions{
+		SkipDNS:         req.SkipDNS,
+		SkipCache:       req.SkipCache,
+		PayloadFiles:    req.PayloadFiles,
+		ValidationTries: validationTries,
+		TLSVersion:      req.TLSVersion,
+	})
+	if err != nil {
+		if errors.Is(err, discovery.ErrDiscoveryAlreadyRunning) {
+			http.Error(w, err.Error(), http.StatusConflict)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
 
 	phase1Count := len(discovery.GetPhase1Presets())
-
-	go func() {
-		suite.RunDiscovery()
-		log.Infof("Discovery complete for %d domains", len(suite.Domains))
-	}()
 
 	var domainNames []string
 	for _, di := range suite.Domains {

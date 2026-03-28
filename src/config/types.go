@@ -28,7 +28,7 @@ type ApiConfig struct {
 type QueueConfig struct {
 	StartNum          int            `json:"start_num"`
 	Threads           int            `json:"threads"`
-	Mark              uint           `json:"mark"`
+	Mark              uint           `json:"mark"` // Main injected packets mark
 	IPv4Enabled       bool           `json:"ipv4"`
 	IPv6Enabled       bool           `json:"ipv6"`
 	TCPConnBytesLimit int            `json:"tcp_conn_bytes_limit"`
@@ -36,6 +36,7 @@ type QueueConfig struct {
 	Interfaces        []string       `json:"interfaces"`
 	Devices           DevicesConfig  `json:"devices"`
 	MSSClamp          MSSClampConfig `json:"mss_clamp"`
+	IsDiscovery       bool           `json:"-"`
 }
 
 type DevicesConfig struct {
@@ -97,9 +98,9 @@ type UDPConfig struct {
 }
 
 type FragmentationConfig struct {
-	Strategy          string   `json:"strategy"` // Values: "tcp", "ip", "oob", "tls", "disorder",  "extsplit", "firstbyte", "combo", "none"
-	ReverseOrder      bool     `json:"reverse_order"`
-	StrategyPool      []string `json:"strategy_pool"`
+	Strategy     string   `json:"strategy"` // Values: "tcp", "ip", "oob", "tls", "disorder",  "extsplit", "firstbyte", "combo", "none"
+	ReverseOrder bool     `json:"reverse_order"`
+	StrategyPool []string `json:"strategy_pool"`
 
 	TLSRecordPosition    int `json:"tlsrec_pos"`     // where to split TLS record
 	TLSRecordPositionMax int `json:"tlsrec_pos_max"` // max for randomization (0 = use fixed)
@@ -168,12 +169,12 @@ type SystemConfig struct {
 }
 
 type MTProtoConfig struct {
-	Enabled     bool              `json:"enabled"`
-	Port        int               `json:"port"`
-	BindAddress string            `json:"bind_address"`
-	Secret      string            `json:"secret"`
-	FakeSNI     string            `json:"fake_sni"`
-	DCRelay     string            `json:"dc_relay"`
+	Enabled     bool   `json:"enabled"`
+	Port        int    `json:"port"`
+	BindAddress string `json:"bind_address"`
+	Secret      string `json:"secret"`
+	FakeSNI     string `json:"fake_sni"`
+	DCRelay     string `json:"dc_relay"`
 }
 
 type Socks5Config struct {
@@ -207,11 +208,13 @@ type WebServerConfig struct {
 }
 
 type DiscoveryConfig struct {
-	DiscoveryTimeoutSec int      `json:"discovery_timeout"`
-	ConfigPropagateMs   int      `json:"config_propagate_ms"`
-	ReferenceDomain     string   `json:"reference_domain"`
-	ReferenceDNS        []string `json:"reference_dns"`
-	ValidationTries     int      `json:"validation_tries"`
+	DiscoveryTimeoutSec   int      `json:"discovery_timeout"`
+	ConfigPropagateMs     int      `json:"config_propagate_ms"`
+	ReferenceDomain       string   `json:"reference_domain"`
+	ReferenceDNS          []string `json:"reference_dns"`
+	ValidationTries       int      `json:"validation_tries"`
+	DiscoveryFlowMark     uint     `json:"discovery_flow_mark"`
+	DiscoveryInjectedMark uint     `json:"discovery_injected_mark"`
 }
 
 type Logging struct {

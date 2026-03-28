@@ -82,11 +82,16 @@ func startDNSRouteCleanup() {
 func stopDNSRouteCleanup() {
 	dnsRouteCleanMu.Lock()
 	defer dnsRouteCleanMu.Unlock()
-	if dnsRouteCleanStop == nil {
-		return
+	if dnsRouteCleanStop != nil {
+		close(dnsRouteCleanStop)
+		dnsRouteCleanStop = nil
 	}
-	close(dnsRouteCleanStop)
-	dnsRouteCleanStop = nil
+}
+
+// ShutdownDNSRouteRuntime stops global DNS-route cleanup goroutine.
+// Call once on process shutdown.
+func ShutdownDNSRouteRuntime() {
+	stopDNSRouteCleanup()
 }
 
 func storeDNSPendingRoute(key string, setID string) {

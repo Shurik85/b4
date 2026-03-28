@@ -64,7 +64,8 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 			domain = strings.ToLower(domain)
 			matcher := w.getMatcher()
 			if matchedSet, set := matcher.MatchSNIWithSource(domain, srcMac); matchedSet {
-				if txidOK && set.Routing.Enabled {
+				cfg := w.getConfig()
+				if txidOK && set.Routing.Enabled && !cfg.Queue.IsDiscovery {
 					var clientIP, dnsServerIP net.IP
 					switch ipVersion {
 					case IPv4:
@@ -117,7 +118,9 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 					originalDst := make(net.IP, 4)
 					copy(originalDst, raw[16:20])
 
-					dns.DnsNATSet(net.IP(raw[12:16]), sport, originalDst)
+					if !cfg.Queue.IsDiscovery {
+						dns.DnsNATSet(net.IP(raw[12:16]), sport, originalDst)
+					}
 
 					copy(raw[16:20], targetDNS)
 					sock.FixIPv4Checksum(raw[:ihl])
@@ -153,7 +156,9 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 					originalDst := make(net.IP, 16)
 					copy(originalDst, raw[24:40])
 
-					dns.DnsNATSet(net.IP(raw[8:24]), sport, originalDst)
+					if !cfg.Queue.IsDiscovery {
+						dns.DnsNATSet(net.IP(raw[8:24]), sport, originalDst)
+					}
 
 					copy(raw[24:40], targetDNS)
 					sock.FixUDPChecksumV6(raw)
@@ -197,7 +202,7 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 				if ips := dns.ParseResponseIPs(payload); len(ips) > 0 {
 					cfg := w.getConfig()
 					if set := cfg.GetSetById(setID); set != nil {
-						if RoutingHandleDNSFunc != nil {
+						if RoutingHandleDNSFunc != nil && !cfg.Queue.IsDiscovery {
 							RoutingHandleDNSFunc(cfg, set, ips)
 						}
 					}

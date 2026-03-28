@@ -1,5 +1,10 @@
 # B4 - Bye Bye Big Bro
 
+## [1.47.x] - 2026-0x-xx
+
+- IMPROVED: **Discovery no longer interrupts normal traffic** — discovery now runs on its own isolated flow, so your internet connection stays unaffected while discovery is testing strategies.
+- IMPROVED: **Stopping discovery is now reliable** — cancelling a running discovery now properly cleans up all firewall rules and stops immediately.
+
 ## [1.46.6] - 2026-03-26
 
 - FIXED: **B4 fails to start with large configs** — configs with many sets and hundreds of thousands of IPs caused an error on restart because all IPs were inlined into a single firewall command.

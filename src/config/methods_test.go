@@ -209,6 +209,73 @@ func TestValidate(t *testing.T) {
 	})
 }
 
+func TestValidateMarks(t *testing.T) {
+	t.Run("auto-derived discovery marks", func(t *testing.T) {
+		cfg := NewConfig()
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("default config should be valid: %v", err)
+		}
+		if cfg.System.Checker.DiscoveryFlowMark != cfg.Queue.Mark+1 {
+			t.Errorf("expected DiscoveryFlowMark=%d, got %d", cfg.Queue.Mark+1, cfg.System.Checker.DiscoveryFlowMark)
+		}
+		if cfg.System.Checker.DiscoveryInjectedMark != cfg.Queue.Mark+2 {
+			t.Errorf("expected DiscoveryInjectedMark=%d, got %d", cfg.Queue.Mark+2, cfg.System.Checker.DiscoveryInjectedMark)
+		}
+	})
+
+	t.Run("explicit discovery marks preserved", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.System.Checker.DiscoveryFlowMark = 0xAAAA
+		cfg.System.Checker.DiscoveryInjectedMark = 0xBBBB
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.System.Checker.DiscoveryFlowMark != 0xAAAA {
+			t.Errorf("expected DiscoveryFlowMark=0xAAAA, got 0x%x", cfg.System.Checker.DiscoveryFlowMark)
+		}
+		if cfg.System.Checker.DiscoveryInjectedMark != 0xBBBB {
+			t.Errorf("expected DiscoveryInjectedMark=0xBBBB, got 0x%x", cfg.System.Checker.DiscoveryInjectedMark)
+		}
+	})
+
+	t.Run("mark collision rejected", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Queue.Mark = 100
+		cfg.System.Checker.DiscoveryFlowMark = 100
+		cfg.System.Checker.DiscoveryInjectedMark = 200
+		if err := cfg.Validate(); err == nil {
+			t.Error("expected error when queue mark equals discovery flow mark")
+		}
+	})
+
+	t.Run("discovery marks collision rejected", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.System.Checker.DiscoveryFlowMark = 500
+		cfg.System.Checker.DiscoveryInjectedMark = 500
+		if err := cfg.Validate(); err == nil {
+			t.Error("expected error when discovery marks are equal")
+		}
+	})
+
+	t.Run("mark too high for auto-derived discovery marks", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Queue.Mark = uint(^uint32(0))
+		if err := cfg.Validate(); err == nil {
+			t.Error("expected error for mark at uint32 max with auto-derived discovery marks")
+		}
+	})
+
+	t.Run("mark at uint32 max with explicit discovery marks", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Queue.Mark = uint(^uint32(0))
+		cfg.System.Checker.DiscoveryFlowMark = 1
+		cfg.System.Checker.DiscoveryInjectedMark = 2
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected valid config with explicit discovery marks at max mark: %v", err)
+		}
+	})
+}
+
 func TestAppendIP(t *testing.T) {
 	t.Run("appends new IPs", func(t *testing.T) {
 		targets := &TargetsConfig{}

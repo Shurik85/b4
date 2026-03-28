@@ -242,7 +242,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		log.Tracef("TCP duplicate to %s:%d (%d copies, set: %s)", pkt.dstStr, dport, set.TCP.Duplicate.Count, set.Name)
 
 		dupConnKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
-		dupHost, dupTLS, _ := tlsCache.Lookup(dupConnKey)
+		dupHost, dupTLS, _ := w.tlsCache.Lookup(dupConnKey)
 
 		m := metrics.GetMetricsCollector()
 		m.RecordConnection("TCP-DUP", dupHost, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(dupTLS))
@@ -328,7 +328,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		host, tlsVersion, _ = sni.ParseTLSClientHelloSNI(payload)
 
 		if host != "" && tlsVersion != 0 {
-			tlsCache.Store(connKey, host, tlsVersion)
+			w.tlsCache.Store(connKey, host, tlsVersion)
 		}
 
 		if captureManager := capture.GetManager(cfg); captureManager != nil {
@@ -363,7 +363,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 	if host == "" || tlsVersion == 0 {
 		connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
-		if cachedHost, cachedTLS, found := tlsCache.Lookup(connKey); found {
+		if cachedHost, cachedTLS, found := w.tlsCache.Lookup(connKey); found {
 			if host == "" {
 				host = cachedHost
 			}
@@ -396,7 +396,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	if matched {
 		if set.TCP.Incoming.Mode != config.ConfigOff {
 			connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
-			connState.RegisterOutgoing(connKey, set)
+			w.connTracker.RegisterOutgoing(connKey, set)
 		}
 
 		// Routing-only sets should keep original packet path without drop+inject.

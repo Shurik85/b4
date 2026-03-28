@@ -488,7 +488,9 @@ func (w *Worker) gc(cfg *config.Config) {
 		case <-w.ctx.Done():
 			return
 		case <-t.C:
-			connState.Cleanup()
+			if w.connTracker != nil {
+				w.connTracker.Cleanup()
+			}
 			_ = cleanupDNSPendingRoutes(time.Now())
 
 			if cfg.System.WebServer.IsEnabled {

@@ -88,7 +88,7 @@ type CheckSuite struct {
 	CurrentDomain          string                            `json:"current_domain,omitempty"`
 	CurrentPhase           DiscoveryPhase                    `json:"current_phase,omitempty"`
 	mu                     sync.RWMutex                      `json:"-"`
-	cancel                 chan struct{}                      `json:"-"`
+	cancel                 chan struct{}                     `json:"-"`
 }
 
 type DomainPresetResult struct {
@@ -171,6 +171,7 @@ type DiscoverySuite struct {
 	skipCache       bool
 	validationTries int
 	tlsVersion      string // "auto", "tls12", "tls13"
+	flowMark        uint
 
 	discoveryCache *DiscoveryCache
 }

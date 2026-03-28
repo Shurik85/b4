@@ -123,7 +123,7 @@ func humanizeError(raw string) string {
 	return raw
 }
 
-func NewDiscoverySuite(inputs []string, pool *nfq.Pool, skipDNS bool, skipCache bool, payloadFiles []string, validationTries int, tlsVersion string) *DiscoverySuite {
+func NewDiscoverySuite(inputs []string, pool *nfq.Pool, skipDNS bool, skipCache bool, payloadFiles []string, validationTries int, tlsVersion string, flowMark uint) *DiscoverySuite {
 	domainInputs := parseDiscoveryInputs(inputs)
 	if len(domainInputs) == 0 {
 		suite := NewCheckSuite(domainInputs)
@@ -160,6 +160,7 @@ func NewDiscoverySuite(inputs []string, pool *nfq.Pool, skipDNS bool, skipCache 
 		skipCache:       skipCache,
 		validationTries: validationTries,
 		tlsVersion:      tlsVersion,
+		flowMark:        flowMark,
 	}
 
 	if len(payloadFiles) > 0 {
@@ -213,14 +214,19 @@ func (ds *DiscoverySuite) RunDiscovery() {
 	}
 	log.DiscoveryLogf("═══════════════════════════════════════")
 
-	suitesMu.Lock()
-	activeSuites[ds.Id] = ds.CheckSuite
-	suitesMu.Unlock()
-
 	defer func() {
 		log.SetDiscoveryActive(false)
 		ds.EndTime = time.Now()
 	}()
+
+	select {
+	case <-ds.cancel:
+		ds.setStatus(CheckStatusCanceled)
+		ds.finalize()
+		ds.logDiscoverySummary()
+		return
+	default:
+	}
 
 	ds.setStatus(CheckStatusRunning)
 
@@ -297,7 +303,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 		for _, preset := range cachedPresets {
 			select {
 			case <-ds.cancel:
-				ds.restoreConfig()
 				ds.finalize()
 				ds.logDiscoverySummary()
 				return
@@ -332,7 +337,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 			ds.CheckSuite.mu.Unlock()
 
 			log.DiscoveryLogf("Verified: no DPI bypass needed for any domain")
-			ds.restoreConfig()
 			ds.finalize()
 			ds.logDiscoverySummary()
 			return
@@ -347,7 +351,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 		// no packet manipulation strategy will help — the blocking is at IP level.
 		if ds.allDomainsTransportBlocked() {
 			log.Warnf("All domains have transport-level blocking (IP blocked) — extended search skipped")
-			ds.restoreConfig()
 			ds.finalize()
 			ds.logDiscoverySummary()
 			return
@@ -360,7 +363,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 
 		if len(workingFamilies) == 0 {
 			log.Warnf("No working bypass strategies found")
-			ds.restoreConfig()
 			ds.finalize()
 			ds.logDiscoverySummary()
 			return
@@ -381,7 +383,6 @@ func (ds *DiscoverySuite) RunDiscovery() {
 	}
 
 	ds.determineBest(baselineSpeed)
-	ds.restoreConfig()
 	ds.finalize()
 	ds.logDiscoverySummary()
 }
@@ -1172,6 +1173,8 @@ func (ds *DiscoverySuite) fetchUsingIPForDomain(di DomainInput, timeout time.Dur
 		IdleConnTimeout:       timeout,
 	}
 
+	baseDialer := markedDialer(ds.flowMark, timeout/2, timeout)
+
 	if ip != "" {
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			_, port, _ := net.SplitHostPort(addr)
@@ -1180,16 +1183,10 @@ func (ds *DiscoverySuite) fetchUsingIPForDomain(di DomainInput, timeout time.Dur
 			}
 			directAddr := net.JoinHostPort(ip, port)
 			log.Tracef("DNS bypass: connecting to %s instead of %s", directAddr, addr)
-			return (&net.Dialer{
-				Timeout:   timeout / 2,
-				KeepAlive: timeout,
-			}).DialContext(ctx, network, directAddr)
+			return baseDialer.DialContext(ctx, network, directAddr)
 		}
 	} else {
-		transport.DialContext = (&net.Dialer{
-			Timeout:   timeout / 2,
-			KeepAlive: timeout,
-		}).DialContext
+		transport.DialContext = baseDialer.DialContext
 	}
 
 	client := &http.Client{
@@ -1725,7 +1722,9 @@ func (ds *DiscoverySuite) setPhase(phase DiscoveryPhase) {
 func (ds *DiscoverySuite) finalize() {
 	ds.CheckSuite.mu.Lock()
 	ds.DomainDiscoveryResults = ds.domainResults
-	ds.Status = CheckStatusComplete
+	if ds.Status != CheckStatusCanceled {
+		ds.Status = CheckStatusComplete
+	}
 	ds.CheckSuite.mu.Unlock()
 
 	// Persist results to history
@@ -1739,13 +1738,6 @@ func (ds *DiscoverySuite) finalize() {
 		delete(activeSuites, ds.Id)
 		suitesMu.Unlock()
 	}()
-}
-
-func (ds *DiscoverySuite) restoreConfig() {
-	log.DiscoveryLogf("Restoring original configuration")
-	if err := ds.pool.UpdateConfig(ds.cfg); err != nil {
-		log.DiscoveryLogf("Failed to restore original configuration: %v", err)
-	}
 }
 
 func (ds *DiscoverySuite) logDiscoverySummary() {
@@ -1952,9 +1944,7 @@ func (ds *DiscoverySuite) measureNetworkBaseline() float64 {
 		Timeout: timeout,
 		Transport: &http.Transport{
 			TLSClientConfig: ds.tlsConfig(),
-			DialContext: (&net.Dialer{
-				Timeout: timeout / 2,
-			}).DialContext,
+			DialContext:     markedDialer(ds.flowMark, timeout/2, timeout).DialContext,
 		},
 	}
 

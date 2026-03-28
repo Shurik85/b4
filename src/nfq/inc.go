@@ -15,7 +15,7 @@ import (
 var corruptionStrategies = []string{"badsum", "badseq", "badack", "all"}
 
 func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byte, ihl int, src net.IP, dstStr string, dport uint16, srcStr string, sport uint16, payload []byte) int {
-	incomingSet := connState.GetSetForIncoming(dstStr, dport, srcStr, sport)
+	incomingSet := w.connTracker.GetSetForIncoming(dstStr, dport, srcStr, sport)
 
 	if incomingSet != nil && incomingSet.TCP.Incoming.Mode != config.ConfigOff {
 		payloadLen := len(payload)
@@ -32,7 +32,7 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 				}
 
 			case "reset":
-				if connState.TrackIncomingBytes(dstStr, dport, srcStr, sport, uint64(payloadLen), inc) {
+				if w.connTracker.TrackIncomingBytes(dstStr, dport, srcStr, sport, uint64(payloadLen), inc) {
 					if v == IPv4 {
 						w.InjectResetIncoming(incomingSet, raw, ihl, src)
 					} else {
@@ -41,7 +41,7 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 				}
 
 			case "fin":
-				if connState.TrackIncomingBytes(dstStr, dport, srcStr, sport, uint64(payloadLen), inc) {
+				if w.connTracker.TrackIncomingBytes(dstStr, dport, srcStr, sport, uint64(payloadLen), inc) {
 					if v == IPv4 {
 						w.InjectFinIncoming(incomingSet, raw, ihl, src)
 					} else {
@@ -50,7 +50,7 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 				}
 
 			case "desync":
-				if connState.TrackIncomingBytes(dstStr, dport, srcStr, sport, uint64(payloadLen), inc) {
+				if w.connTracker.TrackIncomingBytes(dstStr, dport, srcStr, sport, uint64(payloadLen), inc) {
 					if v == IPv4 {
 						w.InjectDesyncIncoming(incomingSet, raw, ihl, src)
 					} else {

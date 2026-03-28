@@ -27,10 +27,6 @@ type tlsInfoCache struct {
 	conns map[string]*tlsInfo
 }
 
-var tlsCache = &tlsInfoCache{
-	conns: make(map[string]*tlsInfo),
-}
-
 const maxTLSCacheEntries = 20000
 
 func (c *tlsInfoCache) Store(connKey string, host string, tlsVersion uint16) {
@@ -88,11 +84,23 @@ type connStateTracker struct {
 	conns map[string]*connInfo
 }
 
-var connState = &connStateTracker{
-	conns: make(map[string]*connInfo),
+const maxConnStateEntries = 10000
+
+type runtimeState struct {
+	tlsCache  *tlsInfoCache
+	connState *connStateTracker
 }
 
-const maxConnStateEntries = 10000
+func newRuntimeState() *runtimeState {
+	return &runtimeState{
+		tlsCache: &tlsInfoCache{
+			conns: make(map[string]*tlsInfo),
+		},
+		connState: &connStateTracker{
+			conns: make(map[string]*connInfo),
+		},
+	}
+}
 
 func (t *connStateTracker) RegisterOutgoing(connKey string, set *config.SetConfig) {
 	t.mu.Lock()

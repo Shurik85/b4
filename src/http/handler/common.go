@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/daniellavrushin/b4/config"
+	"github.com/daniellavrushin/b4/discovery"
 	"github.com/daniellavrushin/b4/geodat"
 	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/nfq"
@@ -33,6 +34,7 @@ var (
 	globalSocks5Server ConfigRefresher
 	tablesRefreshFunc  func() error
 	routingSyncFunc    func(*config.Config)
+	discoveryRuntime   *discovery.Runtime
 )
 
 func setJsonHeader(w http.ResponseWriter) {
@@ -95,6 +97,7 @@ func NewAPIHandler(cfg *config.Config) *API {
 	return &API{
 		cfg:            cfg,
 		geodataManager: geodataManager,
+		discoveryRT:    discoveryRuntime,
 		deviceAliases:  config.NewDeviceAliases(cfg.ConfigPath),
 		asnStore:       config.NewAsnStore(cfg.ConfigPath),
 	}
@@ -139,6 +142,10 @@ func SetTablesRefreshFunc(fn func() error) {
 
 func SetRoutingSyncFunc(fn func(*config.Config)) {
 	routingSyncFunc = fn
+}
+
+func SetDiscoveryRuntime(rt *discovery.Runtime) {
+	discoveryRuntime = rt
 }
 
 func checkDiskSpace(dir string, needed int64) error {

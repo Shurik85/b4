@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"net"
 	"testing"
 
 	"github.com/daniellavrushin/b4/config"
@@ -437,6 +438,472 @@ func TestChunkPorts(t *testing.T) {
 			t.Errorf("chunk should be empty, got %d", len(chunks[0]))
 		}
 	})
+}
+
+func TestRouteSanitizeSetID(t *testing.T) {
+	t.Run("alphanumeric passthrough", func(t *testing.T) {
+		result := routeSanitizeSetID("mySet1")
+		if len(result) == 0 {
+			t.Fatal("expected non-empty result")
+		}
+		if result[:6] != "myset1" {
+			t.Errorf("expected prefix 'myset1', got %q", result)
+		}
+	})
+
+	t.Run("special chars stripped", func(t *testing.T) {
+		result := routeSanitizeSetID("my-Set!@#2")
+		if len(result) == 0 {
+			t.Fatal("expected non-empty result")
+		}
+		for _, c := range result {
+			if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
+				t.Errorf("unexpected char %c in sanitized ID", c)
+			}
+		}
+	})
+
+	t.Run("empty input returns default with suffix", func(t *testing.T) {
+		result := routeSanitizeSetID("")
+		if len(result) == 0 {
+			t.Fatal("expected non-empty result")
+		}
+		if result[:7] != "default" {
+			t.Errorf("expected 'default' prefix, got %q", result)
+		}
+	})
+
+	t.Run("truncated to 20 chars", func(t *testing.T) {
+		result := routeSanitizeSetID("abcdefghijklmnopqrstuvwxyz0123456789")
+		if len(result) > 20 {
+			t.Errorf("expected max 20 chars, got %d: %q", len(result), result)
+		}
+	})
+
+	t.Run("deterministic", func(t *testing.T) {
+		a := routeSanitizeSetID("test_set")
+		b := routeSanitizeSetID("test_set")
+		if a != b {
+			t.Errorf("expected deterministic output, got %q and %q", a, b)
+		}
+	})
+
+	t.Run("different inputs produce different outputs", func(t *testing.T) {
+		a := routeSanitizeSetID("set_a")
+		b := routeSanitizeSetID("set_b")
+		if a == b {
+			t.Errorf("expected different outputs for different inputs, both got %q", a)
+		}
+	})
+}
+
+func TestRouteBuildSetNames(t *testing.T) {
+	v4, v6 := routeBuildSetNames("test")
+	if v4 == "" || v6 == "" {
+		t.Fatal("expected non-empty set names")
+	}
+	if v4[len(v4)-3:] != "_v4" {
+		t.Errorf("v4 set should end with '_v4', got %q", v4)
+	}
+	if v6[len(v6)-3:] != "_v6" {
+		t.Errorf("v6 set should end with '_v6', got %q", v6)
+	}
+	if v4[:4] != "b4r_" {
+		t.Errorf("v4 set should start with 'b4r_', got %q", v4)
+	}
+}
+
+func TestRouteBuildChainNames(t *testing.T) {
+	pre, out, nat := routeBuildChainNames("test")
+	if pre == "" || out == "" || nat == "" {
+		t.Fatal("expected non-empty chain names")
+	}
+	if pre[len(pre)-4:] != "_pre" {
+		t.Errorf("pre chain should end with '_pre', got %q", pre)
+	}
+	if out[len(out)-4:] != "_out" {
+		t.Errorf("out chain should end with '_out', got %q", out)
+	}
+	if nat[len(nat)-4:] != "_nat" {
+		t.Errorf("nat chain should end with '_nat', got %q", nat)
+	}
+}
+
+func TestRouteNormalizedSources(t *testing.T) {
+	t.Run("nil input", func(t *testing.T) {
+		result := routeNormalizedSources(nil)
+		if result != nil {
+			t.Errorf("expected nil, got %v", result)
+		}
+	})
+
+	t.Run("empty input", func(t *testing.T) {
+		result := routeNormalizedSources([]string{})
+		if result != nil {
+			t.Errorf("expected nil, got %v", result)
+		}
+	})
+
+	t.Run("deduplication", func(t *testing.T) {
+		result := routeNormalizedSources([]string{"eth0", "eth1", "eth0"})
+		if len(result) != 2 {
+			t.Fatalf("expected 2, got %d: %v", len(result), result)
+		}
+	})
+
+	t.Run("sorted output", func(t *testing.T) {
+		result := routeNormalizedSources([]string{"wlan0", "eth0", "br0"})
+		if result[0] != "br0" || result[1] != "eth0" || result[2] != "wlan0" {
+			t.Errorf("expected sorted, got %v", result)
+		}
+	})
+
+	t.Run("whitespace trimmed", func(t *testing.T) {
+		result := routeNormalizedSources([]string{" eth0 ", "", "  "})
+		if len(result) != 1 || result[0] != "eth0" {
+			t.Errorf("expected [eth0], got %v", result)
+		}
+	})
+}
+
+func TestRouteQueueBypassMark(t *testing.T) {
+	t.Run("nil config", func(t *testing.T) {
+		if got := routeQueueBypassMark(nil); got != 0x8000 {
+			t.Errorf("expected 0x8000, got 0x%x", got)
+		}
+	})
+
+	t.Run("zero mark uses default", func(t *testing.T) {
+		cfg := config.NewConfig()
+		cfg.Queue.Mark = 0
+		if got := routeQueueBypassMark(&cfg); got != 0x8000 {
+			t.Errorf("expected 0x8000, got 0x%x", got)
+		}
+	})
+
+	t.Run("custom mark", func(t *testing.T) {
+		cfg := config.NewConfig()
+		cfg.Queue.Mark = 0x1234
+		if got := routeQueueBypassMark(&cfg); got != 0x1234 {
+			t.Errorf("expected 0x1234, got 0x%x", got)
+		}
+	})
+}
+
+func TestRouteCollectEntries(t *testing.T) {
+	t.Run("nil set", func(t *testing.T) {
+		v4, v6 := routeCollectEntries(nil)
+		if v4 != nil || v6 != nil {
+			t.Error("expected nil for nil set")
+		}
+	})
+
+	t.Run("empty IPs", func(t *testing.T) {
+		set := &config.SetConfig{}
+		v4, v6 := routeCollectEntries(set)
+		if v4 != nil || v6 != nil {
+			t.Error("expected nil for empty IPs")
+		}
+	})
+
+	t.Run("IPv4 addresses", func(t *testing.T) {
+		set := &config.SetConfig{}
+		set.Targets.IpsToMatch = []string{"1.2.3.4", "5.6.7.8"}
+		v4, v6 := routeCollectEntries(set)
+		if len(v4) != 2 {
+			t.Errorf("expected 2 v4, got %d", len(v4))
+		}
+		if len(v6) != 0 {
+			t.Errorf("expected 0 v6, got %d", len(v6))
+		}
+	})
+
+	t.Run("IPv6 addresses", func(t *testing.T) {
+		set := &config.SetConfig{}
+		set.Targets.IpsToMatch = []string{"2001:db8::1", "fe80::1"}
+		v4, v6 := routeCollectEntries(set)
+		if len(v4) != 0 {
+			t.Errorf("expected 0 v4, got %d", len(v4))
+		}
+		if len(v6) != 2 {
+			t.Errorf("expected 2 v6, got %d", len(v6))
+		}
+	})
+
+	t.Run("CIDR notation", func(t *testing.T) {
+		set := &config.SetConfig{}
+		set.Targets.IpsToMatch = []string{"10.0.0.0/24", "2001:db8::/32"}
+		v4, v6 := routeCollectEntries(set)
+		if len(v4) != 1 {
+			t.Errorf("expected 1 v4, got %d", len(v4))
+		}
+		if len(v6) != 1 {
+			t.Errorf("expected 1 v6, got %d", len(v6))
+		}
+	})
+
+	t.Run("deduplication", func(t *testing.T) {
+		set := &config.SetConfig{}
+		set.Targets.IpsToMatch = []string{"1.2.3.4", "1.2.3.4", "1.2.3.4"}
+		v4, _ := routeCollectEntries(set)
+		if len(v4) != 1 {
+			t.Errorf("expected 1 deduplicated, got %d", len(v4))
+		}
+	})
+
+	t.Run("invalid entries skipped", func(t *testing.T) {
+		set := &config.SetConfig{}
+		set.Targets.IpsToMatch = []string{"not-an-ip", "", "  ", "1.2.3.4"}
+		v4, v6 := routeCollectEntries(set)
+		if len(v4) != 1 {
+			t.Errorf("expected 1 v4, got %d", len(v4))
+		}
+		if len(v6) != 0 {
+			t.Errorf("expected 0 v6, got %d", len(v6))
+		}
+	})
+
+	t.Run("mixed v4 and v6", func(t *testing.T) {
+		set := &config.SetConfig{}
+		set.Targets.IpsToMatch = []string{"1.2.3.4", "2001:db8::1", "10.0.0.1"}
+		v4, v6 := routeCollectEntries(set)
+		if len(v4) != 2 {
+			t.Errorf("expected 2 v4, got %d", len(v4))
+		}
+		if len(v6) != 1 {
+			t.Errorf("expected 1 v6, got %d", len(v6))
+		}
+	})
+}
+
+func TestRouteResolveIDs(t *testing.T) {
+	origCache := routeRuleCache
+	origAuto := routeIfaceAuto
+	defer func() {
+		routeRuleCache = origCache
+		routeIfaceAuto = origAuto
+	}()
+
+	t.Run("explicit mark and table", func(t *testing.T) {
+		routeRuleCache = make(map[string]routeState)
+		routeIfaceAuto = make(map[string]routeState)
+
+		cfg := config.NewConfig()
+		set := &config.SetConfig{}
+		set.Routing.FWMark = 0x100
+		set.Routing.Table = 200
+		set.Routing.EgressInterface = "eth0"
+
+		mark, table := routeResolveIDs(&cfg, set)
+		if mark != 0x100 || table != 200 {
+			t.Errorf("expected mark=0x100 table=200, got mark=0x%x table=%d", mark, table)
+		}
+	})
+
+	t.Run("auto allocation deterministic per interface", func(t *testing.T) {
+		routeRuleCache = make(map[string]routeState)
+		routeIfaceAuto = make(map[string]routeState)
+
+		cfg := config.NewConfig()
+		set := &config.SetConfig{}
+		set.Routing.EgressInterface = "wg0"
+
+		mark1, table1 := routeResolveIDs(&cfg, set)
+		if mark1 == 0 || table1 == 0 {
+			t.Fatalf("expected non-zero, got mark=0x%x table=%d", mark1, table1)
+		}
+
+		routeRuleCache = make(map[string]routeState)
+		routeIfaceAuto = make(map[string]routeState)
+		mark2, table2 := routeResolveIDs(&cfg, set)
+		if mark1 != mark2 || table1 != table2 {
+			t.Errorf("expected deterministic: mark1=0x%x mark2=0x%x table1=%d table2=%d", mark1, mark2, table1, table2)
+		}
+	})
+
+	t.Run("reuses cached iface auto", func(t *testing.T) {
+		routeRuleCache = make(map[string]routeState)
+		routeIfaceAuto = map[string]routeState{
+			"tun0": {mark: 0x555, table: 150},
+		}
+
+		cfg := config.NewConfig()
+		set := &config.SetConfig{}
+		set.Routing.EgressInterface = "tun0"
+
+		mark, table := routeResolveIDs(&cfg, set)
+		if mark != 0x555 || table != 150 {
+			t.Errorf("expected cached mark=0x555 table=150, got mark=0x%x table=%d", mark, table)
+		}
+	})
+
+	t.Run("different interfaces get different IDs", func(t *testing.T) {
+		routeRuleCache = make(map[string]routeState)
+		routeIfaceAuto = make(map[string]routeState)
+
+		cfg := config.NewConfig()
+		setA := &config.SetConfig{}
+		setA.Routing.EgressInterface = "eth0"
+		setB := &config.SetConfig{}
+		setB.Routing.EgressInterface = "wg0"
+
+		markA, tableA := routeResolveIDs(&cfg, setA)
+		markB, tableB := routeResolveIDs(&cfg, setB)
+		if markA == markB {
+			t.Errorf("expected different marks, both got 0x%x", markA)
+		}
+		if tableA == tableB {
+			t.Errorf("expected different tables, both got %d", tableA)
+		}
+	})
+}
+
+func TestRouteAddIPsToSets(t *testing.T) {
+	t.Run("classifies v4 and v6", func(t *testing.T) {
+		var v4calls, v6calls [][]string
+		mock := &mockRouteBackend{
+			addElementsFn: func(setName string, ips []string, ttl int) {
+				if setName == "set_v4" {
+					v4calls = append(v4calls, ips)
+				} else {
+					v6calls = append(v6calls, ips)
+				}
+			},
+		}
+		st := routeState{setV4: "set_v4", setV6: "set_v6"}
+		ips := []net.IP{
+			net.ParseIP("1.2.3.4"),
+			net.ParseIP("2001:db8::1"),
+			net.ParseIP("5.6.7.8"),
+		}
+		routeAddIPsToSets(mock, st, 3600, ips, true, true)
+		if len(v4calls) != 1 || len(v4calls[0]) != 2 {
+			t.Errorf("expected 2 v4 IPs in 1 call, got %v", v4calls)
+		}
+		if len(v6calls) != 1 || len(v6calls[0]) != 1 {
+			t.Errorf("expected 1 v6 IP in 1 call, got %v", v6calls)
+		}
+	})
+
+	t.Run("skips v4 when disabled", func(t *testing.T) {
+		calls := 0
+		mock := &mockRouteBackend{
+			addElementsFn: func(setName string, ips []string, ttl int) { calls++ },
+		}
+		st := routeState{setV4: "set_v4", setV6: "set_v6"}
+		ips := []net.IP{net.ParseIP("1.2.3.4")}
+		routeAddIPsToSets(mock, st, 3600, ips, false, true)
+		if calls != 0 {
+			t.Errorf("expected 0 calls when v4 disabled, got %d", calls)
+		}
+	})
+
+	t.Run("deduplicates IPs", func(t *testing.T) {
+		var gotIPs []string
+		mock := &mockRouteBackend{
+			addElementsFn: func(setName string, ips []string, ttl int) { gotIPs = ips },
+		}
+		st := routeState{setV4: "set_v4", setV6: "set_v6"}
+		ips := []net.IP{
+			net.ParseIP("1.2.3.4"),
+			net.ParseIP("1.2.3.4"),
+			net.ParseIP("1.2.3.4"),
+		}
+		routeAddIPsToSets(mock, st, 3600, ips, true, true)
+		if len(gotIPs) != 1 {
+			t.Errorf("expected 1 deduplicated IP, got %d", len(gotIPs))
+		}
+	})
+}
+
+func TestDiscoveryQueueAction(t *testing.T) {
+	t.Run("single thread", func(t *testing.T) {
+		action := discoveryQueueAction(200, 1)
+		if len(action) != 3 {
+			t.Fatalf("expected 3 elements, got %d", len(action))
+		}
+		if action[0] != "--queue-num" || action[1] != "200" || action[2] != "--queue-bypass" {
+			t.Errorf("unexpected action: %v", action)
+		}
+	})
+
+	t.Run("multiple threads", func(t *testing.T) {
+		action := discoveryQueueAction(200, 4)
+		if len(action) != 3 {
+			t.Fatalf("expected 3 elements, got %d", len(action))
+		}
+		if action[0] != "--queue-balance" || action[1] != "200:203" || action[2] != "--queue-bypass" {
+			t.Errorf("unexpected action: %v", action)
+		}
+	})
+}
+
+func TestDiscoveryIptBackend_BinaryNames(t *testing.T) {
+	t.Run("standard", func(t *testing.T) {
+		b := &discoveryIptBackend{legacy: false}
+		if b.ipt4() != backendIPTables {
+			t.Errorf("expected %s, got %s", backendIPTables, b.ipt4())
+		}
+		if b.ipt6() != backendIP6Tables {
+			t.Errorf("expected %s, got %s", backendIP6Tables, b.ipt6())
+		}
+		if b.name() != backendIPTables {
+			t.Errorf("expected %s, got %s", backendIPTables, b.name())
+		}
+	})
+
+	t.Run("legacy", func(t *testing.T) {
+		b := &discoveryIptBackend{legacy: true}
+		if b.ipt4() != backendIPTablesLegacy {
+			t.Errorf("expected %s, got %s", backendIPTablesLegacy, b.ipt4())
+		}
+		if b.ipt6() != backendIP6TablesLegacy {
+			t.Errorf("expected %s, got %s", backendIP6TablesLegacy, b.ipt6())
+		}
+	})
+}
+
+func TestDiscoveryNftBackend_Name(t *testing.T) {
+	b := &discoveryNftBackend{}
+	if b.name() != backendNFTables {
+		t.Errorf("expected %s, got %s", backendNFTables, b.name())
+	}
+}
+
+func TestDiscoveryConstants(t *testing.T) {
+	if discoveryChainIPT != "B4_DISCOVERY" {
+		t.Errorf("discoveryChainIPT = %q, want B4_DISCOVERY", discoveryChainIPT)
+	}
+	if discoveryChainNFT != "b4_discovery" {
+		t.Errorf("discoveryChainNFT = %q, want b4_discovery", discoveryChainNFT)
+	}
+}
+
+type mockRouteBackend struct {
+	addElementsFn func(setName string, ips []string, ttlSec int)
+}
+
+func (m *mockRouteBackend) name() string                                          { return "mock" }
+func (m *mockRouteBackend) available() bool                                       { return true }
+func (m *mockRouteBackend) ensureBase() error                                     { return nil }
+func (m *mockRouteBackend) ensureIPSet(name string, v6 bool) error                { return nil }
+func (m *mockRouteBackend) ensureChain(chain string, isMangle bool) error         { return nil }
+func (m *mockRouteBackend) flushChain(chain string, isMangle bool)                {}
+func (m *mockRouteBackend) deleteChain(chain string, isMangle bool)               {}
+func (m *mockRouteBackend) addBypassRule(chain string, mark uint32)               {}
+func (m *mockRouteBackend) addMarkRule(chain string, v6 bool, setName string, mark uint32, sourceIface string, tagHostConntrack bool) {
+}
+func (m *mockRouteBackend) ensureJumpRule(baseChain, targetChain string, isMangle bool)  {}
+func (m *mockRouteBackend) deleteJumpRules(baseChain, targetChain string, isMangle bool) {}
+func (m *mockRouteBackend) addMasqueradeRule(chain string, mark uint32, iface string, v6 bool) {
+}
+func (m *mockRouteBackend) flushIPSet(name string)   {}
+func (m *mockRouteBackend) destroyIPSet(name string) {}
+func (m *mockRouteBackend) clearAll()                {}
+func (m *mockRouteBackend) addElements(setName string, ips []string, ttlSec int) {
+	if m.addElementsFn != nil {
+		m.addElementsFn(setName, ips, ttlSec)
+	}
 }
 
 func TestMonitor_BackendPropagation(t *testing.T) {

@@ -36,15 +36,18 @@ func NewPool(cfg *config.Config) *Pool {
 
 	dhcpMgr := dhcp.NewManager()
 
+	state := newRuntimeState()
 	ws := make([]*Worker, 0, threads)
 	for i := 0; i < threads; i++ {
 		w := NewWorkerWithQueue(cfg, start+uint16(i))
 		w.matcher.Store(matcher)
 		w.ipToMac.Store(make(map[string]string))
+		w.tlsCache = state.tlsCache
+		w.connTracker = state.connState
 		ws = append(ws, w)
 	}
 
-	pool := &Pool{Workers: ws, Dhcp: dhcpMgr, stopCleanup: make(chan struct{})}
+	pool := &Pool{Workers: ws, Dhcp: dhcpMgr, stopCleanup: make(chan struct{}), state: state}
 
 	dhcpMgr.OnUpdate(func(ipToMAC map[string]string) {
 		for _, w := range pool.Workers {
@@ -67,8 +70,8 @@ func NewPool(cfg *config.Config) *Pool {
 		for {
 			select {
 			case <-ticker.C:
-				connState.Cleanup()
-				tlsCache.Cleanup()
+				pool.state.connState.Cleanup()
+				pool.state.tlsCache.Cleanup()
 			case <-pool.stopCleanup:
 				return
 			}
@@ -91,9 +94,6 @@ func (p *Pool) Start() error {
 }
 
 func (p *Pool) Stop() {
-	// Stop the DNS routing pending cleanup goroutine
-	stopDNSRouteCleanup()
-
 	// Stop the connState cleanup goroutine
 	select {
 	case <-p.stopCleanup:
