@@ -34,7 +34,7 @@ func (a *API) getIpInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := a.cfg.System.API.IPInfoToken
+	token := a.getCfg().System.API.IPInfoToken
 	if token == "" {
 		http.Error(w, "IPInfo token not configured", http.StatusBadRequest)
 		return

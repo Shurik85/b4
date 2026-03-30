@@ -75,7 +75,7 @@ func (api *API) handleStartDetector(w http.ResponseWriter, r *http.Request) {
 	suite := detector.NewDetectorSuite(tests)
 
 	go func() {
-		suite.Run(api.cfg.ConfigPath)
+		suite.Run(api.getCfg().ConfigPath)
 		log.Infof("Detector suite %s complete", suite.Id)
 	}()
 
@@ -167,7 +167,7 @@ func (api *API) handleDetectorHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	history := detector.GetHistory(api.cfg.ConfigPath)
+	history := detector.GetHistory(api.getCfg().ConfigPath)
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(history.Entries)
 }
@@ -184,9 +184,9 @@ func (api *API) handleClearDetectorHistory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	history := detector.LoadDetectorHistory(api.cfg.ConfigPath)
+	history := detector.LoadDetectorHistory(api.getCfg().ConfigPath)
 	history.Clear()
-	if err := history.Save(api.cfg.ConfigPath); err != nil {
+	if err := history.Save(api.getCfg().ConfigPath); err != nil {
 		log.Errorf("Failed to clear detector history: %v", err)
 		http.Error(w, "Failed to clear detector history", http.StatusInternalServerError)
 		return
@@ -218,9 +218,9 @@ func (api *API) handleDeleteDetectorHistoryEntry(w http.ResponseWriter, r *http.
 		return
 	}
 
-	history := detector.LoadDetectorHistory(api.cfg.ConfigPath)
+	history := detector.LoadDetectorHistory(api.getCfg().ConfigPath)
 	history.RemoveEntry(id)
-	if err := history.Save(api.cfg.ConfigPath); err != nil {
+	if err := history.Save(api.getCfg().ConfigPath); err != nil {
 		log.Errorf("Failed to save detector history: %v", err)
 		http.Error(w, "Failed to save detector history", http.StatusInternalServerError)
 		return

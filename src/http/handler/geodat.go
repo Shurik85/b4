@@ -132,8 +132,8 @@ func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 			writeJsonError(w, http.StatusInternalServerError, msg)
 			return
 		}
-		api.cfg.System.Geo.GeoSitePath = geositePath
-		api.cfg.System.Geo.GeoSiteURL = req.GeositeURL
+		api.getCfg().System.Geo.GeoSitePath = geositePath
+		api.getCfg().System.Geo.GeoSiteURL = req.GeositeURL
 	}
 
 	if req.GeoipURL != "" {
@@ -146,21 +146,21 @@ func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 			writeJsonError(w, http.StatusInternalServerError, msg)
 			return
 		}
-		api.cfg.System.Geo.GeoIpPath = geoipPath
-		api.cfg.System.Geo.GeoIpURL = req.GeoipURL
+		api.getCfg().System.Geo.GeoIpPath = geoipPath
+		api.getCfg().System.Geo.GeoIpURL = req.GeoipURL
 	}
 
-	if err := api.saveAndPushConfig(api.cfg); err != nil {
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		msg := fmt.Sprintf("Failed to save configuration: %v", err)
 		log.Errorf("geodat download: %s", msg)
 		writeJsonError(w, http.StatusInternalServerError, msg)
 		return
 	}
 
-	api.geodataManager.UpdatePaths(api.cfg.System.Geo.GeoSitePath, api.cfg.System.Geo.GeoIpPath)
+	api.geodataManager.UpdatePaths(api.getCfg().System.Geo.GeoSitePath, api.getCfg().System.Geo.GeoIpPath)
 	api.geodataManager.ClearCache()
 
-	for _, set := range api.cfg.Sets {
+	for _, set := range api.getCfg().Sets {
 		log.Infof("Reloading geo targets for set: %s", set.Name)
 		api.loadTargetsForSetCached(set)
 	}
@@ -177,8 +177,8 @@ func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 	response := GeodatDownloadResponse{
 		Success:     true,
 		Message:     "Downloaded: " + strings.Join(parts, ", "),
-		GeositePath: api.cfg.System.Geo.GeoSitePath,
-		GeoipPath:   api.cfg.System.Geo.GeoIpPath,
+		GeositePath: api.getCfg().System.Geo.GeoSitePath,
+		GeoipPath:   api.getCfg().System.Geo.GeoIpPath,
 		GeositeSize: geositeSize,
 		GeoipSize:   geoipSize,
 	}
@@ -311,24 +311,24 @@ func (api *API) handleGeodatUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if fileType == "geosite" {
-		api.cfg.System.Geo.GeoSitePath = destFile
-		api.cfg.System.Geo.GeoSiteURL = ""
+		api.getCfg().System.Geo.GeoSitePath = destFile
+		api.getCfg().System.Geo.GeoSiteURL = ""
 	} else {
-		api.cfg.System.Geo.GeoIpPath = destFile
-		api.cfg.System.Geo.GeoIpURL = ""
+		api.getCfg().System.Geo.GeoIpPath = destFile
+		api.getCfg().System.Geo.GeoIpURL = ""
 	}
 
-	if err := api.saveAndPushConfig(api.cfg); err != nil {
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		msg := fmt.Sprintf("Failed to save configuration: %v", err)
 		log.Errorf("geodat upload: %s", msg)
 		writeJsonError(w, http.StatusInternalServerError, msg)
 		return
 	}
 
-	api.geodataManager.UpdatePaths(api.cfg.System.Geo.GeoSitePath, api.cfg.System.Geo.GeoIpPath)
+	api.geodataManager.UpdatePaths(api.getCfg().System.Geo.GeoSitePath, api.getCfg().System.Geo.GeoIpPath)
 	api.geodataManager.ClearCache()
 
-	for _, set := range api.cfg.Sets {
+	for _, set := range api.getCfg().Sets {
 		log.Infof("Reloading geo targets for set: %s", set.Name)
 		api.loadTargetsForSetCached(set)
 	}

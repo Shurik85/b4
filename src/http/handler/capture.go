@@ -67,7 +67,7 @@ func (api *API) handleGenerateCapture(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manager := capture.GetManager(api.cfg)
+	manager := capture.GetManager(api.getCfg())
 
 	if err := manager.GenerateCapture(req.Domain, req.Protocol); err != nil {
 		if strings.Contains(err.Error(), "already captured") {
@@ -127,7 +127,7 @@ func (api *API) handleProbeCapture(w http.ResponseWriter, r *http.Request) {
 		req.Protocol = "both"
 	}
 
-	manager := capture.GetManager(api.cfg)
+	manager := capture.GetManager(api.getCfg())
 
 	var errors []string
 
@@ -187,7 +187,7 @@ func (api *API) handleListCaptures(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manager := capture.GetManager(api.cfg)
+	manager := capture.GetManager(api.getCfg())
 	captures := manager.ListCaptures()
 
 	if captures == nil {
@@ -221,7 +221,7 @@ func (api *API) handleDeleteCapture(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manager := capture.GetManager(api.cfg)
+	manager := capture.GetManager(api.getCfg())
 	if err := manager.DeleteCapture(protocol, domain); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -246,7 +246,7 @@ func (api *API) handleClearCaptures(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manager := capture.GetManager(api.cfg)
+	manager := capture.GetManager(api.getCfg())
 	if err := manager.ClearAll(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -274,7 +274,7 @@ func (api *API) handleDownloadCapture(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the captures directory from manager
-	manager := capture.GetManager(api.cfg)
+	manager := capture.GetManager(api.getCfg())
 	capturesDir := manager.GetOutputPath()
 
 	absCapturesDir, err := filepath.Abs(capturesDir)
@@ -367,7 +367,7 @@ func (api *API) handleUploadCapture(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manager := capture.GetManager(api.cfg)
+	manager := capture.GetManager(api.getCfg())
 	if err := manager.SaveUploadedCapture(protocol, domain, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

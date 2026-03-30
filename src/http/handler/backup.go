@@ -32,7 +32,7 @@ func (api *API) handleBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	configDir := filepath.Dir(api.cfg.ConfigPath)
+	configDir := filepath.Dir(api.getCfg().ConfigPath)
 	if configDir == "" || configDir == "." {
 		writeJsonError(w, http.StatusInternalServerError, "Config directory not configured")
 		return
@@ -111,7 +111,7 @@ func (api *API) handleRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	configDir := filepath.Dir(api.cfg.ConfigPath)
+	configDir := filepath.Dir(api.getCfg().ConfigPath)
 	if configDir == "" || configDir == "." {
 		writeJsonError(w, http.StatusInternalServerError, "Config directory not configured")
 		return

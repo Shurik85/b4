@@ -16,7 +16,7 @@ import (
 func TestHandleGeodatSources(t *testing.T) {
 	cfg := config.NewConfig()
 	api := &API{
-		cfg:            &cfg,
+		cfgPtr:         testCfgPtr(&cfg),
 		geodataManager: geodat.NewGeodataManager("", ""),
 	}
 	mux := http.NewServeMux()
@@ -61,7 +61,7 @@ func TestHandleGeodatSources(t *testing.T) {
 func TestHandleFileInfo(t *testing.T) {
 	cfg := config.NewConfig()
 	api := &API{
-		cfg:            &cfg,
+		cfgPtr:         testCfgPtr(&cfg),
 		geodataManager: geodat.NewGeodataManager("", ""),
 	}
 	mux := http.NewServeMux()
@@ -132,7 +132,7 @@ func TestHandleFileInfo(t *testing.T) {
 func TestHandleGeodatDownload_Validation(t *testing.T) {
 	cfg := config.NewConfig()
 	api := &API{
-		cfg:            &cfg,
+		cfgPtr:         testCfgPtr(&cfg),
 		geodataManager: geodat.NewGeodataManager("", ""),
 	}
 	mux := http.NewServeMux()

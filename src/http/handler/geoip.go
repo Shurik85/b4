@@ -63,7 +63,7 @@ func (a *API) AddGeoIpTag(w http.ResponseWriter, r *http.Request) {
 		req.SetId = config.DefaultSetConfig.Id
 	}
 
-	set := a.cfg.GetSetById(req.SetId)
+	set := a.getCfg().GetSetById(req.SetId)
 
 	if set == nil && req.SetId == config.NEW_SET_ID {
 		newSet := config.DefaultSetConfig
@@ -73,10 +73,10 @@ func (a *API) AddGeoIpTag(w http.ResponseWriter, r *http.Request) {
 		if req.SetName != "" {
 			set.Name = req.SetName
 		} else {
-			set.Name = "Set " + fmt.Sprintf("%d", len(a.cfg.Sets)+1)
+			set.Name = "Set " + fmt.Sprintf("%d", len(a.getCfg().Sets)+1)
 		}
 
-		a.cfg.Sets = append([]*config.SetConfig{set}, a.cfg.Sets...)
+		a.getCfg().Sets = append([]*config.SetConfig{set}, a.getCfg().Sets...)
 	}
 
 	if set == nil {
@@ -97,7 +97,7 @@ func (a *API) AddGeoIpTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Infof("Added CIDR '%s' to set '%s' domains list", req.Cidr, set.Id)
-	err = a.saveAndPushConfig(a.cfg)
+	err = a.saveAndPushConfig(a.getCfg())
 
 	if err != nil {
 		log.Errorf("Failed to apply domain changes after adding domain: %v", err)

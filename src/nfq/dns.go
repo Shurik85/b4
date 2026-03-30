@@ -133,7 +133,7 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 					if err := w.q.SetVerdict(id, nfqueue.NfDrop); err != nil {
 						log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
 					}
-					log.Infof("DNS redirect: %s -> %s (set: %s)", domain, set.DNS.TargetDNS, set.Name)
+					log.Tracef("DNS redirect: %s -> %s (set: %s)", domain, set.DNS.TargetDNS, set.Name)
 					return 0
 
 				} else {
@@ -170,7 +170,7 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 					if err := w.q.SetVerdict(id, nfqueue.NfDrop); err != nil {
 						log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
 					}
-					log.Infof("DNS redirect (IPv6): %s -> %s (set: %s)", domain, set.DNS.TargetDNS, set.Name)
+					log.Tracef("DNS redirect (IPv6): %s -> %s (set: %s)", domain, set.DNS.TargetDNS, set.Name)
 					return 0
 				}
 			}

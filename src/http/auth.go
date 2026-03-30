@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/daniellavrushin/b4/config"
 )
@@ -25,9 +26,9 @@ func generateToken() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func registerAuthEndpoints(mux *http.ServeMux, cfg *config.Config) {
-	mux.HandleFunc("/api/auth/login", handleLogin(cfg))
-	mux.HandleFunc("/api/auth/check", handleAuthCheck(cfg))
+func registerAuthEndpoints(mux *http.ServeMux, cfgPtr *atomic.Pointer[config.Config]) {
+	mux.HandleFunc("/api/auth/login", handleLogin(cfgPtr))
+	mux.HandleFunc("/api/auth/check", handleAuthCheck(cfgPtr))
 	mux.HandleFunc("/api/auth/logout", handleLogout)
 }
 
@@ -39,7 +40,7 @@ func registerAuthEndpoints(mux *http.ServeMux, cfg *config.Config) {
 // @Success 200 {object} object
 // @Failure 401 {object} object
 // @Router /auth/login [post]
-func handleLogin(cfg *config.Config) http.HandlerFunc {
+func handleLogin(cfgPtr *atomic.Pointer[config.Config]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -55,6 +56,7 @@ func handleLogin(cfg *config.Config) http.HandlerFunc {
 			return
 		}
 
+		cfg := cfgPtr.Load()
 		if !authEnabled(cfg) {
 			writeAuthJSON(w, http.StatusOK, map[string]interface{}{"auth_required": false})
 			return
@@ -89,9 +91,9 @@ func handleLogin(cfg *config.Config) http.HandlerFunc {
 // @Success 200 {object} object
 // @Security BearerAuth
 // @Router /auth/check [get]
-func handleAuthCheck(cfg *config.Config) http.HandlerFunc {
+func handleAuthCheck(cfgPtr *atomic.Pointer[config.Config]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authEnabled(cfg) {
+		if !authEnabled(cfgPtr.Load()) {
 			writeAuthJSON(w, http.StatusOK, map[string]bool{"auth_required": false})
 			return
 		}
@@ -132,9 +134,9 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 	writeAuthJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func authMiddleware(cfg *config.Config, next http.Handler) http.Handler {
+func authMiddleware(cfgPtr *atomic.Pointer[config.Config], next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !authEnabled(cfg) {
+		if !authEnabled(cfgPtr.Load()) {
 			next.ServeHTTP(w, r)
 			return
 		}

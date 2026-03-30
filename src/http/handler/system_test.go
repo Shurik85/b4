@@ -5,14 +5,21 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/daniellavrushin/b4/config"
 )
 
+func testCfgPtr(cfg *config.Config) *atomic.Pointer[config.Config] {
+	p := &atomic.Pointer[config.Config]{}
+	p.Store(cfg)
+	return p
+}
+
 func TestHandleVersion(t *testing.T) {
 	cfg := config.NewConfig()
-	api := &API{cfg: &cfg}
+	api := &API{cfgPtr: testCfgPtr(&cfg)}
 	mux := http.NewServeMux()
 	api.mux = mux
 	api.RegisterSystemApi()
@@ -49,7 +56,7 @@ func TestHandleVersion(t *testing.T) {
 
 func TestHandleSystemInfo(t *testing.T) {
 	cfg := config.NewConfig()
-	api := &API{cfg: &cfg}
+	api := &API{cfgPtr: testCfgPtr(&cfg)}
 	mux := http.NewServeMux()
 	api.mux = mux
 	api.RegisterSystemApi()
@@ -89,7 +96,7 @@ func TestHandleSystemInfo(t *testing.T) {
 
 func TestHandleCacheStats_NoWorkers(t *testing.T) {
 	cfg := config.NewConfig()
-	api := &API{cfg: &cfg}
+	api := &API{cfgPtr: testCfgPtr(&cfg)}
 	mux := http.NewServeMux()
 	api.mux = mux
 	api.RegisterSystemApi()
@@ -109,7 +116,7 @@ func TestHandleCacheStats_NoWorkers(t *testing.T) {
 func TestHandleRestart_Standalone(t *testing.T) {
 	cfg := config.NewConfig()
 	api := &API{
-		cfg:                    &cfg,
+		cfgPtr:                 testCfgPtr(&cfg),
 		overrideServiceManager: func() string { return "standalone" },
 	}
 	mux := http.NewServeMux()
@@ -138,7 +145,7 @@ func TestHandleRestart_Standalone(t *testing.T) {
 
 func TestHandleUpdate_InvalidBody(t *testing.T) {
 	cfg := config.NewConfig()
-	api := &API{cfg: &cfg}
+	api := &API{cfgPtr: testCfgPtr(&cfg)}
 	mux := http.NewServeMux()
 	api.mux = mux
 	api.RegisterSystemApi()
@@ -154,7 +161,7 @@ func TestHandleUpdate_InvalidBody(t *testing.T) {
 
 func TestHandleUpdate_MethodNotAllowed(t *testing.T) {
 	cfg := config.NewConfig()
-	api := &API{cfg: &cfg}
+	api := &API{cfgPtr: testCfgPtr(&cfg)}
 	mux := http.NewServeMux()
 	api.mux = mux
 	api.RegisterSystemApi()

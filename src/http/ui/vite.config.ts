@@ -57,11 +57,6 @@ export default defineConfig({
         ws: true,
         secure: false,
       },
-      "/swagger": {
-        target: REMOTE_BACKEND,
-        changeOrigin: true,
-        secure: false,
-      },
     },
   },
 });

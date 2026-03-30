@@ -33,7 +33,7 @@ func (api *API) handleTargetedDomains(w http.ResponseWriter, r *http.Request) {
 	}
 
 	domains := make(map[string]bool)
-	for _, set := range api.cfg.Sets {
+	for _, set := range api.getCfg().Sets {
 		if !set.Enabled {
 			continue
 		}
@@ -80,7 +80,7 @@ func (api *API) handleCheckDomain(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var matches []setMatch
-	for _, set := range api.cfg.Sets {
+	for _, set := range api.getCfg().Sets {
 		if set.Id == excludeId {
 			continue
 		}
@@ -121,7 +121,7 @@ func (api *API) handleSetDomains(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldConfig := api.cfg.Clone()
+	oldConfig := api.getCfg().Clone()
 
 	setId := r.PathValue("id")
 
@@ -139,17 +139,17 @@ func (api *API) handleSetDomains(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find set and add domain
-	for _, set := range api.cfg.Sets {
+	for _, set := range api.getCfg().Sets {
 		if set.Id == setId {
 			set.Targets.SNIDomains = append(set.Targets.SNIDomains, req.Domain)
 			set.Targets.DomainsToMatch = append(set.Targets.DomainsToMatch, req.Domain)
 
-			if err := api.saveAndPushConfig(api.cfg); err != nil {
+			if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 				http.Error(w, "Failed to save", http.StatusInternalServerError)
 				return
 			}
 
-			if api.PerformSoftRestart(api.cfg, oldConfig) {
+			if api.PerformSoftRestart(api.getCfg(), oldConfig) {
 				log.Infof("Soft restart completed successfully")
 			}
 
@@ -202,7 +202,7 @@ func (api *API) handleSetById(w http.ResponseWriter, r *http.Request) {
 // @Router /sets [get]
 func (api *API) listSets(w http.ResponseWriter) {
 	setJsonHeader(w)
-	json.NewEncoder(w).Encode(api.cfg.Sets)
+	json.NewEncoder(w).Encode(api.getCfg().Sets)
 }
 
 // @Summary Get a set by ID
@@ -214,7 +214,7 @@ func (api *API) listSets(w http.ResponseWriter) {
 // @Security BearerAuth
 // @Router /sets/{id} [get]
 func (api *API) getSet(w http.ResponseWriter, id string) {
-	set := api.cfg.GetSetById(id)
+	set := api.getCfg().GetSetById(id)
 	if set == nil {
 		http.Error(w, "Set not found", http.StatusNotFound)
 		return
@@ -238,24 +238,24 @@ func (api *API) createSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldConfig := api.cfg.Clone()
+	oldConfig := api.getCfg().Clone()
 
 	set.Id = uuid.New().String()
 	log.Tracef("createSet: routing before defaults: enabled=%v, egress=%s, ttl=%d", set.Routing.Enabled, set.Routing.EgressInterface, set.Routing.IPTTLSeconds)
 	api.initializeSetDefaults(&set)
 	log.Tracef("createSet: routing after defaults: enabled=%v, egress=%s, ttl=%d", set.Routing.Enabled, set.Routing.EgressInterface, set.Routing.IPTTLSeconds)
 
-	api.cfg.Sets = append([]*config.SetConfig{&set}, api.cfg.Sets...)
+	api.getCfg().Sets = append([]*config.SetConfig{&set}, api.getCfg().Sets...)
 
 	api.loadTargetsForSetCached(&set)
 
-	if err := api.saveAndPushConfig(api.cfg); err != nil {
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config after creating set: %v", err)
 		http.Error(w, "Failed to save", http.StatusInternalServerError)
 		return
 	}
 
-	if api.PerformSoftRestart(api.cfg, oldConfig) {
+	if api.PerformSoftRestart(api.getCfg(), oldConfig) {
 		log.Infof("Soft restart completed successfully")
 	}
 
@@ -284,13 +284,13 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 
 	log.Tracef("updateSet: routing received: enabled=%v, egress=%s, ttl=%d", updated.Routing.Enabled, updated.Routing.EgressInterface, updated.Routing.IPTTLSeconds)
 
-	oldConfig := api.cfg.Clone()
+	oldConfig := api.getCfg().Clone()
 
 	found := false
-	for i, set := range api.cfg.Sets {
+	for i, set := range api.getCfg().Sets {
 		if set.Id == id {
 			updated.Id = id // preserve ID
-			api.cfg.Sets[i] = &updated
+			api.getCfg().Sets[i] = &updated
 			found = true
 			break
 		}
@@ -303,13 +303,13 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 
 	api.loadTargetsForSetCached(&updated)
 
-	if err := api.saveAndPushConfig(api.cfg); err != nil {
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config after updating set: %v", err)
 		http.Error(w, "Failed to save", http.StatusInternalServerError)
 		return
 	}
 
-	if api.PerformSoftRestart(api.cfg, oldConfig) {
+	if api.PerformSoftRestart(api.getCfg(), oldConfig) {
 		log.Infof("Soft restart completed successfully")
 	}
 
@@ -327,11 +327,11 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 // @Security BearerAuth
 // @Router /sets/{id} [delete]
 func (api *API) deleteSet(w http.ResponseWriter, id string) {
-	oldConfig := api.cfg
+	oldConfig := api.getCfg()
 
 	found := false
-	filtered := make([]*config.SetConfig, 0, len(api.cfg.Sets))
-	for _, set := range api.cfg.Sets {
+	filtered := make([]*config.SetConfig, 0, len(api.getCfg().Sets))
+	for _, set := range api.getCfg().Sets {
 		if set.Id == id {
 			found = true
 			continue
@@ -344,15 +344,15 @@ func (api *API) deleteSet(w http.ResponseWriter, id string) {
 		return
 	}
 
-	api.cfg.Sets = filtered
+	api.getCfg().Sets = filtered
 
-	if err := api.saveAndPushConfig(api.cfg); err != nil {
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config after deleting set: %v", err)
 		http.Error(w, "Failed to save", http.StatusInternalServerError)
 		return
 	}
 
-	if api.PerformSoftRestart(api.cfg, oldConfig) {
+	if api.PerformSoftRestart(api.getCfg(), oldConfig) {
 		log.Infof("Soft restart completed successfully")
 	}
 
@@ -375,7 +375,7 @@ func (api *API) handleReorderSets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldConfig := api.cfg.Clone()
+	oldConfig := api.getCfg().Clone()
 
 	var req struct {
 		SetIds []string `json:"set_ids"`
@@ -387,7 +387,7 @@ func (api *API) handleReorderSets(w http.ResponseWriter, r *http.Request) {
 
 	// Build new order
 	setMap := make(map[string]*config.SetConfig)
-	for _, set := range api.cfg.Sets {
+	for _, set := range api.getCfg().Sets {
 		setMap[set.Id] = set
 	}
 
@@ -398,19 +398,19 @@ func (api *API) handleReorderSets(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if len(reordered) != len(api.cfg.Sets) {
+	if len(reordered) != len(api.getCfg().Sets) {
 		http.Error(w, "Invalid set IDs", http.StatusBadRequest)
 		return
 	}
 
-	api.cfg.Sets = reordered
+	api.getCfg().Sets = reordered
 
-	if err := api.saveAndPushConfig(api.cfg); err != nil {
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		http.Error(w, "Failed to save", http.StatusInternalServerError)
 		return
 	}
 
-	if api.PerformSoftRestart(api.cfg, oldConfig) {
+	if api.PerformSoftRestart(api.getCfg(), oldConfig) {
 		log.Infof("Soft restart completed successfully")
 	}
 
@@ -496,35 +496,35 @@ func (api *API) handleBatchDeleteSets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldConfig := api.cfg.Clone()
+	oldConfig := api.getCfg().Clone()
 
 	toDelete := make(map[string]bool, len(req.Ids))
 	for _, id := range req.Ids {
 		toDelete[id] = true
 	}
 
-	filtered := make([]*config.SetConfig, 0, len(api.cfg.Sets))
-	for _, set := range api.cfg.Sets {
+	filtered := make([]*config.SetConfig, 0, len(api.getCfg().Sets))
+	for _, set := range api.getCfg().Sets {
 		if !toDelete[set.Id] {
 			filtered = append(filtered, set)
 		}
 	}
 
-	deleted := len(api.cfg.Sets) - len(filtered)
+	deleted := len(api.getCfg().Sets) - len(filtered)
 	if deleted == 0 {
 		http.Error(w, "No matching sets found", http.StatusNotFound)
 		return
 	}
 
-	api.cfg.Sets = filtered
+	api.getCfg().Sets = filtered
 
-	if err := api.saveAndPushConfig(api.cfg); err != nil {
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config after batch deleting sets: %v", err)
 		http.Error(w, "Failed to save", http.StatusInternalServerError)
 		return
 	}
 
-	if api.PerformSoftRestart(api.cfg, oldConfig) {
+	if api.PerformSoftRestart(api.getCfg(), oldConfig) {
 		log.Infof("Soft restart completed successfully")
 	}
 

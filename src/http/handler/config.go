@@ -41,11 +41,12 @@ func (a *API) getConfig(w http.ResponseWriter) {
 	setJsonHeader(w)
 
 	// Calculate statistics for each set
-	setsWithStats := make([]SetWithStats, len(a.cfg.Sets))
+	cfg := a.getCfg()
+	setsWithStats := make([]SetWithStats, len(cfg.Sets))
 	totalDomains := 0
 	totalIPs := 0
 
-	for i, set := range a.cfg.Sets {
+	for i, set := range cfg.Sets {
 		// Count manual domains and IPs
 		manualDomains := len(set.Targets.SNIDomains)
 		manualIPs := len(set.Targets.IPs)
@@ -108,7 +109,7 @@ func (a *API) getConfig(w http.ResponseWriter) {
 	sort.Strings(ifaces)
 
 	response := ConfigResponse{
-		Config:              a.cfg,
+		Config:              cfg,
 		Sets:                setsWithStats,
 		AvailableInterfaces: ifaces,
 		Success:             true,
@@ -195,8 +196,9 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldConfig := a.cfg.Clone()
-	newConfig.ConfigPath = a.cfg.ConfigPath
+	curCfg := a.getCfg()
+	oldConfig := curCfg.Clone()
+	newConfig.ConfigPath = curCfg.ConfigPath
 
 	// update logging level if changed
 	if newConfig.System.Logging.Level != log.Level(log.CurLevel.Load()) {
@@ -205,7 +207,7 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// update timezone if changed
-	if newConfig.System.Timezone != a.cfg.System.Timezone {
+	if newConfig.System.Timezone != curCfg.System.Timezone {
 		config.ApplyTimezone(newConfig.System.Timezone)
 		log.Infof("Timezone changed to %s", newConfig.System.Timezone)
 	}
@@ -309,14 +311,15 @@ func (a *API) resetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Infof("Config reset requested")
-	oldConfig := a.cfg.Clone()
+	curCfg := a.getCfg()
+	oldConfig := curCfg.Clone()
 
 	defaultCfg := config.NewConfig()
-	defaultCfg.System.Checker = a.cfg.System.Checker
-	defaultCfg.ConfigPath = a.cfg.ConfigPath
-	defaultCfg.System.WebServer.IsEnabled = a.cfg.System.WebServer.IsEnabled
+	defaultCfg.System.Checker = curCfg.System.Checker
+	defaultCfg.ConfigPath = curCfg.ConfigPath
+	defaultCfg.System.WebServer.IsEnabled = curCfg.System.WebServer.IsEnabled
 
-	for _, set := range a.cfg.Sets {
+	for _, set := range curCfg.Sets {
 		set.ResetToDefaults()
 		a.loadTargetsForSetCached(set)
 		defaultCfg.Sets = append(defaultCfg.Sets, set)
@@ -363,16 +366,17 @@ func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 	}
 
 	if ouiDB != nil {
-		if a.cfg.Queue.Devices.VendorLookup && !newCfg.Queue.Devices.VendorLookup {
+		oldCfg := a.getCfg()
+		if oldCfg.Queue.Devices.VendorLookup && !newCfg.Queue.Devices.VendorLookup {
 			go ouiDB.Cleanup()
-		} else if !a.cfg.Queue.Devices.VendorLookup && newCfg.Queue.Devices.VendorLookup {
+		} else if !oldCfg.Queue.Devices.VendorLookup && newCfg.Queue.Devices.VendorLookup {
 			go ouiDB.ensureLoaded()
 		}
 	}
 
-	*a.cfg = *newCfg
+	a.cfgPtr.Store(newCfg)
 	if routingSyncFunc != nil {
-		routingSyncFunc(a.cfg)
+		routingSyncFunc(newCfg)
 	}
 
 	return nil

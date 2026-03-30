@@ -84,7 +84,7 @@ func (api *API) handleCancelCheck(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("Canceled test suite %s", testID)
 	if api.discoveryRT != nil {
-		api.discoveryRT.Stop(api.cfg, testID)
+		api.discoveryRT.Stop(api.getCfg(), testID)
 	}
 
 	setJsonHeader(w)
@@ -144,7 +144,7 @@ func (api *API) handleStartDiscovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	suite, err := api.discoveryRT.StartSuite(api.cfg, urls, discovery.StartSuiteOptions{
+	suite, err := api.discoveryRT.StartSuite(api.getCfg(), urls, discovery.StartSuiteOptions{
 		SkipDNS:         req.SkipDNS,
 		SkipCache:       req.SkipCache,
 		PayloadFiles:    req.PayloadFiles,
@@ -246,10 +246,10 @@ func (api *API) handleAddPresetAsSet(w http.ResponseWriter, r *http.Request) {
 	api.loadTargetsForSetCached(&set)
 	config.ApplySetDefaults(&set)
 
-	api.cfg.Sets = append([]*config.SetConfig{&set}, api.cfg.Sets...)
+	api.getCfg().Sets = append([]*config.SetConfig{&set}, api.getCfg().Sets...)
 
 	// Save configuration
-	if err := api.saveAndPushConfig(api.cfg); err != nil {
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config: %v", err)
 		http.Error(w, "Failed to save configuration", http.StatusInternalServerError)
 		return
@@ -291,7 +291,7 @@ func (api *API) handleFindSimilarSets(w http.ResponseWriter, r *http.Request) {
 
 	var similar []SimilarSet
 
-	for _, set := range api.cfg.Sets {
+	for _, set := range api.getCfg().Sets {
 		if !set.Enabled {
 			continue
 		}
@@ -373,7 +373,7 @@ func (api *API) handleDiscoveryHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	history := discovery.GetHistory(api.cfg.ConfigPath)
+	history := discovery.GetHistory(api.getCfg().ConfigPath)
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(history.Entries)
 }
@@ -390,9 +390,9 @@ func (api *API) handleClearDiscoveryHistory(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	history := discovery.LoadDiscoveryHistory(api.cfg.ConfigPath)
+	history := discovery.LoadDiscoveryHistory(api.getCfg().ConfigPath)
 	history.Clear()
-	if err := history.Save(api.cfg.ConfigPath); err != nil {
+	if err := history.Save(api.getCfg().ConfigPath); err != nil {
 		log.Errorf("Failed to clear discovery history: %v", err)
 		http.Error(w, "Failed to clear discovery history", http.StatusInternalServerError)
 		return
@@ -424,9 +424,9 @@ func (api *API) handleDeleteHistoryDomain(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	history := discovery.LoadDiscoveryHistory(api.cfg.ConfigPath)
+	history := discovery.LoadDiscoveryHistory(api.getCfg().ConfigPath)
 	history.RemoveDomain(domain)
-	if err := history.Save(api.cfg.ConfigPath); err != nil {
+	if err := history.Save(api.getCfg().ConfigPath); err != nil {
 		log.Errorf("Failed to save discovery history: %v", err)
 		http.Error(w, "Failed to save discovery history", http.StatusInternalServerError)
 		return
@@ -451,9 +451,9 @@ func (api *API) handleClearDiscoveryCache(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	cache := discovery.LoadDiscoveryCache(api.cfg.ConfigPath)
+	cache := discovery.LoadDiscoveryCache(api.getCfg().ConfigPath)
 	cache.Entries = nil
-	if err := cache.Save(api.cfg.ConfigPath); err != nil {
+	if err := cache.Save(api.getCfg().ConfigPath); err != nil {
 		log.Errorf("Failed to clear discovery cache: %v", err)
 		http.Error(w, "Failed to clear discovery cache", http.StatusInternalServerError)
 		return

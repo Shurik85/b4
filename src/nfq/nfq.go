@@ -385,44 +385,16 @@ func (w *Worker) sendIPFragments(cfg *config.SetConfig, packet []byte, dst net.I
 		return
 	}
 
-	splitPos = payloadStart + splitPos
+	// Adjust splitPos to be relative to IP payload (not TCP payload)
+	adjustedSplit := tcpHdrLen + splitPos
 
-	dataLen := splitPos - ipHdrLen
-	dataLen = (dataLen + 7) &^ 7
-	splitPos = ipHdrLen + dataLen
-
-	minSplitPos := ipHdrLen + 8
-	if splitPos < minSplitPos {
-		splitPos = minSplitPos
+	fragments, ok := sock.IPv4FragmentPacket(packet, adjustedSplit)
+	if !ok {
+		_ = w.sock.SendIPv4(packet, dst)
+		return
 	}
 
-	if splitPos >= len(packet) {
-		splitPos = len(packet) - 8
-		dataLen := splitPos - ipHdrLen
-		dataLen = dataLen &^ 7
-		splitPos = ipHdrLen + dataLen
-		if splitPos < minSplitPos {
-			_ = w.sock.SendIPv4(packet, dst)
-			return
-		}
-	}
-
-	frag1 := make([]byte, splitPos)
-	copy(frag1, packet[:splitPos])
-	frag1[6] |= 0x20
-	binary.BigEndian.PutUint16(frag1[2:4], uint16(splitPos))
-	sock.FixIPv4Checksum(frag1[:ipHdrLen])
-
-	frag2Len := ipHdrLen + len(packet) - splitPos
-	frag2 := make([]byte, frag2Len)
-	copy(frag2, packet[:ipHdrLen])
-	copy(frag2[ipHdrLen:], packet[splitPos:])
-	fragOff := uint16(splitPos-ipHdrLen) / 8
-	binary.BigEndian.PutUint16(frag2[6:8], fragOff)
-	binary.BigEndian.PutUint16(frag2[2:4], uint16(frag2Len))
-	sock.FixIPv4Checksum(frag2[:ipHdrLen])
-
-	w.SendTwoSegmentsV4(frag1, frag2, dst, seg2d, cfg.Fragmentation.ReverseOrder)
+	w.SendTwoSegmentsV4(fragments[0], fragments[1], dst, seg2d, cfg.Fragmentation.ReverseOrder)
 }
 
 func (w *Worker) sendFakeSNISequence(cfg *config.SetConfig, original []byte, dst net.IP) {

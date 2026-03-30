@@ -55,7 +55,7 @@ func (api *API) getPublicDNSServers(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		// Skip IPv6 if disabled
-		if !api.cfg.Queue.IPv6Enabled && strings.Contains(s.IP, ":") {
+		if !api.getCfg().Queue.IPv6Enabled && strings.Contains(s.IP, ":") {
 			continue
 		}
 		filtered = append(filtered, s)

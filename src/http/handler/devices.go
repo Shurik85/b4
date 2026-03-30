@@ -238,7 +238,7 @@ func (db *OUIDatabase) Lookup(mac string) string {
 }
 
 func (api *API) RegisterDevicesApi() {
-	initOUIDatabase(api.cfg.ConfigPath)
+	initOUIDatabase(api.getCfg().ConfigPath)
 
 	api.mux.HandleFunc("/api/devices", api.handleDevices)
 	api.mux.HandleFunc("/api/devices/{mac}/vendor", api.handleDeviceVendor)
@@ -355,7 +355,7 @@ func (api *API) handleDeviceVendor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var company string
-	if api.cfg.Queue.Devices.VendorLookup {
+	if api.getCfg().Queue.Devices.VendorLookup {
 		company = ouiDB.Lookup(mac)
 	}
 
@@ -397,7 +397,7 @@ func (api *API) handleDevices(w http.ResponseWriter, r *http.Request) {
 		if isPrivateMAC(macAddr) {
 			vendor = "Private"
 			isPrivate = true
-		} else if api.cfg.Queue.Devices.VendorLookup {
+		} else if api.getCfg().Queue.Devices.VendorLookup {
 			vendor = ouiDB.Lookup(macAddr)
 		}
 

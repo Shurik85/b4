@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/daniellavrushin/b4/config"
@@ -55,7 +56,8 @@ func SetSocks5Server(s ConfigRefresher) {
 	globalSocks5Server = s
 }
 
-func NewAPIHandler(cfg *config.Config) *API {
+func NewAPIHandler(cfgPtr *atomic.Pointer[config.Config]) *API {
+	cfg := cfgPtr.Load()
 	// Initialize geodata manager
 	geodataManager := geodat.NewGeodataManager(cfg.System.Geo.GeoSitePath, cfg.System.Geo.GeoIpPath)
 
@@ -95,16 +97,16 @@ func NewAPIHandler(cfg *config.Config) *API {
 	}
 
 	return &API{
-		cfg:            cfg,
+		cfgPtr:         cfgPtr,
 		geodataManager: geodataManager,
 		discoveryRT:    discoveryRuntime,
 		deviceAliases:  config.NewDeviceAliases(cfg.ConfigPath),
 		asnStore:       config.NewAsnStore(cfg.ConfigPath),
 	}
 }
-func (api *API) RegisterEndpoints(mux *http.ServeMux, cfg *config.Config) {
-
-	api.cfg = cfg
+func (api *API) RegisterEndpoints(mux *http.ServeMux, cfgPtr *atomic.Pointer[config.Config]) {
+	cfg := cfgPtr.Load()
+	api.cfgPtr = cfgPtr
 	api.mux = mux
 
 	api.geodataManager.UpdatePaths(cfg.System.Geo.GeoSitePath, cfg.System.Geo.GeoIpPath)

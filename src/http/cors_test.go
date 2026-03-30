@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/daniellavrushin/b4/config"
@@ -76,7 +77,9 @@ func TestStartServer_DisabledWithPort0(t *testing.T) {
 	cfg := config.NewConfig()
 	cfg.System.WebServer.Port = 0
 
-	srv, err := StartServer(&cfg, nil)
+	cfgPtr := &atomic.Pointer[config.Config]{}
+	cfgPtr.Store(&cfg)
+	srv, err := StartServer(cfgPtr, nil)
 
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)

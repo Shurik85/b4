@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	_ "time/tzdata"
@@ -93,10 +94,14 @@ func runB4(cmd *cobra.Command, args []string) error {
 		cfg.ApplyLogLevel(verboseFlag)
 	}
 
+	var cfgPtr atomic.Pointer[config.Config]
+	cfgPtr.Store(&cfg)
+
 	discoveryRT := discovery.NewRuntime()
 
 	handler.SetTablesRefreshFunc(func() error {
-		if cfg.System.Tables.SkipSetup {
+		c := cfgPtr.Load()
+		if c.System.Tables.SkipSetup {
 			return nil
 		}
 		if discoveryRT.IsActive() {
@@ -112,14 +117,14 @@ func runB4(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}
-		if err := tables.ClearRules(&cfg); err != nil {
+		if err := tables.ClearRules(c); err != nil {
 			return err
 		}
-		if err := tables.AddRules(&cfg); err != nil {
+		if err := tables.AddRules(c); err != nil {
 			return err
 		}
-		tables.RoutingSyncConfig(&cfg)
-		handler.GetMetricsCollector().TablesStatus = tables.DetectBackend(&cfg)
+		tables.RoutingSyncConfig(c)
+		handler.GetMetricsCollector().TablesStatus = tables.DetectBackend(c)
 		return nil
 	})
 	handler.SetRoutingSyncFunc(tables.RoutingSyncConfig)
@@ -204,12 +209,12 @@ func runB4(cmd *cobra.Command, args []string) error {
 	// Start tables monitor to handle rule restoration if system wipes them
 	var tablesMonitor *tables.Monitor
 	if !cfg.System.Tables.SkipSetup && cfg.System.Tables.MonitorInterval > 0 {
-		tablesMonitor = tables.NewMonitor(&cfg)
+		tablesMonitor = tables.NewMonitor(&cfgPtr)
 		tablesMonitor.Start()
 	}
 
 	// Start internal web server if configured
-	httpServer, err := b4http.StartServer(&cfg, pool)
+	httpServer, err := b4http.StartServer(&cfgPtr, pool)
 	if err != nil {
 		metrics.RecordEvent("error", fmt.Sprintf("Failed to start web server: %v", err))
 		return log.Errorf("failed to start web server: %w", err)
@@ -241,7 +246,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 	metrics.RecordEvent("info", fmt.Sprintf("Shutdown initiated by signal: %v", sig))
 
 	// Perform graceful shutdown with timeout
-	return gracefulShutdown(&cfg, pool, httpServer, socks5Server, mtprotoServer, metrics, discoveryRT)
+	return gracefulShutdown(cfgPtr.Load(), pool, httpServer, socks5Server, mtprotoServer, metrics, discoveryRT)
 }
 
 func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Server, socks5Server *socks5.Server, mtprotoServer *mtproto.Server, metrics *handler.MetricsCollector, discoveryRT *discovery.Runtime) error {

@@ -203,7 +203,6 @@ type WebServerConfig struct {
 	Username    string `json:"username"`
 	Password    string `json:"password"`
 	Language    string `json:"language"`
-	Swagger     bool   `json:"swagger"`
 	IsEnabled   bool   `json:"-"`
 }
 

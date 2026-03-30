@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"sync/atomic"
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/discovery"
@@ -9,7 +10,7 @@ import (
 )
 
 type API struct {
-	cfg            *config.Config
+	cfgPtr         *atomic.Pointer[config.Config]
 	mux            *http.ServeMux
 	geodataManager *geodat.GeodataManager
 	discoveryRT    *discovery.Runtime
@@ -18,4 +19,8 @@ type API struct {
 
 	// overrideServiceManager is used in tests to stub detectServiceManager
 	overrideServiceManager func() string
+}
+
+func (a *API) getCfg() *config.Config {
+	return a.cfgPtr.Load()
 }

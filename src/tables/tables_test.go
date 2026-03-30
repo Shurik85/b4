@@ -2,10 +2,17 @@ package tables
 
 import (
 	"net"
+	"sync/atomic"
 	"testing"
 
 	"github.com/daniellavrushin/b4/config"
 )
+
+func testCfgPtr(cfg *config.Config) *atomic.Pointer[config.Config] {
+	p := &atomic.Pointer[config.Config]{}
+	p.Store(cfg)
+	return p
+}
 
 func TestIPTablesManager_BuildNFQSpec(t *testing.T) {
 	cfg := config.NewConfig()
@@ -145,7 +152,7 @@ func TestNewMonitor(t *testing.T) {
 		cfg := config.NewConfig()
 		cfg.System.Tables.MonitorInterval = 0 // Will use fallback
 
-		monitor := NewMonitor(&cfg)
+		monitor := NewMonitor(testCfgPtr(&cfg))
 
 		if monitor == nil {
 			t.Fatal("expected non-nil monitor")
@@ -159,7 +166,7 @@ func TestNewMonitor(t *testing.T) {
 		cfg := config.NewConfig()
 		cfg.System.Tables.MonitorInterval = 30
 
-		monitor := NewMonitor(&cfg)
+		monitor := NewMonitor(testCfgPtr(&cfg))
 
 		if monitor.interval.Seconds() != 30 {
 			t.Errorf("expected 30s interval, got %v", monitor.interval)
@@ -260,7 +267,7 @@ func TestMonitor_StartStop_Disabled(t *testing.T) {
 	cfg := config.NewConfig()
 	cfg.System.Tables.SkipSetup = true
 
-	monitor := NewMonitor(&cfg)
+	monitor := NewMonitor(testCfgPtr(&cfg))
 
 	// Should not panic or block
 	monitor.Start()
@@ -271,7 +278,7 @@ func TestMonitor_StartStop_IntervalZero(t *testing.T) {
 	cfg := config.NewConfig()
 	cfg.System.Tables.MonitorInterval = 0
 
-	monitor := NewMonitor(&cfg)
+	monitor := NewMonitor(testCfgPtr(&cfg))
 
 	// interval <= 0 disables monitor
 	monitor.Start()
@@ -909,7 +916,7 @@ func (m *mockRouteBackend) addElements(setName string, ips []string, ttlSec int)
 func TestMonitor_BackendPropagation(t *testing.T) {
 	t.Run("auto-detect backend stored", func(t *testing.T) {
 		cfg := config.NewConfig()
-		monitor := NewMonitor(&cfg)
+		monitor := NewMonitor(testCfgPtr(&cfg))
 		// Backend should be one of the valid values
 		if monitor.backend != "nftables" && monitor.backend != "iptables" && monitor.backend != backendIPTablesLegacy {
 			t.Errorf("unexpected backend in monitor: %s", monitor.backend)
@@ -919,7 +926,7 @@ func TestMonitor_BackendPropagation(t *testing.T) {
 	t.Run("config engine override propagates to monitor", func(t *testing.T) {
 		cfg := config.NewConfig()
 		cfg.System.Tables.Engine = backendIPTables
-		monitor := NewMonitor(&cfg)
+		monitor := NewMonitor(testCfgPtr(&cfg))
 		if monitor.backend != backendIPTables {
 			t.Errorf("expected %s, got %s", backendIPTables, monitor.backend)
 		}
@@ -928,7 +935,7 @@ func TestMonitor_BackendPropagation(t *testing.T) {
 	t.Run("legacy engine override propagates to monitor", func(t *testing.T) {
 		cfg := config.NewConfig()
 		cfg.System.Tables.Engine = backendIPTablesLegacy
-		monitor := NewMonitor(&cfg)
+		monitor := NewMonitor(testCfgPtr(&cfg))
 		if monitor.backend != backendIPTablesLegacy {
 			t.Errorf("expected %s, got %s", backendIPTablesLegacy, monitor.backend)
 		}
