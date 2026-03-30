@@ -463,7 +463,9 @@
       "setsDeleted_few": "{{count}} сета удалено",
       "setsDeleted_many": "{{count}} сетов удалено",
       "failedToDeleteSets": "Не удалось удалить сеты",
-      "failedToUpdate": "Не удалось обновить"
+      "failedToUpdate": "Не удалось обновить",
+      "noSets": "Нет конфигурационных сетов",
+      "noSetsHint": "Создайте первый сет для настройки правил обхода"
     },
     "deleteDialog": {
       "title": "Удалить сет конфигурации",

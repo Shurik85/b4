@@ -291,10 +291,18 @@ export const DiscoveryRunner = () => {
     setAddingPreset(false);
   };
 
-  const handleAddToExisting = async (setId: string, domain: string) => {
+  const handleAddToExisting = async (setId: string, domain: string, allDomains?: string[]) => {
     setAddingPreset(true);
-    const res = await addDomainToSet(setId, domain);
-    if (res.success) {
+    const domainsToAdd = allDomains && allDomains.length > 1 ? allDomains : [domain];
+    let allSuccess = true;
+    for (const d of domainsToAdd) {
+      const res = await addDomainToSet(setId, d);
+      if (!res.success) {
+        allSuccess = false;
+        break;
+      }
+    }
+    if (allSuccess) {
       showSuccess(t("discovery.addedDomainToSet"));
       setAddDialog({
         open: false,
@@ -713,8 +721,8 @@ export const DiscoveryRunner = () => {
         onAddNew={(name: string, domain: string, allDomains?: string[]) => {
           void handleAddNew(name, domain, allDomains);
         }}
-        onAddToExisting={(setId: string, domain: string) => {
-          void handleAddToExisting(setId, domain);
+        onAddToExisting={(setId: string, domain: string, allDomains?: string[]) => {
+          void handleAddToExisting(setId, domain, allDomains);
         }}
         loading={addingPreset}
       />

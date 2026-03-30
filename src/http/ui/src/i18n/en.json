@@ -462,7 +462,9 @@
       "setsDeleted_one": "{{count}} set deleted",
       "setsDeleted_other": "{{count}} sets deleted",
       "failedToDeleteSets": "Failed to delete sets",
-      "failedToUpdate": "Failed to update"
+      "failedToUpdate": "Failed to update",
+      "noSets": "No configuration sets",
+      "noSetsHint": "Create your first set to start configuring bypass rules"
     },
     "deleteDialog": {
       "title": "Delete Configuration Set",

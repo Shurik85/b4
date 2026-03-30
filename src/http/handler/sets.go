@@ -202,7 +202,11 @@ func (api *API) handleSetById(w http.ResponseWriter, r *http.Request) {
 // @Router /sets [get]
 func (api *API) listSets(w http.ResponseWriter) {
 	setJsonHeader(w)
-	json.NewEncoder(w).Encode(api.getCfg().Sets)
+	sets := api.getCfg().Sets
+	if sets == nil {
+		sets = []*config.SetConfig{}
+	}
+	json.NewEncoder(w).Encode(sets)
 }
 
 // @Summary Get a set by ID

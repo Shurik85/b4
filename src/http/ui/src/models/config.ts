@@ -338,4 +338,4 @@ export interface MSSClampConfig {
   size: number;
 }
 
-export const NEW_SET_ID = "00000000-0000-0000-0000-000000000000";
+export const CREATE_SET_SENTINEL = "00000000-0000-0000-0000-000000000000";

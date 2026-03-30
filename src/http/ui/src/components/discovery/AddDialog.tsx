@@ -31,7 +31,7 @@ interface DiscoveryAddDialogProps {
   setConfig: B4SetConfig | null;
   onClose: () => void;
   onAddNew: (name: string, domain: string, allDomains?: string[]) => void;
-  onAddToExisting: (setId: string, domain: string) => void;
+  onAddToExisting: (setId: string, domain: string, allDomains?: string[]) => void;
   loading?: boolean;
 }
 
@@ -98,7 +98,7 @@ export const DiscoveryAddDialog = ({
     if (mode === "new") {
       onAddNew(name, isMultiDomain ? domains![0] : selectedVariant, isMultiDomain ? domains : undefined);
     } else if (selectedSetId) {
-      onAddToExisting(selectedSetId, isMultiDomain ? domains![0] : selectedVariant);
+      onAddToExisting(selectedSetId, isMultiDomain ? domains![0] : selectedVariant, isMultiDomain ? domains : undefined);
     }
   };
 
