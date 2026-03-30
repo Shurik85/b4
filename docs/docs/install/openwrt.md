@@ -43,14 +43,53 @@ opkg update && opkg install wget-ssl ca-certificates
 ```
 :::
 
+## Модули ядра
+
+Установщик попытается загрузить необходимые модули автоматически. Если при запуске вы видите предупреждение `[WARN] No netfilter queue module available` или ошибки связанные с nftables — установите модули вручную.
+
+### OpenWRT 24.x+ (apk)
+
+```bash
+apk add kmod-nft-queue kmod-nft-nat kmod-nft-compat kmod-nft-conntrack
+```
+
+### OpenWRT 23.x и ниже (opkg)
+
+```bash
+opkg update
+opkg install kmod-nft-queue kmod-nft-conntrack nftables-json coreutils-nohup
+```
+
+Для совсем старых версий (без nftables):
+
+```bash
+opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue iptables-mod-nfqueue iptables-mod-conntrack-extra
+```
+
+### Загрузка модулей
+
+После установки модулей может потребоваться загрузить их вручную:
+
+```bash
+modprobe nft_queue
+modprobe nft_ct
+modprobe xt_connbytes
+```
+
+Если команда выполняется без вывода — модуль загружен успешно.
+
 ## Управление сервисом
 
 ```bash
+/etc/init.d/b4 enable     # автозапуск при загрузке
 /etc/init.d/b4 start
 /etc/init.d/b4 stop
 /etc/init.d/b4 restart
-/etc/init.d/b4 enable     # автозапуск при загрузке
 ```
+
+:::tip Работа через SSH
+Сервис b4 работает как системный демон — он продолжит работать после закрытия SSH-сессии (PuTTY, терминал и т.д.). Не нужно использовать `screen` или `nohup` вручную.
+:::
 
 ## Пути
 
@@ -68,20 +107,39 @@ opkg update && opkg install wget-ssl ca-certificates
 | Бинарник | `/usr/bin/b4` |
 | Конфигурация | `/etc/b4/b4.json` |
 
+## Веб-интерфейс
+
+После запуска b4 доступен по адресу `http://<IP роутера>:7000`. Например, если IP роутера `192.168.1.1`, откройте в браузере:
+
+```text
+http://192.168.1.1:7000
+```
+
 ## LuCI-приложение
 
 Существует сторонний пакет [luci-app-b4](https://github.com/BugOldfag/luci-app-b4), который добавляет управление b4 в интерфейс LuCI. Проект находится в стадии alpha и покрывает часть функций. Основной веб-интерфейс b4 (порт 7000) по-прежнему доступен.
 
-## Модули ядра
+## Устранение неполадок
 
-На современных версиях OpenWRT (с apk):
+### Service crashed / сервис не запускается
+
+1. Убедитесь что модули ядра установлены и загружены (см. раздел «Модули ядра» выше)
+2. Проверьте логи: `logread | grep b4`
+
+### Error: Could not process rule
+
+Если b4 вылетает с ошибкой при добавлении правил в цепочку, возможно остались «битые» таблицы от предыдущего неудачного запуска. Очистите их:
 
 ```bash
-apk add kmod-nft-queue kmod-nft-nat kmod-nft-compat
+nft delete table inet b4_mangle 2>/dev/null
 ```
 
-На старых версиях (с opkg):
+После этого запустите b4 заново:
 
 ```bash
-opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue iptables-mod-nfqueue iptables-mod-conntrack-extra
+/etc/init.d/b4 restart
 ```
+
+### Низкая скорость / тормозит видео
+
+Проверьте настройку **Software flow offloading** в разделе Network → Firewall. Попробуйте включить или выключить её — на некоторых устройствах это влияет на производительность b4.
