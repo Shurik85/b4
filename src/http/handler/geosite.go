@@ -50,12 +50,12 @@ func (a *API) addGeositeDomain(w http.ResponseWriter, r *http.Request) {
 	req.Domain = normalizeDomain(req.Domain)
 
 	if req.SetId == "" {
-		req.SetId = config.DefaultSetConfig.Id
+		req.SetId = config.CreateSetSentinel
 	}
 
 	set := a.getCfg().GetSetById(req.SetId)
 
-	if set == nil && req.SetId == config.NEW_SET_ID {
+	if set == nil && req.SetId == config.CreateSetSentinel {
 		newSet := config.DefaultSetConfig
 		set = &newSet
 		set.Id = uuid.New().String()

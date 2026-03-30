@@ -100,7 +100,7 @@
       "title": "Core Controls",
       "description": "Control core service and config operations",
       "restartService": "Restart B4 System Service",
-      "resetConfig": "Reset the configuration to default settings"
+      "systemInfo": "System Info"
     },
     "Queue": {
       "title": "Queue & Packet Processing",
@@ -379,25 +379,45 @@
       "downloadBin": "Download .bin",
       "uploadedSuccess": "Uploaded payload for {{domain}}"
     },
-    "ResetDialog": {
-      "title": "Reset Configuration",
-      "subtitle": "Restore default settings",
-      "resettingTitle": "Resetting Configuration",
-      "pleaseWait": "Please wait...",
-      "success": "Configuration reset successfully!",
-      "failed": "Failed to reset configuration",
-      "warning": "Network, DPI bypass, protocol, and logging settings will be reset to defaults. You may need to restart B4 for some changes to take effect.",
-      "preserveWarning": "This will reset all configuration to default values except:",
-      "domainConfig": "Domain Configuration",
-      "domainConfigDesc": "All domain filters and geodata settings will be preserved",
-      "testingConfig": "Testing Configuration",
-      "testingConfigDesc": "Checker settings and test domains will be preserved",
-      "resetting": "Resetting configuration...",
-      "successTitle": "Reset Successful",
-      "successSubtitle": "Default settings restored",
-      "failedTitle": "Reset Failed",
-      "failedSubtitle": "An error occurred",
-      "resetButton": "Reset to Defaults"
+    "SystemInfo": {
+      "title": "System Diagnostics",
+      "subtitle": "Hardware, software, and service status",
+      "system": "System",
+      "hostname": "Hostname",
+      "os": "OS / Arch",
+      "kernel": "Kernel",
+      "cpu": "CPU",
+      "cores": "cores",
+      "memory": "Memory",
+      "container": "Container",
+      "version": "Version",
+      "buildDate": "Build Date",
+      "serviceManager": "Service Manager",
+      "config": "Config Path",
+      "memUsage": "Memory Usage",
+      "uptime": "Uptime",
+      "paths": "Paths",
+      "binary": "Binary",
+      "dataDir": "Data Dir",
+      "errorLog": "Error Log",
+      "distro": "Distribution",
+      "geodata": "Geodata",
+      "notConfigured": "not configured",
+      "totalDomains": "Total Domains",
+      "totalIPs": "Total IPs",
+      "firewall": "Firewall",
+      "fwBackend": "Backend",
+      "network": "Network",
+      "kernelModules": "Kernel Modules",
+      "firewallTools": "Firewall Tools (at least one needed)",
+      "requiredTools": "Required Tools",
+      "optionalTools": "Optional Tools",
+      "storage": "Storage",
+      "copyJson": "Copy JSON",
+      "copied": "Diagnostics copied to clipboard",
+      "copyFailed": "Failed to copy to clipboard",
+      "loadFailed": "Failed to load diagnostics",
+      "connectFailed": "Failed to connect"
     }
   },
   "dashboard": {
@@ -462,7 +482,9 @@
       "setsDeleted_one": "{{count}} set deleted",
       "setsDeleted_other": "{{count}} sets deleted",
       "failedToDeleteSets": "Failed to delete sets",
-      "failedToUpdate": "Failed to update"
+      "failedToUpdate": "Failed to update",
+      "noSets": "No configuration sets",
+      "noSetsHint": "Create your first set to start configuring bypass rules"
     },
     "deleteDialog": {
       "title": "Delete Configuration Set",
@@ -1030,12 +1052,13 @@
     "useThisConfig": "Use this configuration",
     "configs": "{{success}}/{{total}} configs",
     "noWorkingConfig": "No working config",
+    "failedCount": "{{count}} failed",
     "tested": "{{count}} tested...",
     "moreConfigsToTest": "{{count}} more configurations to test...",
     "testingConfigurations": "Testing configurations...",
     "foundWorking": "Found a working configuration! Still testing {{remaining}} more configs — a faster option may be found.",
     "transportBlocked": "<strong>Transport blocked:</strong> This domain is blocked at the IP/network level — TCP connections cannot be established to any known IP address. DPI bypass strategies cannot help with IP-level blocking. A VPN or proxy is required for this domain.",
-    "allFailed": "All {{count}} tested configurations failed for this domain. Check your network connection and domain accessibility.",
+    "allFailed": "All {{count}} tested configurations failed for this domain.",
     "history": {
       "domainsTested": "{{count}} domain tested",
       "domainsTested_plural": "{{count}} domains tested",
@@ -1078,9 +1101,16 @@
       "combination": "Combination Test",
       "dns_detection": "DNS Detection"
     },
+    "grouped": {
+      "domainCount_one": "{{count}} domain",
+      "domainCount_other": "{{count}} domains",
+      "applyAll": "Apply to all {{count}} domains",
+      "perDomainDetails": "Per-domain details"
+    },
     "addDialog": {
       "title": "Add Configuration",
       "subtitle": "Strategy: {{name}}",
+      "domainsIncluded": "{{count}} domains included",
       "domainPattern": "Domain Pattern",
       "addTo": "Add to",
       "createNewSet": "Create new set",

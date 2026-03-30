@@ -9,7 +9,7 @@ import {
 import { AddIcon } from "@b4.icons";
 import { B4TextField } from "@b4.fields";
 import { colors } from "@design";
-import { B4SetConfig, NEW_SET_ID } from "@models/config";
+import { B4SetConfig, CREATE_SET_SENTINEL } from "@models/config";
 import { useTranslation } from "react-i18next";
 
 interface SetSelectorProps {
@@ -44,7 +44,7 @@ export const SetSelector = ({
         value={newSetName}
         onChange={(e) => {
           setNewSetName(e.target.value);
-          onChange(NEW_SET_ID, e.target.value);
+          onChange(CREATE_SET_SENTINEL, e.target.value);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && newSetName.trim()) {
@@ -91,7 +91,7 @@ export const SetSelector = ({
         value={value}
         label={resolvedLabel}
         onChange={(e) => {
-          if (e.target.value === NEW_SET_ID) {
+          if (e.target.value === CREATE_SET_SENTINEL) {
             setIsCreating(true);
           } else {
             onChange(e.target.value);
@@ -105,7 +105,7 @@ export const SetSelector = ({
         }}
       >
         <MenuItem
-          value={NEW_SET_ID}
+          value={CREATE_SET_SENTINEL}
           sx={{
             color: colors.primary,
             fontWeight: 600,

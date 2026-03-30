@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	NEW_SET_ID = "00000000-0000-0000-0000-000000000000"
+	CreateSetSentinel = "00000000-0000-0000-0000-000000000000"
 )
 
 type Config struct {
@@ -20,8 +20,8 @@ type Config struct {
 }
 
 var DefaultSetConfig = SetConfig{
-	Id:      NEW_SET_ID,
-	Name:    "new set",
+	Id:      "",
+	Name:    "",
 	Enabled: true,
 
 	UDP: UDPConfig{

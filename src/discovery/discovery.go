@@ -1722,6 +1722,7 @@ func (ds *DiscoverySuite) setPhase(phase DiscoveryPhase) {
 func (ds *DiscoverySuite) finalize() {
 	ds.CheckSuite.mu.Lock()
 	ds.DomainDiscoveryResults = ds.domainResults
+	ds.EndTime = time.Now()
 	if ds.Status != CheckStatusCanceled {
 		ds.Status = CheckStatusComplete
 	}

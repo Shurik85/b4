@@ -15,7 +15,7 @@ import { B4Alert } from "@b4.elements";
 import { colors } from "@design";
 import { B4Dialog } from "@common/B4Dialog";
 import { B4Badge } from "@common/B4Badge";
-import { B4SetConfig, NEW_SET_ID } from "@models/config";
+import { B4SetConfig, CREATE_SET_SENTINEL } from "@models/config";
 import { SetSelector } from "@common/SetSelector";
 import { useTranslation } from "react-i18next";
 
@@ -53,7 +53,7 @@ export const AddSniModal = ({
   useEffect(() => {
     if (open) {
       if (createNewSet) {
-        setSelectedSetId(NEW_SET_ID);
+        setSelectedSetId(CREATE_SET_SENTINEL);
       } else if (sets.length > 0) {
         const firstEnabled = sets.find((s) => s.enabled);
         setSelectedSetId(firstEnabled?.id ?? sets[0]?.id ?? "");

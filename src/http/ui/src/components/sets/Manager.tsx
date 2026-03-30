@@ -497,6 +497,33 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
           </DragOverlay>
         </DndContext>
 
+        {sets.length === 0 && !filterText && (
+          <Paper
+            elevation={0}
+            sx={{
+              p: 6,
+              textAlign: "center",
+              border: `1px dashed ${colors.border.default}`,
+              borderRadius: radius.md,
+            }}
+          >
+            <SetsIcon sx={{ fontSize: 48, color: colors.text.secondary, mb: 2 }} />
+            <Typography variant="h6" sx={{ mb: 1, color: colors.text.primary }}>
+              {t("sets.manager.noSets")}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mb: 3 }}>
+              {t("sets.manager.noSetsHint")}
+            </Typography>
+            <Button
+              startIcon={<AddIcon />}
+              onClick={handleAddSet}
+              variant="contained"
+            >
+              {t("sets.manager.createSet")}
+            </Button>
+          </Paper>
+        )}
+
         {filteredSets.length === 0 && filterText && (
           <Paper
             elevation={0}

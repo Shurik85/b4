@@ -69,7 +69,7 @@ func TestSaveToFile_And_LoadFromFile(t *testing.T) {
 		}
 	})
 
-	t.Run("save creates default set if empty", func(t *testing.T) {
+	t.Run("save preserves empty sets", func(t *testing.T) {
 		path := filepath.Join(tmpDir, "empty_sets.json")
 		cfg := NewConfig()
 		cfg.Sets = []*SetConfig{}
@@ -80,8 +80,8 @@ func TestSaveToFile_And_LoadFromFile(t *testing.T) {
 
 		loaded := NewConfig()
 		loaded.LoadFromFile(path)
-		if len(loaded.Sets) == 0 {
-			t.Error("expected Sets to have default set after save")
+		if len(loaded.Sets) != 0 {
+			t.Errorf("expected Sets to remain empty, got %d sets", len(loaded.Sets))
 		}
 	})
 }
@@ -174,6 +174,14 @@ func TestValidate(t *testing.T) {
 				cfg.Queue.UDPConnBytesLimit, testSet.UDP.ConnBytesLimit)
 		}
 	})
+	t.Run("empty sets is valid", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Sets = []*SetConfig{}
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("empty sets should be valid: %v", err)
+		}
+	})
+
 	t.Run("set without id fails", func(t *testing.T) {
 		cfg := NewConfig()
 		cfg.Validate()

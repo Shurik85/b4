@@ -4,7 +4,6 @@ import {
   GeoFileInfo,
   GeodatDownloadResult,
   GeodatSource,
-  ResetResponse,
   RestartResponse,
   SystemInfo,
   UpdateResponse,
@@ -19,7 +18,6 @@ export const configApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     }),
-  reset: () => apiPost<ResetResponse>("/api/config/reset"),
 };
 
 // Geodat API

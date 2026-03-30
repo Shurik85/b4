@@ -26,17 +26,19 @@ interface SimilarSet {
 interface DiscoveryAddDialogProps {
   open: boolean;
   domain: string;
+  domains?: string[];
   presetName: string;
   setConfig: B4SetConfig | null;
   onClose: () => void;
-  onAddNew: (name: string, domain: string) => void;
-  onAddToExisting: (setId: string, domain: string) => void;
+  onAddNew: (name: string, domain: string, allDomains?: string[]) => void;
+  onAddToExisting: (setId: string, domain: string, allDomains?: string[]) => void;
   loading?: boolean;
 }
 
 export const DiscoveryAddDialog = ({
   open,
   domain,
+  domains,
   presetName,
   setConfig,
   onClose,
@@ -45,6 +47,7 @@ export const DiscoveryAddDialog = ({
   loading = false,
 }: DiscoveryAddDialogProps) => {
   const { t } = useTranslation();
+  const isMultiDomain = (domains?.length ?? 0) > 1;
   const [name, setName] = useState(presetName);
   const [variants, setVariants] = useState<string[]>([]);
   const [selectedVariant, setSelectedVariant] = useState(domain);
@@ -54,14 +57,16 @@ export const DiscoveryAddDialog = ({
 
   useEffect(() => {
     if (open && domain) {
-      const v = generateDomainVariants(domain);
-      setVariants(v);
-      setSelectedVariant(v[0] || domain);
+      if (!isMultiDomain) {
+        const v = generateDomainVariants(domain);
+        setVariants(v);
+        setSelectedVariant(v[0] || domain);
+      }
       setName(presetName);
       setMode("new");
       setSelectedSetId(null);
     }
-  }, [open, domain, presetName]);
+  }, [open, domain, presetName, isMultiDomain]);
 
   // Fetch similar sets when dialog opens
   useEffect(() => {
@@ -91,9 +96,9 @@ export const DiscoveryAddDialog = ({
 
   const handleConfirm = () => {
     if (mode === "new") {
-      onAddNew(name, selectedVariant);
+      onAddNew(name, isMultiDomain ? domains![0] : selectedVariant, isMultiDomain ? domains : undefined);
     } else if (selectedSetId) {
-      onAddToExisting(selectedSetId, selectedVariant);
+      onAddToExisting(selectedSetId, isMultiDomain ? domains![0] : selectedVariant, isMultiDomain ? domains : undefined);
     }
   };
 
@@ -124,35 +129,57 @@ export const DiscoveryAddDialog = ({
       }
     >
       <Stack spacing={3} sx={{ mt: 1 }}>
-        {/* Domain variant selection */}
-        <Box>
-          <Typography
-            variant="subtitle2"
-            sx={{ mb: 1, color: colors.text.secondary }}
-          >
-            {t("discovery.addDialog.domainPattern")}
-          </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-            {variants.map((v) => (
-              <Chip
-                key={v}
-                label={v}
-                onClick={() => setSelectedVariant(v)}
-                sx={{
-                  bgcolor:
-                    v === selectedVariant
-                      ? colors.accent.secondary
-                      : colors.background.dark,
-                  border:
-                    v === selectedVariant
-                      ? `2px solid ${colors.secondary}`
-                      : `1px solid ${colors.border.default}`,
-                  cursor: "pointer",
-                }}
-              />
-            ))}
-          </Stack>
-        </Box>
+        {isMultiDomain ? (
+          <Box>
+            <Typography
+              variant="subtitle2"
+              sx={{ mb: 1, color: colors.text.secondary }}
+            >
+              {t("discovery.addDialog.domainsIncluded", { count: domains!.length })}
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+              {domains!.map((d) => (
+                <Chip
+                  key={d}
+                  label={d}
+                  sx={{
+                    bgcolor: colors.accent.secondary,
+                    border: `1px solid ${colors.secondary}`,
+                  }}
+                />
+              ))}
+            </Stack>
+          </Box>
+        ) : (
+          <Box>
+            <Typography
+              variant="subtitle2"
+              sx={{ mb: 1, color: colors.text.secondary }}
+            >
+              {t("discovery.addDialog.domainPattern")}
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+              {variants.map((v) => (
+                <Chip
+                  key={v}
+                  label={v}
+                  onClick={() => setSelectedVariant(v)}
+                  sx={{
+                    bgcolor:
+                      v === selectedVariant
+                        ? colors.accent.secondary
+                        : colors.background.dark,
+                    border:
+                      v === selectedVariant
+                        ? `2px solid ${colors.secondary}`
+                        : `1px solid ${colors.border.default}`,
+                    cursor: "pointer",
+                  }}
+                />
+              ))}
+            </Stack>
+          </Box>
+        )}
 
         {/* Mode selection - only show if similar sets exist */}
         {similarSets.length > 0 && (

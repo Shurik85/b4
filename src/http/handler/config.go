@@ -17,7 +17,6 @@ import (
 func (api *API) RegisterConfigApi() {
 
 	api.mux.HandleFunc("/api/config", api.handleConfig)
-	api.mux.HandleFunc("/api/config/reset", api.resetConfig)
 }
 
 func (a *API) handleConfig(w http.ResponseWriter, r *http.Request) {
@@ -298,50 +297,6 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 	_ = enc.Encode(response)
 }
 
-// @Summary Reset configuration to defaults
-// @Tags Config
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Security BearerAuth
-// @Router /config/reset [post]
-func (a *API) resetConfig(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	log.Infof("Config reset requested")
-	curCfg := a.getCfg()
-	oldConfig := curCfg.Clone()
-
-	defaultCfg := config.NewConfig()
-	defaultCfg.System.Checker = curCfg.System.Checker
-	defaultCfg.ConfigPath = curCfg.ConfigPath
-	defaultCfg.System.WebServer.IsEnabled = curCfg.System.WebServer.IsEnabled
-
-	for _, set := range curCfg.Sets {
-		set.ResetToDefaults()
-		a.loadTargetsForSetCached(set)
-		defaultCfg.Sets = append(defaultCfg.Sets, set)
-	}
-
-	if err := a.saveAndPushConfig(&defaultCfg); err != nil {
-		log.Errorf("Failed to reset config: %v", err)
-		http.Error(w, "Failed to reset config", http.StatusInternalServerError)
-		return
-	}
-
-	if a.PerformSoftRestart(&defaultCfg, oldConfig) {
-		log.Infof("Soft restart completed successfully")
-	}
-
-	setJsonHeader(w)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Configuration reset to defaults (domains and checker preserved)",
-	})
-}
 
 func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 

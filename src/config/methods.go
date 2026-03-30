@@ -21,12 +21,8 @@ func (c *Config) SaveToFile(path string) error {
 	}
 
 	c.Version = CurrentConfigVersion
-	if len(c.Sets) == 0 {
-		defaultCopy := NewSetConfig()
-		c.Sets = []*SetConfig{&defaultCopy}
-	}
 
-	data, err := json.MarshalIndent(c, "", "  ")
+	data, err := MarshalSparse(c)
 	if err != nil {
 		return log.Errorf("failed to marshal config: %v", err)
 	}
@@ -75,10 +71,11 @@ func (c *Config) LoadFromFile(path string) error {
 		return log.Errorf("failed to parse config file: %v", err)
 	}
 
-	if len(c.Sets) == 0 {
-		defaultCopy := NewSetConfig()
-		c.Sets = []*SetConfig{&defaultCopy}
+	ApplyConfigDefaults(c)
+	for _, set := range c.Sets {
+		ApplySetDefaults(set)
 	}
+
 	return nil
 }
 

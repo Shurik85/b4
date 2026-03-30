@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/daniellavrushin/b4/config"
+	"github.com/daniellavrushin/b4/geodat"
 )
 
 func testCfgPtr(cfg *config.Config) *atomic.Pointer[config.Config] {
@@ -172,5 +173,104 @@ func TestHandleUpdate_MethodNotAllowed(t *testing.T) {
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Errorf("expected 405, got %d", rec.Code)
+	}
+}
+
+func TestHandleDiagnostics(t *testing.T) {
+	cfg := config.NewConfig()
+	cfg.ConfigPath = "/etc/b4/b4.json"
+	api := &API{
+		cfgPtr:                 testCfgPtr(&cfg),
+		overrideServiceManager: func() string { return "systemd" },
+		geodataManager:         geodat.NewGeodataManager("", ""),
+	}
+	mux := http.NewServeMux()
+	api.mux = mux
+	api.RegisterSystemApi()
+
+	t.Run("GET returns diagnostics", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/system/diagnostics", nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+
+		var resp DiagnosticsResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if !resp.Success {
+			t.Error("expected success=true")
+		}
+		if resp.Data.System.OS == "" {
+			t.Error("OS should not be empty")
+		}
+		if resp.Data.System.Arch == "" {
+			t.Error("Arch should not be empty")
+		}
+		if resp.Data.System.CPUCores == 0 {
+			t.Error("CPU cores should be > 0")
+		}
+		if resp.Data.B4.Version == "" {
+			t.Error("version should not be empty")
+		}
+		if resp.Data.B4.ServiceManager != "systemd" {
+			t.Errorf("expected systemd service manager, got %s", resp.Data.B4.ServiceManager)
+		}
+		if resp.Data.B4.ConfigPath != "/etc/b4/b4.json" {
+			t.Errorf("expected config path /etc/b4/b4.json, got %s", resp.Data.B4.ConfigPath)
+		}
+		if len(resp.Data.Kernel.Modules) == 0 {
+			t.Error("expected at least one kernel module check")
+		}
+		if len(resp.Data.Tools.Required) == 0 {
+			t.Error("expected at least one required tool")
+		}
+	})
+
+	t.Run("POST not allowed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/system/diagnostics", nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Errorf("expected 405, got %d", rec.Code)
+		}
+	})
+}
+
+func TestCollectSystemInfo(t *testing.T) {
+	info := collectSystemInfo()
+	if info.OS == "" {
+		t.Error("OS should not be empty")
+	}
+	if info.Kernel == "" {
+		t.Error("Kernel should not be empty")
+	}
+	if info.CPUCores == 0 {
+		t.Error("CPU cores should be > 0")
+	}
+}
+
+func TestFormatBytes(t *testing.T) {
+	tests := []struct {
+		input    uint64
+		expected string
+	}{
+		{0, "0 B"},
+		{512, "512 B"},
+		{1024, "1.0 KB"},
+		{1048576, "1.0 MB"},
+		{1073741824, "1.0 GB"},
+		{2684354560, "2.5 GB"},
+	}
+	for _, tc := range tests {
+		result := formatBytes(tc.input)
+		if result != tc.expected {
+			t.Errorf("formatBytes(%d) = %q, want %q", tc.input, result, tc.expected)
+		}
 	}
 }

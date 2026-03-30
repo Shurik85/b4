@@ -447,6 +447,11 @@ func (c *Config) LoadWithMigration(path string) error {
 		return log.Errorf("failed to parse config file: %v", err)
 	}
 
+	ApplyConfigDefaults(c)
+	for _, set := range c.Sets {
+		ApplySetDefaults(set)
+	}
+
 	if c.Version < CurrentConfigVersion {
 		log.Infof("Config version %d is older than current version %d, migrating",
 			c.Version, CurrentConfigVersion)
