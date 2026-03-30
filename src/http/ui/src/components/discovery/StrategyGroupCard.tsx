@@ -110,7 +110,7 @@ export const StrategyGroupCard = ({
               )
             }
             onClick={onApply}
-            disabled={addingPreset}
+            disabled={addingPreset || !group.representativeSet}
             sx={{
               bgcolor: colors.secondary,
               color: colors.background.default,
@@ -141,7 +141,7 @@ export const StrategyGroupCard = ({
             {t("discovery.grouped.perDomainDetails")}
           </Typography>
           <Stack spacing={1}>
-            {group.domains
+            {[...group.domains]
               .sort((a, b) => b.speed - a.speed)
               .map((d) => {
                 const dr = domainResults?.[d.domain];

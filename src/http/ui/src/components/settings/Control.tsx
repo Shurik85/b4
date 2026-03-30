@@ -2,24 +2,15 @@ import { useState } from "react";
 import { Button, Grid } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import SettingSection from "@common/B4Section";
-import { ControlIcon, RestartIcon, RestoreIcon } from "@b4.icons";
+import { ControlIcon, RestartIcon, InfoIcon } from "@b4.icons";
 import { RestartDialog } from "./RestartDialog";
+import { SystemInfoDialog } from "./SystemInfoDialog";
 import { spacing } from "@design";
-import { ResetDialog } from "./ResetDialog";
 
-interface ControlSettingsProps {
-  loadConfig: () => void;
-}
-
-export const ControlSettings = ({ loadConfig }: ControlSettingsProps) => {
-  const [saving] = useState(false);
+export const ControlSettings = () => {
   const [showRestartDialog, setShowRestartDialog] = useState(false);
-  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [showSysInfoDialog, setShowSysInfoDialog] = useState(false);
   const { t } = useTranslation();
-
-  const handleResetSuccess = () => {
-    loadConfig();
-  };
 
   return (
     <SettingSection
@@ -33,18 +24,16 @@ export const ControlSettings = ({ loadConfig }: ControlSettingsProps) => {
           variant="outlined"
           startIcon={<RestartIcon />}
           onClick={() => setShowRestartDialog(true)}
-          disabled={saving}
         >
           {t("settings.Control.restartService")}
         </Button>
         <Button
           size="small"
           variant="outlined"
-          startIcon={<RestoreIcon />}
-          onClick={() => setShowResetDialog(true)}
-          disabled={saving}
+          startIcon={<InfoIcon />}
+          onClick={() => setShowSysInfoDialog(true)}
         >
-          {t("settings.Control.resetConfig")}
+          {t("settings.Control.systemInfo")}
         </Button>
       </Grid>
 
@@ -53,10 +42,9 @@ export const ControlSettings = ({ loadConfig }: ControlSettingsProps) => {
         onClose={() => setShowRestartDialog(false)}
       />
 
-      <ResetDialog
-        open={showResetDialog}
-        onClose={() => setShowResetDialog(false)}
-        onSuccess={handleResetSuccess}
+      <SystemInfoDialog
+        open={showSysInfoDialog}
+        onClose={() => setShowSysInfoDialog(false)}
       />
     </SettingSection>
   );

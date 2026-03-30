@@ -60,7 +60,7 @@ func (a *API) AddGeoIpTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.SetId == "" {
-		req.SetId = config.DefaultSetConfig.Id
+		req.SetId = config.CreateSetSentinel
 	}
 
 	set := a.getCfg().GetSetById(req.SetId)

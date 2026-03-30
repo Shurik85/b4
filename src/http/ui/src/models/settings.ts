@@ -34,11 +34,6 @@ export interface RestartResponse {
   restart_command?: string;
 }
 
-export interface ResetResponse {
-  success: boolean;
-  message: string;
-}
-
 export interface UpdateResponse {
   success: boolean;
   message: string;

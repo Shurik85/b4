@@ -51,6 +51,9 @@ export function groupByStrategy(
       groups[family].representativeSet =
         bestResult.set || groups[family].representativeSet;
     }
+    if (!groups[family].representativeSet && bestResult.set) {
+      groups[family].representativeSet = bestResult.set;
+    }
     groups[family].minSpeed = Math.min(
       groups[family].minSpeed,
       dr.best_speed,

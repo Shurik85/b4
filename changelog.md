@@ -10,6 +10,10 @@
 - IMPROVED: **Removed confusing speed numbers from discovery** — raw MB/s values that users mistook for browsing speed are replaced with ranked preset lists and improvement percentages.
 - FIXED: **Discovery history always showed "just now"** — timestamps were not saved correctly, so all history entries appeared as "just now" regardless of when they ran.
 - CHANGED: **Swagger UI moved to documentation site** — the embedded Swagger UI has been removed from the binary to reduce its size (~27MB → ~13MB). API documentation is now available at [daniellavrushin.github.io/b4/swagger](https://daniellavrushin.github.io/b4/swagger) with the ability to connect to a live B4 instance for testing. The `/swagger/` endpoint now redirects to the documentation site.
+- ADDED: **System diagnostics in UI** — new "System Info" button in Settings shows hostname, kernel, memory, B4 version, kernel modules, installed tools, and storage info.
+- REMOVED: **Config reset button** — the "Reset to defaults" function has been removed from Settings.
+- CHANGED: **Empty configuration sets allowed** — B4 no longer forces a default empty set to exist. You can now delete all sets, and the Sets page shows a clean empty state with a "Create Set" button.
+- IMPROVED: **Config file is now compact** — only settings you changed are saved to the config file. Default values are no longer written, making the file much shorter and easier to read.
 
 ## [1.46.6] - 2026-03-26
 

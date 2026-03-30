@@ -439,11 +439,7 @@ export function SettingsPage() {
           <Grid container spacing={spacing.lg} alignItems="stretch">
             <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
               <Box sx={{ width: "100%" }}>
-                <ControlSettings
-                  loadConfig={() => {
-                    loadConfig().catch(() => {});
-                  }}
-                />
+                <ControlSettings />
               </Box>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>

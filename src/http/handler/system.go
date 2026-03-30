@@ -20,6 +20,7 @@ func (api *API) RegisterSystemApi() {
 	api.mux.HandleFunc("/api/version", api.handleVersion)
 	api.mux.HandleFunc("/api/system/update", api.handleUpdate)
 	api.mux.HandleFunc("/api/system/cache", api.handleCacheStats)
+	api.mux.HandleFunc("/api/system/diagnostics", api.handleDiagnostics)
 }
 
 func (api *API) getServiceManager() string {

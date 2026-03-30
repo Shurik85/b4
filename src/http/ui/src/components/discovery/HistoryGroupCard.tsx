@@ -181,7 +181,7 @@ export const HistoryGroupCard = ({
         <Divider sx={{ borderColor: colors.border.default }} />
         <Box sx={{ p: 2 }}>
           <Stack spacing={1}>
-            {entries
+            {[...entries]
               .sort((a, b) => b.best_speed - a.best_speed)
               .map((entry) => (
                 <Box

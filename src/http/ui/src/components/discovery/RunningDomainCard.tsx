@@ -185,7 +185,7 @@ export const RunningDomainCard = ({
                 domainResult.results[domainResult.best_preset],
               );
             }}
-            disabled={addingPreset}
+            disabled={addingPreset || !domainResult.results[domainResult.best_preset]?.set}
             sx={{
               bgcolor: colors.secondary,
               color: colors.background.default,
