@@ -85,10 +85,16 @@ export const DiscoveryRunner = () => {
     dns_detection: t("discovery.phaseNames.dns_detection"),
   };
 
-  function formatTimeAgo(dateStr: string): string {
-    const date = new Date(dateStr);
-    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970)
-      return t("core.timeAgo.justNow");
+  function formatTimeAgo(dateStr: string, fallback?: string): string {
+    let date = new Date(dateStr);
+    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) {
+      if (fallback) {
+        date = new Date(fallback);
+      }
+      if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) {
+        return "";
+      }
+    }
     const diff = Date.now() - date.getTime();
     if (diff < 0) return t("core.timeAgo.justNow");
     const minutes = Math.floor(diff / 60000);
@@ -612,7 +618,11 @@ export const DiscoveryRunner = () => {
       {running &&
         suite?.domain_discovery_results &&
         Object.keys(suite.domain_discovery_results).length > 0 && (
-          <Stack spacing={2}>
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", xl: "1fr 1fr 1fr" },
+            gap: 2,
+          }}>
             {Object.values(suite.domain_discovery_results)
               .sort((a, b) => b.best_speed - a.best_speed)
               .map((domainResult) => {
@@ -765,7 +775,7 @@ export const DiscoveryRunner = () => {
                   </Paper>
                 );
               })}
-          </Stack>
+          </Box>
         )}
 
       {/* Grouped strategy view when complete */}
@@ -776,7 +786,11 @@ export const DiscoveryRunner = () => {
           const { success: strategyGroups, failed: failedDomains } =
             groupByStrategy(suite.domain_discovery_results);
           return (
-            <Stack spacing={2}>
+            <Box sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", xl: "1fr 1fr 1fr" },
+              gap: 2,
+            }}>
               {strategyGroups.map((group) => {
                 const isExpanded = expandedDomains.has(group.family);
 
@@ -1044,7 +1058,7 @@ export const DiscoveryRunner = () => {
                   </Box>
                 </Paper>
               ))}
-            </Stack>
+            </Box>
           );
         })()}
 
@@ -1095,17 +1109,14 @@ export const DiscoveryRunner = () => {
             );
 
             return (
-              <Stack spacing={2}>
+              <Box sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", xl: "1fr 1fr 1fr" },
+                gap: 2,
+              }}>
                 {groupEntries.map(([family, entries]) => {
                   const familyKey = family as StrategyFamily;
                   const isExpanded = expandedHistoryDomains.has(family);
-                  const speeds = entries.map((e) => e.best_speed);
-                  const minSpeed = Math.min(...speeds);
-                  const maxSpeed = Math.max(...speeds);
-                  const speedRange =
-                    minSpeed === maxSpeed
-                      ? `${(maxSpeed / 1024 / 1024).toFixed(2)} MB/s`
-                      : `${(minSpeed / 1024 / 1024).toFixed(2)} – ${(maxSpeed / 1024 / 1024).toFixed(2)} MB/s`;
                   const fastestEntry = entries.reduce((a, b) =>
                     a.best_speed > b.best_speed ? a : b,
                   );
@@ -1172,15 +1183,9 @@ export const DiscoveryRunner = () => {
                             variant="caption"
                             sx={{ color: colors.text.secondary }}
                           >
-                            {formatTimeAgo(entries[0].end_time)}
+                            {formatTimeAgo(entries[0].end_time, entries[0].start_time)}
                           </Typography>
                         </Box>
-                        <Typography
-                          variant="h6"
-                          sx={{ color: colors.secondary, fontWeight: 600 }}
-                        >
-                          {speedRange}
-                        </Typography>
                       </Box>
 
                       <Box sx={{ p: 2, bgcolor: colors.background.default }}>
@@ -1191,16 +1196,14 @@ export const DiscoveryRunner = () => {
                           gap={1}
                           sx={{ mb: 2 }}
                         >
-                          {entries
-                            .sort((a, b) => b.best_speed - a.best_speed)
-                            .map((entry) => (
-                              <B4Badge
-                                key={entry.domain}
-                                label={`${entry.domain} · ${(entry.best_speed / 1024 / 1024).toFixed(2)} MB/s`}
-                                size="small"
-                                color="primary"
-                              />
-                            ))}
+                          {entries.map((entry) => (
+                            <B4Badge
+                              key={entry.domain}
+                              label={entry.domain}
+                              size="small"
+                              color="primary"
+                            />
+                          ))}
                         </Stack>
                         <Box
                           sx={{
@@ -1310,20 +1313,6 @@ export const DiscoveryRunner = () => {
                                         gap: 1,
                                       }}
                                     >
-                                      <Typography
-                                        variant="body2"
-                                        sx={{
-                                          color: colors.secondary,
-                                          fontWeight: 600,
-                                        }}
-                                      >
-                                        {(
-                                          entry.best_speed /
-                                          1024 /
-                                          1024
-                                        ).toFixed(2)}{" "}
-                                        MB/s
-                                      </Typography>
                                       {entry.improvement &&
                                         entry.improvement > 0 && (
                                           <B4Badge
@@ -1428,7 +1417,7 @@ export const DiscoveryRunner = () => {
                           variant="caption"
                           sx={{ color: colors.text.secondary }}
                         >
-                          {formatTimeAgo(entry.end_time)}
+                          {formatTimeAgo(entry.end_time, entry.start_time)}
                         </Typography>
                         <Tooltip title={t("core.history.removeFromHistory")}>
                           <IconButton
@@ -1472,7 +1461,7 @@ export const DiscoveryRunner = () => {
                     </Box>
                   </Paper>
                 ))}
-              </Stack>
+              </Box>
             );
           })()}
         </B4Section>
