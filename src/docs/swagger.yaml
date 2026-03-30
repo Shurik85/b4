@@ -109,6 +109,10 @@ definitions:
     properties:
       config_propagate_ms:
         type: integer
+      discovery_flow_mark:
+        type: integer
+      discovery_injected_mark:
+        type: integer
       discovery_timeout:
         type: integer
       reference_dns:
@@ -270,6 +274,21 @@ definitions:
         description: MSS value in bytes (e.g., 88)
         type: integer
     type: object
+  config.MTProtoConfig:
+    properties:
+      bind_address:
+        type: string
+      dc_relay:
+        type: string
+      enabled:
+        type: boolean
+      fake_sni:
+        type: string
+      port:
+        type: integer
+      secret:
+        type: string
+    type: object
   config.QueueConfig:
     properties:
       devices:
@@ -283,6 +302,7 @@ definitions:
       ipv6:
         type: boolean
       mark:
+        description: Main injected packets mark
         type: integer
       mss_clamp:
         $ref: '#/definitions/config.MSSClampConfig'
@@ -379,6 +399,8 @@ definitions:
         $ref: '#/definitions/config.GeoDatConfig'
       logging:
         $ref: '#/definitions/config.Logging'
+      mtproto:
+        $ref: '#/definitions/config.MTProtoConfig'
       socks5:
         $ref: '#/definitions/config.Socks5Config'
       tables:
@@ -490,8 +512,6 @@ definitions:
         type: string
       port:
         type: integer
-      swagger:
-        type: boolean
       tls_cert:
         type: string
       tls_key:
@@ -2038,6 +2058,67 @@ paths:
       summary: Get metrics summary
       tags:
       - Metrics
+  /mtproto/config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get MTProto configuration
+      tags:
+      - MTProto
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: MTProto configuration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/config.MTProtoConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update MTProto configuration
+      tags:
+      - MTProto
+  /mtproto/generate-secret:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: fake_sni field required
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Generate MTProto secret
+      tags:
+      - MTProto
   /sets:
     get:
       produces:

@@ -10,12 +10,10 @@ import (
 	"time"
 
 	"github.com/daniellavrushin/b4/config"
-	_ "github.com/daniellavrushin/b4/docs"
 	"github.com/daniellavrushin/b4/http/handler"
 	"github.com/daniellavrushin/b4/http/ws"
 	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/nfq"
-	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 //go:embed ui/dist/*
@@ -34,13 +32,6 @@ func StartServer(cfg *config.Config, pool *nfq.Pool) (*stdhttp.Server, error) {
 
 	registerAPIEndpoints(mux, cfg)
 	registerAuthEndpoints(mux, cfg)
-
-	if cfg.System.WebServer.Swagger {
-		mux.Handle("/swagger/", httpSwagger.Handler(
-			httpSwagger.URL("/swagger/doc.json"),
-		))
-		log.Infof("Swagger UI enabled at /swagger/")
-	}
 
 	handler.RegisterSpa(mux, uiDist)
 

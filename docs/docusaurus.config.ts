@@ -49,6 +49,11 @@ const config: Config = {
           label: "Документация",
         },
         {
+          to: "/swagger",
+          label: "API",
+          position: "left",
+        },
+        {
           href: "https://github.com/DanielLavrushin/b4",
           label: "GitHub",
           position: "right",
