@@ -37,7 +37,8 @@ func IPv4FragmentPacket(packet []byte, splitPos int) ([][]byte, bool) {
 	// Fragment 1: IP header + first splitPos bytes of IP payload, MF flag set
 	frag1 := make([]byte, absPos)
 	copy(frag1, packet[:absPos])
-	frag1[6] |= 0x20 // Set More Fragments flag
+	frag1[6] = 0x20
+	frag1[7] = 0x00
 	binary.BigEndian.PutUint16(frag1[2:4], uint16(absPos))
 	FixIPv4Checksum(frag1[:ipHdrLen])
 
