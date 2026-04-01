@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/daniellavrushin/b4/config"
@@ -997,6 +998,9 @@ func (ds *DiscoverySuite) testPresetAllDomains(preset ConfigPreset) map[string]C
 
 	timeout := time.Duration(ds.cfg.System.Checker.DiscoveryTimeoutSec) * time.Second
 
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
 	for _, di := range ds.Domains {
 		select {
 		case <-ds.cancel:
@@ -1004,46 +1008,59 @@ func (ds *DiscoverySuite) testPresetAllDomains(preset ConfigPreset) map[string]C
 		default:
 		}
 
-		ds.setCurrentDomain(di.Domain)
+		wg.Add(1)
+		go func(di DomainInput) {
+			defer wg.Done()
 
-		// Run validation tries with early exit on first failure.
-		successCount := 0
-		var lastResult CheckResult
+			successCount := 0
+			var lastResult CheckResult
 
-		for i := 0; i < ds.validationTries; i++ {
-			result := ds.fetchForDomain(di, timeout)
-			if len(testConfig.Sets) > 0 {
-				result.Set = testConfig.Sets[0]
+			for i := 0; i < ds.validationTries; i++ {
+				select {
+				case <-ds.cancel:
+					return
+				default:
+				}
+
+				result := ds.fetchForDomain(di, timeout)
+				if len(testConfig.Sets) > 0 {
+					result.Set = testConfig.Sets[0]
+				}
+				lastResult = result
+
+				if result.Status != CheckStatusComplete {
+					break
+				}
+				successCount++
+
+				if i < ds.validationTries-1 {
+					time.Sleep(validationRetryDelay)
+				}
 			}
-			lastResult = result
 
-			if result.Status != CheckStatusComplete {
-				break
+			if successCount == ds.validationTries {
+				log.DiscoveryLogf("    [%s] → OK (%.2f KB/s, %d bytes)", di.Domain, lastResult.Speed/1024, lastResult.BytesRead)
+				mu.Lock()
+				results[di.Domain] = lastResult
+				mu.Unlock()
+			} else {
+				lastResult.Status = CheckStatusFailed
+				if ds.validationTries > 1 {
+					lastResult.Error = fmt.Sprintf("%s (%d/%d tries)", lastResult.Error, successCount, ds.validationTries)
+				}
+				log.DiscoveryLogf("    [%s] → FAILED (%s)", di.Domain, lastResult.Error)
+				mu.Lock()
+				results[di.Domain] = lastResult
+				mu.Unlock()
 			}
-			successCount++
 
-			if i < ds.validationTries-1 {
-				time.Sleep(validationRetryDelay)
-			}
-		}
-
-		if successCount == ds.validationTries {
-			log.DiscoveryLogf("    [%s] → OK (%.2f KB/s, %d bytes)", di.Domain, lastResult.Speed/1024, lastResult.BytesRead)
-			results[di.Domain] = lastResult
-		} else {
-			lastResult.Status = CheckStatusFailed
-			if ds.validationTries > 1 {
-				lastResult.Error = fmt.Sprintf("%s (%d/%d tries)", lastResult.Error, successCount, ds.validationTries)
-			}
-			log.DiscoveryLogf("    [%s] → FAILED (%s)", di.Domain, lastResult.Error)
-			results[di.Domain] = lastResult
-		}
-
-		ds.CheckSuite.mu.Lock()
-		ds.CompletedChecks++
-		ds.CheckSuite.mu.Unlock()
+			ds.CheckSuite.mu.Lock()
+			ds.CompletedChecks++
+			ds.CheckSuite.mu.Unlock()
+		}(di)
 	}
 
+	wg.Wait()
 	return results
 }
 

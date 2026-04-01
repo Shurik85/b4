@@ -1,6 +1,10 @@
 # B4 - Bye Bye Big Bro
 
-## [1.47.1] - 2026-04-01
+## [1.47.2] - 2026-04-01
+
+- IMPROVED: **Discovery tests multiple domains in parallel** — when checking several URLs, discovery now tests all domains at the same time instead of one by one, making it noticeably faster.
+
+## [1.47.0] - 2026-03-31
 
 - FIXED: **Routing breaks when VPN/WireGuard restarts** — B4 now automatically detects when a network interface changes and refreshes routing rules. Previously, restarting WireGuard (or any VPN) while B4 was running would silently break routing until B4 was restarted.
 - IMPROVED: **Discovery no longer interrupts normal traffic** — discovery now runs on its own isolated flow, so your internet connection stays unaffected while discovery is testing strategies.
