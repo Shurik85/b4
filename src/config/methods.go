@@ -714,6 +714,8 @@ func (cfg *Config) MSSClampFingerprint() string {
 // CollectDuplicateIPs returns IPv4 and IPv6 IPs/CIDRs from sets with duplication enabled.
 // Used for firewall rules that queue packets without connbytes limit.
 func (cfg *Config) CollectDuplicateIPs() (ipv4 []string, ipv6 []string) {
+	seen4 := make(map[string]struct{})
+	seen6 := make(map[string]struct{})
 	for _, set := range cfg.Sets {
 		if !set.Enabled || !set.TCP.Duplicate.Enabled {
 			continue
@@ -724,9 +726,15 @@ func (cfg *Config) CollectDuplicateIPs() (ipv4 []string, ipv6 []string) {
 				continue
 			}
 			if strings.Contains(ipStr, ":") {
-				ipv6 = append(ipv6, ipStr)
+				if _, ok := seen6[ipStr]; !ok {
+					seen6[ipStr] = struct{}{}
+					ipv6 = append(ipv6, ipStr)
+				}
 			} else {
-				ipv4 = append(ipv4, ipStr)
+				if _, ok := seen4[ipStr]; !ok {
+					seen4[ipStr] = struct{}{}
+					ipv4 = append(ipv4, ipStr)
+				}
 			}
 		}
 	}

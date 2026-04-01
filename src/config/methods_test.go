@@ -811,3 +811,25 @@ func TestResetToDefaults(t *testing.T) {
 			DefaultSetConfig.Fragmentation.SNIPosition, set.Fragmentation.SNIPosition)
 	}
 }
+
+func TestCollectDuplicateIPs_Dedup(t *testing.T) {
+	cfg := &Config{
+		Sets: []*SetConfig{
+			{
+				Enabled: true,
+				TCP: TCPConfig{
+					Duplicate: DuplicateConfig{Enabled: true},
+				},
+			},
+		},
+	}
+	cfg.Sets[0].Targets.IpsToMatch = []string{"1.2.3.4", "5.6.7.8", "1.2.3.4", "2001:db8::1", "2001:db8::1"}
+
+	v4, v6 := cfg.CollectDuplicateIPs()
+	if len(v4) != 2 {
+		t.Errorf("expected 2 unique IPv4, got %d: %v", len(v4), v4)
+	}
+	if len(v6) != 1 {
+		t.Errorf("expected 1 unique IPv6, got %d: %v", len(v6), v6)
+	}
+}
