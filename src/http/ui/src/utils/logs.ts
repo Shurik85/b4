@@ -49,6 +49,7 @@ export function parseSniLogLine(line: string): ParsedLog | null {
     destination,
     sourceAlias,
     tls,
+    flags,
   ] = tokens;
 
   return {
@@ -62,6 +63,7 @@ export function parseSniLogLine(line: string): ParsedLog | null {
     sourceAlias: sourceAlias ?? "",
     deviceName: "",
     tls: tls ?? "",
+    flags: flags ?? "",
     raw: line,
   };
 }

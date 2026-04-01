@@ -379,6 +379,27 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		ipTarget = st.Name
 	}
 
+	if matched && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
+		ibd := &set.TCP.IPBlockDetect
+		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
+
+		if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
+			log.Infof(",TCP,,%s,%s:%d,%s,%s:%d,%s,%s,ipblock-cached", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
+			if pkt.ver == IPv4 {
+				w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
+			} else {
+				w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
+			}
+			m := metrics.GetMetricsCollector()
+			m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
+			m.RecordPacket(uint64(len(pkt.raw)))
+			if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+				log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+			}
+			return 0
+		}
+	}
+
 	if !log.IsDiscoveryActive() {
 		log.Infof(",TCP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
 	}
@@ -398,21 +419,6 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 			ibd := &set.TCP.IPBlockDetect
 			dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 			ibConnKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
-
-			if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
-				log.Infof(",TCP-IPBLOCK-CACHED,%s,%s:%d,%s,%s:%d", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport)
-				if pkt.ver == IPv4 {
-					w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
-				} else {
-					w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
-				}
-				m := metrics.GetMetricsCollector()
-				m.RecordConnection("TCP-IPBLOCK", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
-				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
-					log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
-				}
-				return 0
-			}
 
 			count, firstSeen := w.ipBlocker.RecordClientHello(ibConnKey, host)
 			threshold := ibd.RetransmitThreshold
@@ -435,9 +441,9 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 					if ibd.CacheBlockedIPs {
 						w.ipBlocker.AddBlocked(dstIPPort)
 					}
-					log.Infof(",TCP-IPBLOCK,%s,%s:%d,%s,%s:%d,%d retransmits", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, count)
+					log.Infof(",TCP,,%s,%s:%d,%s,%s:%d,%s,%s,ipblock", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
 					m := metrics.GetMetricsCollector()
-					m.RecordConnection("TCP-IPBLOCK", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
+					m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
 				}
 				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
 					log.Tracef("failed to set drop verdict on packet %d: %v", id, err)

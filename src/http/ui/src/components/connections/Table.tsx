@@ -99,7 +99,7 @@ const TableRowMemo = memo<{
             py: 1,
           }}
         >
-          <ProtocolChip protocol={log.protocol} />
+          <ProtocolChip protocol={log.protocol} flags={log.flags} />
         </TableCell>
         <TableCell
           sx={{
