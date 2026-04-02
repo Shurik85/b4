@@ -11,20 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/daniellavrushin/b4/discovery"
 	"github.com/daniellavrushin/b4/log"
 	"golang.org/x/sys/unix"
 )
-
-var blockPageRedirectMarkers = []string{
-	"lawfilter", "warning.rt.ru", "blocked", "access-denied",
-	"eais", "zapret-info", "rkn.gov.ru", "mvd.ru",
-}
-
-var blockPageBodyMarkers = []string{
-	"заблокирован", "запрещён", "запрещен", "ограничен",
-	"единый реестр", "роскомнадзор", "rkn.gov.ru", "nap.gov.ru",
-	"eais.rkn.gov.ru", "warning.rt.ru", "решению суда",
-}
 
 func checkDomain(domain string, mark uint, timeout time.Duration) CheckResult {
 	checkURL := "https://" + domain
@@ -72,7 +62,7 @@ func checkDomain(domain string, mark uint, timeout time.Duration) CheckResult {
 	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		return CheckResult{Error: humanizeError(err.Error())}
+		return CheckResult{Error: discovery.HumanizeError(err.Error())}
 	}
 	defer resp.Body.Close()
 
@@ -82,7 +72,7 @@ func checkDomain(domain string, mark uint, timeout time.Duration) CheckResult {
 
 	if loc := resp.Header.Get("Location"); loc != "" {
 		locLower := strings.ToLower(loc)
-		for _, marker := range blockPageRedirectMarkers {
+		for _, marker := range discovery.BlockPageRedirectMarkers {
 			if strings.Contains(locLower, marker) {
 				return CheckResult{Error: "ISP block page (redirect to " + loc + ")"}
 			}
@@ -126,7 +116,7 @@ evaluate:
 		speed = float64(bytesRead) / duration.Seconds()
 	}
 
-	if blockErr := detectBlockPage(headBuf); blockErr != "" {
+	if blockErr := discovery.DetectBlockPage(headBuf); blockErr != "" {
 		return CheckResult{Error: blockErr}
 	}
 
@@ -139,46 +129,6 @@ evaluate:
 		Speed:     speed,
 		BytesRead: bytesRead,
 	}
-}
-
-func detectBlockPage(body []byte) string {
-	if len(body) == 0 {
-		return ""
-	}
-	bodyLower := strings.ToLower(string(body))
-	for _, marker := range blockPageBodyMarkers {
-		if strings.Contains(bodyLower, marker) {
-			return "ISP block page detected in response"
-		}
-	}
-	return ""
-}
-
-func humanizeError(raw string) string {
-	lower := strings.ToLower(raw)
-
-	patterns := []struct {
-		pattern, desc string
-	}{
-		{"unexpected eof", "connection closed by DPI (unexpected EOF)"},
-		{"eof occurred in violation", "connection closed by DPI (EOF violation)"},
-		{"connection reset by peer", "connection reset by DPI"},
-		{"connection refused", "connection refused (port blocked or service down)"},
-		{"i/o timeout", "connection timed out (possible DPI block)"},
-		{"context deadline exceeded", "connection timed out"},
-		{"tls: ", "TLS handshake failed (possible DPI interference)"},
-		{"certificate", "TLS certificate error"},
-		{"no such host", "DNS resolution failed"},
-		{"network is unreachable", "network unreachable"},
-	}
-
-	for _, p := range patterns {
-		if strings.Contains(lower, p.pattern) {
-			return p.desc
-		}
-	}
-
-	return raw
 }
 
 func checkAllConcurrently(domains []string, mark uint, timeout time.Duration) map[string]CheckResult {

@@ -231,14 +231,15 @@ func (w *Watchdog) healBatch(domains []string) {
 	}
 
 	freshCfg := w.cfgPtr.Load().Clone()
+	applyErrors := applyBatchResults(freshCfg, domains, cs, w.saveFunc)
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	for _, domain := range domains {
 		st := w.domainStates[domain]
-		applyErr := applyDiscoveryResult(freshCfg, domain, cs, w.saveFunc)
-		if applyErr != nil {
-			log.Warnf("[WATCHDOG] %s: no working config found, cooldown %ds", domain, wdCfg.Cooldown)
+		if err, failed := applyErrors[domain]; failed && err != nil {
+			log.Warnf("[WATCHDOG] %s: %v, cooldown %ds", domain, err, wdCfg.Cooldown)
 			st.Status = StatusDegraded
 			st.ConsecutiveFailures = 0
 			st.CooldownUntil = time.Now().Add(time.Duration(wdCfg.Cooldown) * time.Second)
@@ -246,7 +247,7 @@ func (w *Watchdog) healBatch(domains []string) {
 		}
 
 		dr := cs.DomainDiscoveryResults[domain]
-		if dr != nil {
+		if dr != nil && dr.BestSuccess {
 			log.Infof("[WATCHDOG] %s: healed (%s, %.0f KB/s)", domain, dr.BestPreset, dr.BestSpeed/1024)
 		}
 		st.Status = StatusHealthy

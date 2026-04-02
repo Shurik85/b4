@@ -31,12 +31,12 @@ const (
 )
 
 // ISP block page detection markers (shared with detector module).
-var blockPageRedirectMarkers = []string{
+var BlockPageRedirectMarkers = []string{
 	"lawfilter", "warning.rt.ru", "blocked", "access-denied",
 	"eais", "zapret-info", "rkn.gov.ru", "mvd.ru",
 }
 
-var blockPageBodyMarkers = []string{
+var BlockPageBodyMarkers = []string{
 	"заблокирован", "запрещён", "запрещен", "ограничен",
 	"единый реестр", "роскомнадзор", "rkn.gov.ru", "nap.gov.ru",
 	"eais.rkn.gov.ru", "warning.rt.ru", "решению суда",
@@ -44,12 +44,12 @@ var blockPageBodyMarkers = []string{
 
 // detectBlockPage checks response body for ISP block page markers.
 // Returns error description if block page detected, empty string otherwise.
-func detectBlockPage(body []byte) string {
+func DetectBlockPage(body []byte) string {
 	if len(body) == 0 {
 		return ""
 	}
 	bodyLower := strings.ToLower(string(body))
-	for _, marker := range blockPageBodyMarkers {
+	for _, marker := range BlockPageBodyMarkers {
 		if strings.Contains(bodyLower, marker) {
 			return "ISP block page detected in response"
 		}
@@ -59,7 +59,7 @@ func detectBlockPage(body []byte) string {
 
 // humanizeError converts raw Go error strings into user-friendly descriptions.
 // Uses the same DPI/MITM classification patterns as the detector module.
-func humanizeError(raw string) string {
+func HumanizeError(raw string) string {
 	lower := strings.ToLower(raw)
 
 	// DPI interference patterns (from detector/classify.go)
@@ -1224,7 +1224,7 @@ func (ds *DiscoverySuite) fetchUsingIPForDomain(di DomainInput, timeout time.Dur
 	resp, err := client.Do(req)
 	if err != nil {
 		result.Status = CheckStatusFailed
-		result.Error = humanizeError(err.Error())
+		result.Error = HumanizeError(err.Error())
 		result.Duration = time.Since(start)
 		return result
 	}
@@ -1242,7 +1242,7 @@ func (ds *DiscoverySuite) fetchUsingIPForDomain(di DomainInput, timeout time.Dur
 	}
 	if loc := resp.Header.Get("Location"); loc != "" {
 		locLower := strings.ToLower(loc)
-		for _, marker := range blockPageRedirectMarkers {
+		for _, marker := range BlockPageRedirectMarkers {
 			if strings.Contains(locLower, marker) {
 				result.Status = CheckStatusFailed
 				result.Error = "ISP block page (redirect to " + loc + ")"
@@ -1316,7 +1316,7 @@ evaluate:
 	}
 
 	// Check for ISP block page in response body before marking as success.
-	if blockErr := detectBlockPage(headBuf); blockErr != "" {
+	if blockErr := DetectBlockPage(headBuf); blockErr != "" {
 		result.Status = CheckStatusFailed
 		result.Error = blockErr
 		return result
