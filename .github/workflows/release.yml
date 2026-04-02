@@ -122,60 +122,6 @@ jobs:
           path: out/assets/*
           retention-days: 1
 
-  swagger:
-    name: Update Swagger Docs
-    needs: [build-linux]
-    if: github.ref == 'refs/heads/main' && inputs.prerelease == false
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: src/go.mod
-
-      - name: Generate Swagger spec
-        run: make swagger VERSION="$VERSION"
-
-      - name: Archive versioned spec
-        run: |
-          mkdir -p docs/static/swagger-versions
-          cp docs/static/swagger.json "docs/static/swagger-versions/v${VERSION}.json"
-          # Build versions manifest from files on disk
-          echo "[" > docs/static/swagger-versions/index.json
-          first=true
-          for f in $(ls -v docs/static/swagger-versions/v*.json 2>/dev/null | sort -rV); do
-            ver=$(basename "$f" .json)
-            if [ "$first" = true ]; then first=false; else echo "," >> docs/static/swagger-versions/index.json; fi
-            echo "  \"$ver\"" >> docs/static/swagger-versions/index.json
-          done
-          echo "]" >> docs/static/swagger-versions/index.json
-          cat docs/static/swagger-versions/index.json
-
-      - name: Commit swagger docs
-        id: swagger_commit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/static/swagger.json docs/static/swagger-versions/
-          if git diff --cached --quiet; then
-            echo "No swagger changes"
-            echo "pushed=false" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "docs: update swagger spec to v${VERSION}" && git push
-            echo "pushed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Trigger docs deployment
-        if: steps.swagger_commit.outputs.pushed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run docs.yml --ref main
-
   release:
     name: Create Release
     needs: [build-linux]

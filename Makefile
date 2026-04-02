@@ -29,11 +29,21 @@ ANDROID_MIN_API := 21
 
 .PHONY: swagger
 swagger:
+	@if [ "$(VERSION)" = "1.0.0" ]; then echo "ERROR: specify VERSION, e.g. make swagger VERSION=1.48.0"; exit 1; fi
 	@echo "Generating Swagger docs..."
 	@cd $(SRC_DIR) && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init --generalInfo main.go --output tools/docs --parseDependency
 	@sed -i 's/"version": *"[^"]*"/"version": "$(VERSION)"/' $(SRC_DIR)/tools/docs/swagger.json
 	@cp $(SRC_DIR)/tools/docs/swagger.json ./docs/static/swagger.json
 	@rm -rf $(SRC_DIR)/tools/docs
+	@mkdir -p docs/static/swagger-versions
+	@cp docs/static/swagger.json "docs/static/swagger-versions/v$(VERSION).json"
+	@echo "[" > docs/static/swagger-versions/index.json
+	@first=true; for f in $$(ls docs/static/swagger-versions/v*.json | sort -rV); do \
+		ver=$$(basename "$$f" .json); \
+		[ "$$first" = true ] && first=false || echo "," >> docs/static/swagger-versions/index.json; \
+		echo "  \"$$ver\"" >> docs/static/swagger-versions/index.json; \
+	done
+	@echo "]" >> docs/static/swagger-versions/index.json
 	@echo "Swagger spec (v$(VERSION)) copied to docs/static/"
 
 # Build for current platform
