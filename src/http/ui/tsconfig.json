@@ -34,7 +34,8 @@
       "@b4.icons": ["./src/barrels/icons.ts"],
       "@b4.devices": ["./src/barrels/devices.ts"],
       "@b4.capture": ["./src/barrels/capture.ts"],
-      "@b4.detector": ["./src/barrels/detector.ts"]
+      "@b4.detector": ["./src/barrels/detector.ts"],
+      "@b4.watchdog": ["./src/barrels/watchdog.ts"]
     }
   },
   "include": ["src"]

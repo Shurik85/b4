@@ -157,12 +157,23 @@ export interface DeviceMSSClamp {
   size: number;
 }
 
+export interface WatchdogConfig {
+  enabled: boolean;
+  domains: string[];
+  interval_sec: number;
+  failure_interval: number;
+  cooldown_sec: number;
+  timeout_sec: number;
+  max_retries: number;
+}
+
 export interface DiscoveryConfig {
   discovery_timeout: number;
   config_propagate_ms: number;
   reference_domain: string;
   reference_dns: string[];
   validation_tries: number;
+  watchdog: WatchdogConfig;
 }
 
 export type WindowMode = "off" | "oscillate" | "zero" | "random" | "escalate";

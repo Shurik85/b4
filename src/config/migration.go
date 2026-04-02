@@ -48,6 +48,13 @@ var migrationRegistry = map[int]MigrationFunc{
 	28: migrateV28to29, // Add position ranges and strategy pool
 	29: migrateV29to30, // Add MTProto proxy config
 	30: migrateV30to31, // Add TCP IP block detection config
+	31: migrateV31to32, // Add watchdog config
+}
+
+func migrateV31to32(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v31->v32: Adding watchdog config")
+	c.System.Checker.Watchdog = DefaultConfig.System.Checker.Watchdog
+	return nil
 }
 
 func migrateV30to31(c *Config, _ map[string]interface{}) error {

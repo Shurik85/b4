@@ -35,6 +35,7 @@ import {
   MenuIcon,
   SecurityIcon,
   SetsIcon,
+  WatchdogIcon,
 } from "@b4.icons";
 import { colors, theme } from "@design";
 import { useAuth } from "@context/AuthProvider";
@@ -52,6 +53,7 @@ import { DiscoveryPage } from "@b4.discovery";
 import { LogsPage } from "@b4.logs";
 import { SetsPage } from "@b4.sets";
 import { SettingsPage } from "@b4.settings";
+import { WatchdogPage } from "@b4.watchdog";
 import { SnackbarProvider } from "@context/SnackbarProvider";
 
 const DRAWER_WIDTH = 240;
@@ -66,6 +68,7 @@ const navItems: NavItem[] = [
   { path: "/dashboard", labelKey: "core.nav.dashboard", icon: <DashboardIcon /> },
   { path: "/sets", labelKey: "core.nav.sets", icon: <SetsIcon /> },
   { path: "/discovery", labelKey: "core.nav.discovery", icon: <DiscoveryIcon /> },
+  { path: "/watchdog", labelKey: "core.nav.watchdog", icon: <WatchdogIcon /> },
   { path: "/detector", labelKey: "core.nav.detector", icon: <SecurityIcon /> },
   { path: "/connections", labelKey: "core.nav.connections", icon: <ConnectionIcon /> },
   { path: "/logs", labelKey: "core.nav.logs", icon: <LogsIcon /> },
@@ -99,6 +102,7 @@ export default function App() {
     if (path.startsWith("/sets")) return t("core.nav.sets");
     if (path.startsWith("/connections")) return t("core.nav.connections");
     if (path.startsWith("/discovery")) return t("core.nav.discovery");
+    if (path.startsWith("/watchdog")) return t("core.nav.watchdog");
     if (path.startsWith("/logs")) return t("core.nav.logs");
     if (path.startsWith("/detector")) return t("core.nav.detector");
     if (path.startsWith("/settings")) return t("core.nav.settings");
@@ -223,6 +227,7 @@ export default function App() {
               <Route path="/sets/*" element={<SetsPage />} />
               <Route path="/connections" element={<ConnectionsPage />} />
               <Route path="/discovery" element={<DiscoveryPage />} />
+              <Route path="/watchdog" element={<WatchdogPage />} />
               <Route path="/detector" element={<DetectorPage />} />
               <Route path="/logs" element={<LogsPage />} />
               <Route path="/settings/*" element={<SettingsPage />} />

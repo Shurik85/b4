@@ -75,4 +75,5 @@ export {
   Inventory2 as BackupIcon,
   Power as ProxyIcon,
   Difference as DuplicateIcon,
+  Visibility as WatchdogIcon,
 } from "@mui/icons-material";

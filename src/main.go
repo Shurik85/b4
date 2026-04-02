@@ -26,6 +26,7 @@ import (
 	"github.com/daniellavrushin/b4/quic"
 	"github.com/daniellavrushin/b4/socks5"
 	"github.com/daniellavrushin/b4/tables"
+	"github.com/daniellavrushin/b4/watchdog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -235,6 +236,25 @@ func runB4(cmd *cobra.Command, args []string) error {
 		return log.Errorf("failed to start MTProto server: %w", err)
 	}
 
+	wd := watchdog.New(&cfgPtr, discoveryRT, func(c *config.Config) error {
+		if err := c.Validate(); err != nil {
+			return fmt.Errorf("invalid configuration: %v", err)
+		}
+		if pool != nil {
+			if err := pool.UpdateConfig(c); err != nil {
+				return fmt.Errorf("failed to update pool config: %v", err)
+			}
+		}
+		if err := c.SaveToFile(c.ConfigPath); err != nil {
+			return fmt.Errorf("failed to save config: %v", err)
+		}
+		cfgPtr.Store(c)
+		tables.RoutingSyncConfig(c)
+		return nil
+	})
+	wd.Start()
+	handler.SetWatchdog(wd)
+
 	log.Infof("B4 is running. Press Ctrl+C to stop")
 	metrics.RecordEvent("info", "B4 is fully operational")
 
@@ -245,6 +265,8 @@ func runB4(cmd *cobra.Command, args []string) error {
 
 	log.Infof("Received signal: %v, shutting down gracefully", sig)
 	metrics.RecordEvent("info", fmt.Sprintf("Shutdown initiated by signal: %v", sig))
+
+	wd.Stop()
 
 	// Perform graceful shutdown with timeout
 	return gracefulShutdown(cfgPtr.Load(), pool, httpServer, socks5Server, mtprotoServer, metrics, discoveryRT)

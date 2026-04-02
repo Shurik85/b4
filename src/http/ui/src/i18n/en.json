@@ -53,7 +53,8 @@
       "detector": "DPI Detector",
       "connections": "Connections",
       "logs": "Logs",
-      "settings": "Settings"
+      "settings": "Settings",
+      "watchdog": "Watchdog"
     },
     "failed": "Failed",
     "filtered": "{{count}} filtered",
@@ -294,6 +295,25 @@
       "addDns": "Add DNS Server",
       "addDnsHelp": "DNS servers used during discovery to detect DNS poisoning and find a working bypass. Each server is tested with plain and fragmented queries to determine if it can resolve blocked domains correctly.",
       "activeDns": "Active DNS servers for poisoning detection:"
+    },
+    "Watchdog": {
+      "title": "Watchdog",
+      "description": "Automatic domain monitoring and self-healing",
+      "enabled": "Enable Watchdog",
+      "interval": "Check Interval",
+      "intervalHelp": "How often to check each domain when healthy.",
+      "failureInterval": "Failure Re-check Interval",
+      "failureIntervalHelp": "How often to re-check a domain after a failure is detected.",
+      "cooldown": "Healing Cooldown",
+      "cooldownHelp": "Minimum time between discovery runs for the same domain.",
+      "timeout": "Check Timeout",
+      "timeoutHelp": "Max time to wait for each health check request.",
+      "maxRetries": "Max Retries",
+      "maxRetriesHelp": "Consecutive failures before triggering automatic discovery.",
+      "domainsConfig": "Monitored Domains",
+      "addDomain": "Add Domain",
+      "addDomainHelp": "Domains to monitor for DPI blocking.",
+      "activeDomains": "Domains being monitored:"
     },
     "Geo": {
       "alert": "GeoSite and GeoIP database files for domain and IP categorization.",
@@ -1379,5 +1399,31 @@
     "inProgress": "Update in progress. Waiting for service to restart...",
     "completed": "Update completed successfully! Refreshing...",
     "manualCheck": "Update may have completed but service did not restart. Please check manually."
+  },
+  "watchdog": {
+    "title": "Watchdog Monitor",
+    "description": "Domain health monitoring and automatic healing",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "issues": "issues",
+    "disabledHint": "Watchdog is disabled. Enable it in <link>Settings > Discovery</link> to start monitoring domains.",
+    "noDomainsHint": "No domains configured. Add domains in <link>Settings > Discovery</link> > Watchdog section.",
+    "forceCheck": "Force check now",
+    "removeDomain": "Remove from watchdog",
+    "status": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "escalating": "Healing",
+      "queued": "Queued"
+    },
+    "table": {
+      "domain": "Domain",
+      "status": "Status",
+      "lastCheck": "Last Check",
+      "speed": "Speed",
+      "failures": "Failures",
+      "error": "Last Error",
+      "actions": "Actions"
+    }
   }
 }

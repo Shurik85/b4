@@ -215,13 +215,24 @@ type WebServerConfig struct {
 }
 
 type DiscoveryConfig struct {
-	DiscoveryTimeoutSec   int      `json:"discovery_timeout"`
-	ConfigPropagateMs     int      `json:"config_propagate_ms"`
-	ReferenceDomain       string   `json:"reference_domain"`
-	ReferenceDNS          []string `json:"reference_dns"`
-	ValidationTries       int      `json:"validation_tries"`
-	DiscoveryFlowMark     uint     `json:"discovery_flow_mark"`
-	DiscoveryInjectedMark uint     `json:"discovery_injected_mark"`
+	DiscoveryTimeoutSec   int            `json:"discovery_timeout"`
+	ConfigPropagateMs     int            `json:"config_propagate_ms"`
+	ReferenceDomain       string         `json:"reference_domain"`
+	ReferenceDNS          []string       `json:"reference_dns"`
+	ValidationTries       int            `json:"validation_tries"`
+	DiscoveryFlowMark     uint           `json:"discovery_flow_mark"`
+	DiscoveryInjectedMark uint           `json:"discovery_injected_mark"`
+	Watchdog              WatchdogConfig `json:"watchdog"`
+}
+
+type WatchdogConfig struct {
+	Enabled         bool     `json:"enabled"`
+	Domains         []string `json:"domains"`
+	IntervalSec     int      `json:"interval_sec"`
+	FailureInterval int      `json:"failure_interval"`
+	Cooldown        int      `json:"cooldown_sec"`
+	TimeoutSec      int      `json:"timeout_sec"`
+	MaxRetries      int      `json:"max_retries"`
 }
 
 type Logging struct {

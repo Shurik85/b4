@@ -15,6 +15,7 @@ import (
 	"github.com/daniellavrushin/b4/geodat"
 	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/nfq"
+	"github.com/daniellavrushin/b4/watchdog"
 	"github.com/daniellavrushin/b4/utils"
 	"golang.org/x/sys/unix"
 )
@@ -36,6 +37,7 @@ var (
 	tablesRefreshFunc  func() error
 	routingSyncFunc    func(*config.Config)
 	discoveryRuntime   *discovery.Runtime
+	globalWatchdog     *watchdog.Watchdog
 )
 
 func setJsonHeader(w http.ResponseWriter) {
@@ -128,6 +130,7 @@ func (api *API) RegisterEndpoints(mux *http.ServeMux, cfgPtr *atomic.Pointer[con
 	api.RegisterDetectorApi()
 	api.RegisterBackupApi()
 	api.RegisterAsnApi()
+	api.RegisterWatchdogApi()
 }
 
 func sendResponse(w http.ResponseWriter, response interface{}) {
@@ -148,6 +151,10 @@ func SetRoutingSyncFunc(fn func(*config.Config)) {
 
 func SetDiscoveryRuntime(rt *discovery.Runtime) {
 	discoveryRuntime = rt
+}
+
+func SetWatchdog(wd *watchdog.Watchdog) {
+	globalWatchdog = wd
 }
 
 func checkDiskSpace(dir string, needed int64) error {

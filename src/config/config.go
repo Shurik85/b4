@@ -242,6 +242,15 @@ var DefaultConfig = Config{
 			ReferenceDomain:     "yandex.ru",
 			ReferenceDNS:        []string{"9.9.9.9", "1.1.1.1", "8.8.8.8", "9.9.1.1", "8.8.4.4"},
 			ValidationTries:     1,
+			Watchdog: WatchdogConfig{
+				Enabled:         false,
+				Domains:         []string{},
+				IntervalSec:     300,
+				FailureInterval: 60,
+				Cooldown:        900,
+				TimeoutSec:      10,
+				MaxRetries:      3,
+			},
 		},
 		API: ApiConfig{
 			IPInfoToken: "",
