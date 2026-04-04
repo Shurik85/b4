@@ -851,6 +851,71 @@ func TestRoutePeriodicReResolve_SkipsWhenEmpty(t *testing.T) {
 	RoutingPeriodicReResolve(cfg)
 }
 
+func TestRoutePeriodicReResolve_PerSetScheduling(t *testing.T) {
+	routeMu.Lock()
+	oldCache := routeRuleCache
+	oldResolve := routeLastReResolve
+	routeRuleCache = map[string]routeState{
+		"set-short": {setV4: "sv4_short"},
+		"set-long":  {setV4: "sv4_long"},
+	}
+	routeLastReResolve = map[string]time.Time{
+		"set-short": time.Now().Add(-10 * time.Minute),
+		"set-long":  time.Now(),
+	}
+	routeMu.Unlock()
+	defer func() {
+		routeMu.Lock()
+		routeRuleCache = oldCache
+		routeLastReResolve = oldResolve
+		routeMu.Unlock()
+	}()
+
+	cfg := &config.Config{
+		Sets: []*config.SetConfig{
+			{
+				Id:      "set-short",
+				Enabled: true,
+				Routing: config.RoutingConfig{
+					Enabled:          true,
+					EgressInterface:  "wg0",
+					IPTTLSeconds:     600,
+				},
+				Targets: config.TargetsConfig{
+					SNIDomains: []string{"example.com"},
+				},
+			},
+			{
+				Id:      "set-long",
+				Enabled: true,
+				Routing: config.RoutingConfig{
+					Enabled:          true,
+					EgressInterface:  "wg0",
+					IPTTLSeconds:     86400,
+				},
+				Targets: config.TargetsConfig{
+					SNIDomains: []string{"other.com"},
+				},
+			},
+		},
+	}
+
+	RoutingPeriodicReResolve(cfg)
+	time.Sleep(50 * time.Millisecond)
+
+	routeMu.Lock()
+	shortUpdated := !routeLastReResolve["set-short"].Equal(oldResolve["set-short"])
+	longUpdated := !routeLastReResolve["set-long"].Equal(oldResolve["set-long"])
+	routeMu.Unlock()
+
+	if !shortUpdated {
+		t.Error("set-short should have been scheduled for re-resolve (its interval elapsed)")
+	}
+	if longUpdated {
+		t.Error("set-long should NOT have been re-resolved (its interval has not elapsed)")
+	}
+}
+
 func TestDiscoveryQueueAction(t *testing.T) {
 	t.Run("single thread", func(t *testing.T) {
 		action := discoveryQueueAction(200, 1)

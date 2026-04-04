@@ -53,7 +53,7 @@ var (
 	routeRuleCache     = make(map[string]routeState)
 	routeIfaceAuto     = make(map[string]routeState)
 	routeEngine        routeBackend
-	routeLastReResolve time.Time
+	routeLastReResolve = make(map[string]time.Time)
 )
 
 func getRouteBackend(cfg *config.Config) routeBackend {
@@ -258,7 +258,7 @@ func RoutingClearAll() {
 	routeRuleCache = make(map[string]routeState)
 	routeIfaceAuto = make(map[string]routeState)
 	routeEngine = nil
-	routeLastReResolve = time.Time{}
+	routeLastReResolve = make(map[string]time.Time)
 }
 
 func RoutingSyncConfig(cfg *config.Config) {
@@ -391,9 +391,9 @@ func RoutingPeriodicReResolve(cfg *config.Config) {
 		if interval < 5*time.Minute {
 			interval = 5 * time.Minute
 		}
-		if time.Since(routeLastReResolve) < interval {
-			routeMu.Unlock()
-			return
+		last := routeLastReResolve[set.Id]
+		if time.Since(last) < interval {
+			continue
 		}
 		setsToResolve = append(setsToResolve, set)
 	}
@@ -401,11 +401,14 @@ func RoutingPeriodicReResolve(cfg *config.Config) {
 		routeMu.Unlock()
 		return
 	}
-	routeLastReResolve = time.Now()
+	now := time.Now()
+	for _, set := range setsToResolve {
+		routeLastReResolve[set.Id] = now
+	}
 	routeMu.Unlock()
 
 	cfgSnapshot := *cfg
-	routePreResolveDomains(&cfgSnapshot, setsToResolve)
+	go routePreResolveDomains(&cfgSnapshot, setsToResolve)
 }
 
 func routePreResolveDomains(cfg *config.Config, sets []*config.SetConfig) {
