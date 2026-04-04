@@ -19,18 +19,19 @@ func applyBatchResults(cfg *config.Config, domains []string, suite *discovery.Ch
 	results := make(map[string]error)
 
 	var successful []domainWithSet
-	for _, domain := range domains {
-		dr, ok := suite.DomainDiscoveryResults[domain]
+	for _, input := range domains {
+		domainKey := ExtractDomain(input)
+		dr, ok := suite.DomainDiscoveryResults[domainKey]
 		if !ok || !dr.BestSuccess {
-			results[domain] = fmt.Errorf("no working config found")
+			results[input] = fmt.Errorf("no working config found")
 			continue
 		}
 		best, ok := dr.Results[dr.BestPreset]
 		if !ok || best.Set == nil {
-			results[domain] = fmt.Errorf("best preset has no set config")
+			results[input] = fmt.Errorf("best preset has no set config")
 			continue
 		}
-		successful = append(successful, domainWithSet{domain: domain, set: best.Set})
+		successful = append(successful, domainWithSet{domain: input, set: best.Set})
 	}
 
 	if len(successful) == 0 {

@@ -262,7 +262,7 @@ func (w *Watchdog) healBatch(domains []string) {
 			continue
 		}
 
-		dr := cs.DomainDiscoveryResults[domain]
+		dr := cs.DomainDiscoveryResults[ExtractDomain(domain)]
 		if dr != nil && dr.BestSuccess {
 			log.Infof("[WATCHDOG] %s: healed (%s, %.0f KB/s)", domain, dr.BestPreset, dr.BestSpeed/1024)
 		}
