@@ -1,8 +1,8 @@
 # B4 - Bye Bye Big Bro
 
-## [1.4x.x] - 2026-04-xx
+## [1.48.0] - 2026-04-xx
 
-- ADDED: **Watchdog** — background service that monitors configured domains and automatically runs discovery to find a working bypass when DPI starts blocking them. Configure in Settings > Discovery, monitor live status on the new Watchdog page.
+- ADDED: **Watchdog** — background service that monitors configured domains and automatically finds a working bypass when DPI starts blocking them. Add domains or URLs to monitor, and watchdog periodically checks connectivity. After consecutive failures, it runs a quick discovery, applies the first working config, and resumes monitoring. Multiple failed domains are healed together in a single discovery run. Domains with the same working strategy are grouped into one set. Configure intervals, retries, and cooldowns in Settings > Discovery. Live status on the new Watchdog page.
 - ADDED: **IP block detection** — B4 can now detect when a destination IP is blocked entirely (not just by domain name). When detected, B4 immediately resets the connection so your device retries faster on a different server instead of waiting for a timeout.
 - IMPROVED: **Fake strategy settings shown only when relevant** — Sequence Offset now only appears for `Past Sequence` and `Random Sequence` strategies, Timestamp Decrease only for Timestamp strategy. Reduces clutter in the UI.
 - FIXED: **Error when manual IP overlaps with GeoIP** — adding an IP address manually that already exists in a `GeoIP` category within the same set caused a firewall error. Duplicate IPs are now filtered automatically.
