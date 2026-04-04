@@ -20,7 +20,6 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 	if incomingSet != nil && len(raw) > ihl+13 {
 		tcp := raw[ihl:]
 		tcpFlags := tcp[13]
-		isSynAck := (tcpFlags&0x02) != 0 && (tcpFlags&0x10) != 0
 		isRst := (tcpFlags & 0x04) != 0
 
 		var pktTTL uint8
@@ -30,7 +29,7 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 			pktTTL = raw[7]
 		}
 
-		if isSynAck && pktTTL > 0 {
+		if !isRst && pktTTL > 0 {
 			w.connTracker.RecordServerTTL(dstStr, dport, srcStr, sport, pktTTL)
 		}
 
@@ -39,8 +38,8 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 			if tolerance <= 0 {
 				tolerance = 3
 			}
-			if w.connTracker.CheckRSTTTL(dstStr, dport, srcStr, sport, pktTTL, tolerance) {
-				log.Warnf("RST protection: dropped injected RST from %s:%d (TTL=%d)", srcStr, sport, pktTTL)
+			if drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, tolerance); drop {
+				log.Warnf("RST protection: dropped RST from %s:%d — %s", srcStr, sport, reason)
 				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
 					log.Tracef("failed to drop RST packet %d: %v", id, err)
 				}
