@@ -6,6 +6,7 @@
 - ADDED: **IP block detection** — B4 can now detect when a destination IP is blocked entirely (not just by domain name). When detected, B4 immediately resets the connection so your device retries faster on a different server instead of waiting for a timeout.
 - IMPROVED: **Fake strategy settings shown only when relevant** — Sequence Offset now only appears for `Past Sequence` and `Random Sequence` strategies, Timestamp Decrease only for Timestamp strategy. Reduces clutter in the UI.
 - FIXED: **Error when manual IP overlaps with GeoIP** — adding an IP address manually that already exists in a `GeoIP` category within the same set caused a firewall error. Duplicate IPs are now filtered automatically.
+- FIXED: **Traffic routing stops working after ~1 hour** — `GeoIP` addresses and static IPs were added to firewall sets with a `TTL` and silently expired. They are now permanent. DNS-resolved IPs are periodically refreshed before they expire.
 
 ## [1.47.2] - 2026-04-01
 

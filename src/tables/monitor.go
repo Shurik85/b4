@@ -101,6 +101,8 @@ func (m *Monitor) monitorLoop() {
 				RoutingSyncConfig(cfg)
 				m.snapshotRoutingIfaces(cfg)
 				log.Tracef("Routing rules resynced after interface change")
+			} else {
+				RoutingPeriodicReResolve(cfg)
 			}
 		}
 	}

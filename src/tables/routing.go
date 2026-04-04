@@ -49,10 +49,11 @@ type routeBackend interface {
 }
 
 var (
-	routeMu        sync.Mutex
-	routeRuleCache = make(map[string]routeState)
-	routeIfaceAuto = make(map[string]routeState)
-	routeEngine    routeBackend
+	routeMu            sync.Mutex
+	routeRuleCache     = make(map[string]routeState)
+	routeIfaceAuto     = make(map[string]routeState)
+	routeEngine        routeBackend
+	routeLastReResolve = make(map[string]time.Time)
 )
 
 func getRouteBackend(cfg *config.Config) routeBackend {
@@ -257,6 +258,7 @@ func RoutingClearAll() {
 	routeRuleCache = make(map[string]routeState)
 	routeIfaceAuto = make(map[string]routeState)
 	routeEngine = nil
+	routeLastReResolve = make(map[string]time.Time)
 }
 
 func RoutingSyncConfig(cfg *config.Config) {
@@ -340,16 +342,12 @@ func RoutingSyncConfig(cfg *config.Config) {
 			newRoutingSets = append(newRoutingSets, set)
 		}
 
-		ttl := set.Routing.IPTTLSeconds
-		if ttl <= 0 {
-			ttl = 3600
-		}
 		staticV4, staticV6 := routeCollectEntries(set)
 		if cfg.Queue.IPv4Enabled && len(staticV4) > 0 {
-			be.addElements(cur.setV4, staticV4, ttl)
+			be.addElements(cur.setV4, staticV4, 0)
 		}
 		if cfg.Queue.IPv6Enabled && len(staticV6) > 0 {
-			be.addElements(cur.setV6, staticV6, ttl)
+			be.addElements(cur.setV6, staticV6, 0)
 		}
 	}
 
@@ -364,6 +362,56 @@ func RoutingSyncConfig(cfg *config.Config) {
 		cfgSnapshot := *cfg
 		go routePreResolveDomains(&cfgSnapshot, newRoutingSets)
 	}
+}
+
+func RoutingPeriodicReResolve(cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+
+	routeMu.Lock()
+	if len(routeRuleCache) == 0 {
+		routeMu.Unlock()
+		return
+	}
+
+	var setsToResolve []*config.SetConfig
+	for _, set := range cfg.Sets {
+		if set == nil || !set.Enabled || !set.Routing.Enabled || set.Routing.EgressInterface == "" {
+			continue
+		}
+		if _, ok := routeRuleCache[set.Id]; !ok {
+			continue
+		}
+		if len(set.Targets.SNIDomains) == 0 {
+			continue
+		}
+		ttl := set.Routing.IPTTLSeconds
+		if ttl <= 0 {
+			ttl = 3600
+		}
+		interval := time.Duration(ttl) * time.Second / 2
+		if interval < 5*time.Minute {
+			interval = 5 * time.Minute
+		}
+		last := routeLastReResolve[set.Id]
+		if time.Since(last) < interval {
+			continue
+		}
+		setsToResolve = append(setsToResolve, set)
+	}
+	if len(setsToResolve) == 0 {
+		routeMu.Unlock()
+		return
+	}
+	now := time.Now()
+	for _, set := range setsToResolve {
+		routeLastReResolve[set.Id] = now
+	}
+	routeMu.Unlock()
+
+	cfgSnapshot := *cfg
+	go routePreResolveDomains(&cfgSnapshot, setsToResolve)
 }
 
 func routePreResolveDomains(cfg *config.Config, sets []*config.SetConfig) {

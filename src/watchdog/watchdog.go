@@ -96,6 +96,13 @@ func (w *Watchdog) ForceCheck(domain string) {
 
 func (w *Watchdog) run() {
 	defer close(w.stopped)
+
+	select {
+	case <-w.stop:
+		return
+	case <-time.After(30 * time.Second):
+	}
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 

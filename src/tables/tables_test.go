@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/daniellavrushin/b4/config"
 )
@@ -821,6 +822,100 @@ func TestRouteAddIPsToSets(t *testing.T) {
 			t.Errorf("expected 1 deduplicated IP, got %d", len(gotIPs))
 		}
 	})
+}
+
+func TestRouteAddIPsToSets_StaticNoTTL(t *testing.T) {
+	var gotTTL int
+	mock := &mockRouteBackend{
+		addElementsFn: func(setName string, ips []string, ttl int) { gotTTL = ttl },
+	}
+	st := routeState{setV4: "set_v4", setV6: "set_v6"}
+	ips := []net.IP{net.ParseIP("1.2.3.4")}
+	routeAddIPsToSets(mock, st, 0, ips, true, true)
+	if gotTTL != 0 {
+		t.Errorf("expected TTL 0 for static IPs, got %d", gotTTL)
+	}
+}
+
+func TestRoutePeriodicReResolve_SkipsWhenEmpty(t *testing.T) {
+	routeMu.Lock()
+	oldCache := routeRuleCache
+	routeRuleCache = make(map[string]routeState)
+	routeMu.Unlock()
+	defer func() {
+		routeMu.Lock()
+		routeRuleCache = oldCache
+		routeMu.Unlock()
+	}()
+
+	cfg := &config.Config{}
+	RoutingPeriodicReResolve(cfg)
+}
+
+func TestRoutePeriodicReResolve_PerSetScheduling(t *testing.T) {
+	routeMu.Lock()
+	oldCache := routeRuleCache
+	oldResolve := routeLastReResolve
+	routeRuleCache = map[string]routeState{
+		"set-short": {setV4: "sv4_short"},
+		"set-long":  {setV4: "sv4_long"},
+	}
+	shortInitial := time.Now().Add(-10 * time.Minute)
+	longInitial := time.Now().Add(time.Hour)
+	routeLastReResolve = map[string]time.Time{
+		"set-short": shortInitial,
+		"set-long":  longInitial,
+	}
+	routeMu.Unlock()
+	defer func() {
+		routeMu.Lock()
+		routeRuleCache = oldCache
+		routeLastReResolve = oldResolve
+		routeMu.Unlock()
+	}()
+
+	cfg := &config.Config{
+		Sets: []*config.SetConfig{
+			{
+				Id:      "set-short",
+				Enabled: true,
+				Routing: config.RoutingConfig{
+					Enabled:         true,
+					EgressInterface: "wg0",
+					IPTTLSeconds:    600,
+				},
+				Targets: config.TargetsConfig{
+					SNIDomains: []string{"short.invalid"},
+				},
+			},
+			{
+				Id:      "set-long",
+				Enabled: true,
+				Routing: config.RoutingConfig{
+					Enabled:         true,
+					EgressInterface: "wg0",
+					IPTTLSeconds:    86400,
+				},
+				Targets: config.TargetsConfig{
+					SNIDomains: []string{"long.invalid"},
+				},
+			},
+		},
+	}
+
+	RoutingPeriodicReResolve(cfg)
+
+	routeMu.Lock()
+	shortUpdated := !routeLastReResolve["set-short"].Equal(shortInitial)
+	longUpdated := !routeLastReResolve["set-long"].Equal(longInitial)
+	routeMu.Unlock()
+
+	if !shortUpdated {
+		t.Error("set-short should have been scheduled for re-resolve (its interval elapsed)")
+	}
+	if longUpdated {
+		t.Error("set-long should NOT have been re-resolved (its interval has not elapsed)")
+	}
 }
 
 func TestDiscoveryQueueAction(t *testing.T) {

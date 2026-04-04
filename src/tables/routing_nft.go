@@ -51,7 +51,7 @@ func (b *routeNftBackend) ensureIPSet(name string, v6 bool) error {
 	}
 
 	if err := runEnsure("nft", "add", "set", "inet", routeNftTable, name,
-		"{", "type", typ, ";", "flags", "interval,timeout", ";", "timeout", "1h", ";", "auto-merge", ";", "}"); err != nil {
+		"{", "type", typ, ";", "flags", "interval,timeout", ";", "auto-merge", ";", "}"); err != nil {
 		return fmt.Errorf("ensure set %s: %w", name, err)
 	}
 	return nil
@@ -63,7 +63,6 @@ func (b *routeNftBackend) addElements(setName string, ips []string, ttlSec int) 
 	}
 
 	const chunkSize = 128
-	ttl := fmt.Sprintf("%ds", ttlSec)
 
 	for i := 0; i < len(ips); i += chunkSize {
 		end := i + chunkSize
@@ -74,7 +73,11 @@ func (b *routeNftBackend) addElements(setName string, ips []string, ttlSec int) 
 
 		args := []string{"nft", "add", "element", "inet", routeNftTable, setName, "{"}
 		for idx, ip := range chunk {
-			args = append(args, ip, "timeout", ttl)
+			if ttlSec > 0 {
+				args = append(args, ip, "timeout", fmt.Sprintf("%ds", ttlSec))
+			} else {
+				args = append(args, ip)
+			}
 			if idx < len(chunk)-1 {
 				args = append(args, ",")
 			}
@@ -83,9 +86,15 @@ func (b *routeNftBackend) addElements(setName string, ips []string, ttlSec int) 
 		if out, err := run(args...); err != nil {
 			log.Tracef("routing: batch add to %s failed (%v: %s), falling back to individual adds", setName, err, strings.TrimSpace(out))
 			for _, ip := range chunk {
-				runLogged("routing: add element "+ip,
-					"nft", "add", "element", "inet", routeNftTable, setName,
-					"{", ip, "timeout", ttl, "}")
+				if ttlSec > 0 {
+					runLogged("routing: add element "+ip,
+						"nft", "add", "element", "inet", routeNftTable, setName,
+						"{", ip, "timeout", fmt.Sprintf("%ds", ttlSec), "}")
+				} else {
+					runLogged("routing: add element "+ip,
+						"nft", "add", "element", "inet", routeNftTable, setName,
+						"{", ip, "}")
+				}
 			}
 		}
 	}
