@@ -16,10 +16,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func checkDomain(domain string, mark uint, timeout time.Duration) CheckResult {
-	checkURL := "https://" + domain
-	if !strings.Contains(domain, "/") {
-		checkURL = "https://" + domain + "/"
+func checkDomain(input string, mark uint, timeout time.Duration) CheckResult {
+	checkURL := input
+	if !strings.HasPrefix(input, "http://") && !strings.HasPrefix(input, "https://") {
+		checkURL = "https://" + input + "/"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

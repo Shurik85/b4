@@ -87,7 +87,7 @@ func configsMatch(a, b *config.SetConfig) bool {
 func applyGroup(cfg *config.Config, group []domainWithSet) {
 	groupDomains := make([]string, len(group))
 	for i, ds := range group {
-		groupDomains[i] = ds.domain
+		groupDomains[i] = ExtractDomain(ds.domain)
 	}
 	refSet := group[0].set
 

@@ -60,11 +60,13 @@ func (w *Watchdog) GetState() WatchdogState {
 		}
 		st.MatchedSet = ""
 		st.MatchedSetId = ""
+		domain := ExtractDomain(d)
+		st.DisplayDomain = domain
 		for _, set := range cfg.Sets {
 			if !set.Enabled {
 				continue
 			}
-			if setContainsAnyDomain(set, []string{d}) {
+			if setContainsAnyDomain(set, []string{domain}) {
 				st.MatchedSet = set.Name
 				st.MatchedSetId = set.Id
 				break

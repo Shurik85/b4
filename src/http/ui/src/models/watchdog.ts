@@ -11,6 +11,7 @@ export interface WatchdogDomainStatus {
   last_speed?: number;
   matched_set?: string;
   matched_set_id?: string;
+  display_domain?: string;
 }
 
 export interface WatchdogState {

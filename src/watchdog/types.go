@@ -1,6 +1,8 @@
 package watchdog
 
 import (
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -17,6 +19,7 @@ type DomainStatus struct {
 	LastSpeed           float64   `json:"last_speed,omitempty"`
 	MatchedSet          string    `json:"matched_set,omitempty"`
 	MatchedSetId        string    `json:"matched_set_id,omitempty"`
+	DisplayDomain       string    `json:"display_domain,omitempty"`
 }
 
 type CheckResult struct {
@@ -29,6 +32,16 @@ type CheckResult struct {
 type WatchdogState struct {
 	Enabled bool            `json:"enabled"`
 	Domains []*DomainStatus `json:"domains"`
+}
+
+func ExtractDomain(input string) string {
+	input = strings.TrimSpace(input)
+	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
+		if u, err := url.Parse(input); err == nil && u.Host != "" {
+			return u.Hostname()
+		}
+	}
+	return input
 }
 
 const (

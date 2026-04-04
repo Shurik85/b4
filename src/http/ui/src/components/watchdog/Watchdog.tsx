@@ -92,12 +92,14 @@ function DomainRow({
       }}
     >
       <TableCell>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <StatusIcon status={domain.status} />
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            {domain.domain}
-          </Typography>
-        </Stack>
+        <Tooltip title={domain.domain === domain.display_domain ? "" : domain.domain}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <StatusIcon status={domain.status} />
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {domain.display_domain || domain.domain}
+            </Typography>
+          </Stack>
+        </Tooltip>
       </TableCell>
       <TableCell>
         {domain.matched_set ? (
