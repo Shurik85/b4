@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -240,6 +241,44 @@ func TestHandleDiagnostics(t *testing.T) {
 			t.Errorf("expected 405, got %d", rec.Code)
 		}
 	})
+}
+
+func TestHandleUpdate_ConfigBackup(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := tmpDir + "/b4.json"
+	os.WriteFile(configPath, []byte(`{"version":1}`), 0644)
+
+	oldVersion := Version
+	Version = "1.2.3"
+	defer func() { Version = oldVersion }()
+
+	cfg := config.NewConfig()
+	cfg.ConfigPath = configPath
+	api := &API{
+		cfgPtr:                 testCfgPtr(&cfg),
+		overrideServiceManager: func() string { return "systemd" },
+	}
+	mux := http.NewServeMux()
+	api.mux = mux
+	api.RegisterSystemApi()
+
+	body := strings.NewReader(`{"version":"v1.3.0"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/system/update", body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	bakPath := configPath + ".bak.v1.2.3"
+	data, err := os.ReadFile(bakPath)
+	if err != nil {
+		t.Fatalf("backup file not created: %v", err)
+	}
+	if string(data) != `{"version":1}` {
+		t.Errorf("backup content mismatch: %s", string(data))
+	}
 }
 
 func TestCollectSystemInfo(t *testing.T) {

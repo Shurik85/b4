@@ -252,6 +252,18 @@ func (api *API) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	configPath := api.getCfg().ConfigPath
+	if configPath != "" {
+		bakPath := configPath + ".bak.v" + Version
+		if src, err := os.ReadFile(configPath); err == nil {
+			if err := os.WriteFile(bakPath, src, 0644); err != nil {
+				log.Warnf("Failed to create config backup at %s: %v", bakPath, err)
+			} else {
+				log.Infof("Config backed up to %s", bakPath)
+			}
+		}
+	}
+
 	response := UpdateResponse{
 		Success:        true,
 		Message:        "Update initiated. The service will restart automatically.",

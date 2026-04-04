@@ -1,7 +1,9 @@
 # B4 - Bye Bye Big Bro
 
-## [1.48.0] - 2026-04-xx
+## [1.48.0] - 2026-05-04
 
+- ADDED: **Config backup before update** — B4 now automatically saves a copy of your config file before updating (e.g. `b4.json.bak.v1.47.2`), so you can restore it if needed.
+- ADDED: **Backup reminder in update dialog** — a warning in the update dialog reminds you to download a full backup from Settings → Backup before updating.
 - ADDED: **Watchdog** — background service that monitors configured domains and automatically finds a working bypass when DPI starts blocking them. Add domains or URLs to monitor, and watchdog periodically checks connectivity. After consecutive failures, it runs a quick discovery, applies the first working config, and resumes monitoring. Multiple failed domains are healed together in a single discovery run. Domains with the same working strategy are grouped into one set. Configure intervals, retries, and cooldowns in Settings > Discovery. Live status on the new Watchdog page.
 - ADDED: **IP block detection** — B4 can now detect when a destination IP is blocked entirely (not just by domain name). When detected, B4 immediately resets the connection so your device retries faster on a different server instead of waiting for a timeout.
 - ADDED: **RST injection protection** — B4 can now detect and drop fake TCP RST packets injected by DPI systems to kill your connections. Enable per set in TCP settings. Uses three independent checks: TTL fingerprint mismatch, RST arriving before any server response, and multiple RSTs on the same connection.

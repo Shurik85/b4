@@ -23,6 +23,7 @@ import {
   CloseIcon,
   CloudDownloadIcon,
   InfoIcon,
+  WarningIcon,
 } from "@b4.icons";
 import { B4Alert } from "@b4.elements";
 import ReactMarkdown from "react-markdown";
@@ -327,6 +328,14 @@ export const UpdateModal = ({
           >
             docker pull lavrushin/b4:latest
           </Box>
+        </B4Alert>
+      )}
+
+      {updateStatus === "idle" && !isDocker && !isCurrent && (
+        <B4Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 2 }}>
+          <Typography variant="body2">
+            {t("update.backupWarning")}
+          </Typography>
         </B4Alert>
       )}
 
