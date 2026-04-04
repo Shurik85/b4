@@ -618,7 +618,13 @@
         "ibdTimeout": "Detection Timeout",
         "ibdTimeoutHelper": "Alternative trigger: time since first attempt with no response",
         "ibdCache": "Cache Blocked IPs",
-        "ibdCacheDesc": "Remember blocked IPs so future connections get instant reset without waiting"
+        "ibdCacheDesc": "Remember blocked IPs so future connections get instant reset without waiting",
+        "rstProtection": "RST Injection Protection",
+        "rstAlert": "DPI systems can inject fake TCP RST packets to kill your connections. This feature records the TTL (hop count) from the real server's first response and drops any RST packet whose TTL doesn't match — a strong indicator that it was injected from a different network position.",
+        "rstEnable": "Enable RST Protection",
+        "rstEnableDesc": "Drop RST packets with mismatched TTL to prevent DPI-injected connection resets",
+        "rstTtlTolerance": "TTL Tolerance",
+        "rstTtlToleranceHelper": "Maximum allowed difference between the server's reference TTL and an incoming RST packet's TTL"
       },
       "splitting": {
         "header": "Splitting Strategy",

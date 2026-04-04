@@ -49,6 +49,15 @@ var migrationRegistry = map[int]MigrationFunc{
 	29: migrateV29to30, // Add MTProto proxy config
 	30: migrateV30to31, // Add TCP IP block detection config
 	31: migrateV31to32, // Add watchdog config
+	32: migrateV32to33, // Add TCP RST protection config
+}
+
+func migrateV32to33(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v32->v33: Adding TCP RST protection config")
+	for _, set := range c.Sets {
+		set.TCP.RSTProtection = DefaultSetConfig.TCP.RSTProtection
+	}
+	return nil
 }
 
 func migrateV31to32(c *Config, _ map[string]interface{}) error {

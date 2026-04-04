@@ -78,6 +78,11 @@ var DefaultSetConfig = SetConfig{
 			TimeoutMs:           3000,
 			CacheBlockedIPs:     true,
 		},
+
+		RSTProtection: RSTProtectionConfig{
+			Enabled:      false,
+			TTLTolerance: 3,
+		},
 	},
 
 	DNS: DNSConfig{

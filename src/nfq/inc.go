@@ -17,6 +17,37 @@ var corruptionStrategies = []string{"badsum", "badseq", "badack", "all"}
 func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byte, ihl int, src net.IP, dstStr string, dport uint16, srcStr string, sport uint16, payload []byte) int {
 	incomingSet := w.connTracker.GetSetForIncoming(dstStr, dport, srcStr, sport)
 
+	if incomingSet != nil && len(raw) > ihl+13 {
+		tcp := raw[ihl:]
+		tcpFlags := tcp[13]
+		isRst := (tcpFlags & 0x04) != 0
+
+		var pktTTL uint8
+		if v == IPv4 && len(raw) > 8 {
+			pktTTL = raw[8]
+		} else if v == IPv6 && len(raw) > 7 {
+			pktTTL = raw[7]
+		}
+
+		if !isRst && pktTTL > 0 {
+			w.connTracker.RecordServerTTL(dstStr, dport, srcStr, sport, pktTTL)
+		}
+
+		if isRst && incomingSet.TCP.RSTProtection.Enabled {
+			tolerance := incomingSet.TCP.RSTProtection.TTLTolerance
+			if tolerance <= 0 {
+				tolerance = 3
+			}
+			if drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, tolerance); drop {
+				log.Warnf("RST protection: dropped RST from %s:%d — %s", srcStr, sport, reason)
+				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+					log.Tracef("failed to drop RST packet %d: %v", id, err)
+				}
+				return 0
+			}
+		}
+	}
+
 	if incomingSet != nil && incomingSet.TCP.Incoming.Mode != config.ConfigOff {
 		payloadLen := len(payload)
 

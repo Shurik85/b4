@@ -381,9 +381,15 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 						"--tcp-flags", "SYN,ACK", "SYN,ACK"},
 					manager.buildNFQSpec(queueNum, threads)...,
 				)
+				rstSpec := append(
+					[]string{"-p", "tcp", "-m", "multiport", "--sports", portList,
+						"--tcp-flags", "RST", "RST"},
+					manager.buildNFQSpec(queueNum, threads)...,
+				)
 				rules = append(rules,
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: tcpResponseSpec},
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: synackSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: rstSpec},
 				)
 			}
 		} else {
@@ -398,9 +404,14 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 					[]string{"-p", "tcp", "--sport", port, "--tcp-flags", "SYN,ACK", "SYN,ACK"},
 					manager.buildNFQSpec(queueNum, threads)...,
 				)
+				rstSpec := append(
+					[]string{"-p", "tcp", "--sport", port, "--tcp-flags", "RST", "RST"},
+					manager.buildNFQSpec(queueNum, threads)...,
+				)
 				rules = append(rules,
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: tcpResponseSpec},
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: synackSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: rstSpec},
 				)
 			}
 		}

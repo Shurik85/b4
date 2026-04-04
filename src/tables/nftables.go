@@ -302,6 +302,10 @@ func (n *NFTablesManager) Apply() error {
 		return err
 	}
 
+	if err := n.addQueueRule("prerouting", "tcp", "sport", tcpPortExpr, "tcp", "flags", "&", "rst", "==", "rst", "counter"); err != nil {
+		return err
+	}
+
 	udpPorts := cfg.CollectUDPPorts()
 	var udpPortExpr string
 	if len(udpPorts) == 1 {

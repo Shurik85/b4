@@ -10,10 +10,14 @@ import (
 )
 
 type connInfo struct {
-	bytesIn   uint64
-	threshold uint64
-	set       *config.SetConfig
-	lastSeen  time.Time
+	bytesIn      uint64
+	threshold    uint64
+	set          *config.SetConfig
+	lastSeen     time.Time
+	serverTTL    uint8
+	ttlRecorded  bool
+	responseSeen bool
+	rstCount     int
 }
 
 type tlsInfo struct {
@@ -235,10 +239,62 @@ func (t *connStateTracker) RegisterOutgoing(connKey string, set *config.SetConfi
 		}
 	}
 
-	t.conns[connKey] = &connInfo{
-		set:      set,
-		lastSeen: time.Now(),
+	if existing, ok := t.conns[connKey]; ok {
+		existing.set = set
+		existing.lastSeen = time.Now()
+	} else {
+		t.conns[connKey] = &connInfo{
+			set:      set,
+			lastSeen: time.Now(),
+		}
 	}
+}
+
+func (t *connStateTracker) RecordServerTTL(clientIP string, clientPort uint16, serverIP string, serverPort uint16, ttl uint8) {
+	outKey := fmt.Sprintf("%s:%d->%s:%d", clientIP, clientPort, serverIP, serverPort)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	info, exists := t.conns[outKey]
+	if !exists {
+		return
+	}
+	info.responseSeen = true
+	if !info.ttlRecorded {
+		info.serverTTL = ttl
+		info.ttlRecorded = true
+	}
+}
+
+func (t *connStateTracker) CheckRST(clientIP string, clientPort uint16, serverIP string, serverPort uint16, rstTTL uint8, tolerance int) (drop bool, reason string) {
+	outKey := fmt.Sprintf("%s:%d->%s:%d", clientIP, clientPort, serverIP, serverPort)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	info, exists := t.conns[outKey]
+	if !exists {
+		return false, ""
+	}
+
+	info.rstCount++
+
+	if info.rstCount > 1 {
+		return true, fmt.Sprintf("multiple RSTs (count=%d)", info.rstCount)
+	}
+
+	if !info.responseSeen {
+		return true, "RST before any server response"
+	}
+
+	if info.ttlRecorded {
+		delta := int(rstTTL) - int(info.serverTTL)
+		if delta < 0 {
+			delta = -delta
+		}
+		if delta > tolerance {
+			return true, fmt.Sprintf("TTL mismatch (RST=%d, server=%d, delta=%d)", rstTTL, info.serverTTL, delta)
+		}
+	}
+
+	return false, ""
 }
 
 func (t *connStateTracker) GetSetForIncoming(clientIP string, clientPort uint16, serverIP string, serverPort uint16) *config.SetConfig {

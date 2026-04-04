@@ -450,7 +450,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 			}
 		}
 
-		if set.TCP.Incoming.Mode != config.ConfigOff {
+		if set.TCP.Incoming.Mode != config.ConfigOff || set.TCP.RSTProtection.Enabled {
 			connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 			w.connTracker.RegisterOutgoing(connKey, set)
 		}

@@ -27,6 +27,11 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
     timeout_ms: 3000,
     cache_blocked_ips: true,
   };
+  const rstProt = {
+    enabled: false,
+    ttl_tolerance: 3,
+    ...config.tcp.rst_protection,
+  };
 
   return (
     <>
@@ -233,6 +238,50 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
               />
             </Grid>
           </>
+        )}
+      </Grid>
+
+      {/* RST Protection */}
+      <B4FormHeader label={t("sets.tcp.general.rstProtection")} />
+      <Grid container spacing={3}>
+        <B4Alert>{t("sets.tcp.general.rstAlert")}</B4Alert>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={rstProt.enabled}
+                onChange={(e) =>
+                  onChange("tcp.rst_protection.enabled", e.target.checked)
+                }
+                color="primary"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body1" fontWeight={500}>
+                  {t("sets.tcp.general.rstEnable")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t("sets.tcp.general.rstEnableDesc")}
+                </Typography>
+              </Box>
+            }
+          />
+        </Grid>
+        {rstProt.enabled && (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <B4Slider
+              label={t("sets.tcp.general.rstTtlTolerance")}
+              value={rstProt.ttl_tolerance}
+              onChange={(value: number) =>
+                onChange("tcp.rst_protection.ttl_tolerance", value)
+              }
+              min={1}
+              max={20}
+              step={1}
+              helperText={t("sets.tcp.general.rstTtlToleranceHelper")}
+            />
+          </Grid>
         )}
       </Grid>
     </>

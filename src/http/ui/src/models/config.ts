@@ -196,6 +196,7 @@ export interface TcpConfig {
   incoming: IncomingConfig;
   duplicate?: DuplicateConfig;
   ip_block_detect?: IPBlockDetectConfig;
+  rst_protection?: RSTProtectionConfig;
 }
 
 export interface IncomingConfig {
@@ -350,6 +351,11 @@ export interface IPBlockDetectConfig {
   retransmit_threshold: number;
   timeout_ms: number;
   cache_blocked_ips: boolean;
+}
+
+export interface RSTProtectionConfig {
+  enabled: boolean;
+  ttl_tolerance: number;
 }
 
 export interface MSSClampConfig {
