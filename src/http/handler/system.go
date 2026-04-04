@@ -255,11 +255,15 @@ func (api *API) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	configPath := api.getCfg().ConfigPath
 	if configPath != "" {
 		bakPath := configPath + ".bak.v" + Version
-		if src, err := os.ReadFile(configPath); err == nil {
-			if err := os.WriteFile(bakPath, src, 0644); err != nil {
-				log.Warnf("Failed to create config backup at %s: %v", bakPath, err)
+		if fi, err := os.Stat(configPath); err == nil {
+			if src, err := os.ReadFile(configPath); err == nil {
+				if err := os.WriteFile(bakPath, src, fi.Mode().Perm()); err != nil {
+					log.Warnf("Failed to create config backup at %s: %v", bakPath, err)
+				} else {
+					log.Infof("Config backed up to %s", bakPath)
+				}
 			} else {
-				log.Infof("Config backed up to %s", bakPath)
+				log.Warnf("Failed to read config for backup: %v", err)
 			}
 		}
 	}

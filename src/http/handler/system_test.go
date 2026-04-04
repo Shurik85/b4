@@ -246,7 +246,9 @@ func TestHandleDiagnostics(t *testing.T) {
 func TestHandleUpdate_ConfigBackup(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := tmpDir + "/b4.json"
-	os.WriteFile(configPath, []byte(`{"version":1}`), 0644)
+	if err := os.WriteFile(configPath, []byte(`{"version":1}`), 0644); err != nil {
+		t.Fatalf("failed to create temp config file: %v", err)
+	}
 
 	oldVersion := Version
 	Version = "1.2.3"
