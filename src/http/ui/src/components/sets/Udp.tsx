@@ -29,6 +29,11 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
       description: t("sets.udp.modeDropDesc"),
     },
     {
+      value: "reject",
+      label: t("sets.udp.modeReject"),
+      description: t("sets.udp.modeRejectDesc"),
+    },
+    {
       value: "fake",
       label: t("sets.udp.modeFake"),
       description: t("sets.udp.modeFakeDesc"),
@@ -173,11 +178,14 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
 
             {/* Info about current mode */}
             <B4Alert>
-              {isFakeMode ? (
-                <Trans i18nKey="sets.udp.fakeModeInfo" />
-              ) : (
-                <Trans i18nKey="sets.udp.dropModeInfo" />
-              )}
+              {(() => {
+                const infoKeys: Record<string, string> = {
+                  fake: "sets.udp.fakeModeInfo",
+                  reject: "sets.udp.rejectModeInfo",
+                  drop: "sets.udp.dropModeInfo",
+                };
+                return <Trans i18nKey={infoKeys[config.udp.mode] || infoKeys.drop} />;
+              })()}
             </B4Alert>
           </>
         )}

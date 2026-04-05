@@ -626,6 +626,20 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 		return 0
 
+	case "reject":
+		if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+			log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+			return 0
+		}
+		if pkt.ver == IPv4 {
+			icmp := sock.BuildICMPv4Reject(pkt.raw, pkt.src.To4(), pkt.dst.To4())
+			_ = w.sock.SendIPv4(icmp, pkt.src)
+		} else {
+			icmp := sock.BuildICMPv6Reject(pkt.raw, pkt.src.To16(), pkt.dst.To16())
+			_ = w.sock.SendIPv6(icmp, pkt.src)
+		}
+		return 0
+
 	case "fake":
 		packetCopy := make([]byte, len(pkt.raw))
 		copy(packetCopy, pkt.raw)

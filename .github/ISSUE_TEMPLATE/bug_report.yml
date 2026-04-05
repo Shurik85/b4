@@ -1,0 +1,106 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in b4
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please fill in the details below so we can reproduce and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly. What did you expect vs what actually happened?
+      placeholder: |
+        Example: b4 service starts but traffic is not being processed. Expected all matching traffic to go through NFQUEUE.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we trigger this bug?
+      placeholder: |
+        1. Install b4 on OpenWrt 23.05
+        2. Configure with default settings
+        3. Start the service
+        4. Try to access a blocked website
+    validations:
+      required: false
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Where is b4 running?
+      options:
+        - Desktop Linux (Ubuntu, Debian, Fedora, etc.)
+        - OpenWrt
+        - Keenetic
+        - Asus Merlin
+        - Mikrotik
+        - Docker
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Installation method
+      options:
+        - install.sh (recommended script)
+        - Manual binary download
+        - Docker
+        - Built from source
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: sysinfo
+    attributes:
+      label: System diagnostics (--sysinfo output)
+      description: |
+        Run the following command and paste the full output here:
+        ```
+        curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --sysinfo
+        ```
+        If curl is not available, try:
+        ```
+        wget -qO- https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --sysinfo
+        ```
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: b4 configuration (b4.json)
+      description: |
+        Paste your b4.json config. Remove any sensitive data if needed.
+        Usually located at `/etc/b4/b4.json` or `/opt/etc/b4/b4.json`.
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Paste the output of `cat /var/log/b4/errors.log`
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that might help — screenshots, network topology, ISP, etc.
+    validations:
+      required: false
